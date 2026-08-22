@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/claygorman/bazzite-native-store/compare/0.3.0...0.3.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* Windows had the same v1/v2 trap, and the two Macs were overwriting each other ([27326e8](https://github.com/claygorman/bazzite-native-store/commit/27326e8dd794c5603fa086fed907b9a536ea2e73))
+
 # [0.3.0](https://github.com/claygorman/bazzite-native-store/compare/0.2.0...0.3.0) (2026-08-22)
 
 
