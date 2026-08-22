@@ -1,0 +1,34 @@
+# Build context for the DEMO image only (see docs/DEMO-HOSTING.md). The product is a
+# Tauri binary; none of the desktop toolchain belongs in a web container.
+#
+# ⚠️ `private/` is the important line. It is gitignored, so CI never sees it — but a
+# LOCAL `docker build` copies the working tree, and that directory holds the Steam
+# endpoint catalogs, the lab notes and a saved reference page containing other
+# people's Steam profiles. Multi-stage means it would not reach the final image, but
+# it would sit in a build layer, and that is close enough to be worth refusing.
+private/
+CLAUDE.md
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.idea
+
+# Reinstalled inside the image; copying the host's tree is slow and can be the wrong
+# platform's binaries.
+node_modules
+dist
+.vite
+
+# Desktop-only. src-tauri/target is measured in gigabytes.
+src-tauri
+
+# Reference material the build does not read — `design/` is cited in comments only.
+design
+docs
+scripts
+
+*.log
+.DS_Store

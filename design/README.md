@@ -1,6 +1,6 @@
 # Design source — do not edit, do not format
 
-Exported from the design project **"Bazzite Native Store Redesign"**.
+Exported from Claude Design, project **"Bazzite Native Store Redesign"**.
 
 | File | What it is |
 |---|---|
@@ -11,7 +11,7 @@ Exported from the design project **"Bazzite Native Store Redesign"**.
 | `Store Card - Tailwind port.md` | **The porting spec** — tokens, class-mapping table, off-scale values, eight load-bearing layout rules, prop table, reference JSX. Read before porting or extending a card. |
 | `CLAUDE.md` | The design project's own conventions (Tailwind in `.dc.html`, one configurable component). Mirrored byte-for-byte; it is scoped to this directory. |
 | `github.md` | The design project's record of what it last synced from this repo, and its open gaps. |
-| `support.js` | Generated runtime the documents import. |
+| `support.js` | Generated Claude Design runtime the documents import. |
 
 **Import of 2026-08-21 (componentization).** The five card files above arrived together and
 **no screen changed** — `Native Store Client.dc.html` and `support.js` both diffed byte-identical

@@ -1,0 +1,90 @@
+# Publishes the DEMO container image.
+#
+# This is not the product. `release.yml` builds the AppImage that people install; this
+# builds the web demo described in docs/DEMO-HOSTING.md, so the app can be looked at
+# without installing anything. Deliberately separate workflows: cutting a release is a
+# decision, whereas the demo should simply track `main`.
+name: Demo image
+
+on:
+  push:
+    branches: [main]
+    # Only the paths the image is actually built from. A docs-only commit should not
+    # spend four minutes rebuilding and then redeploy for nothing.
+    paths:
+      - 'src/**'
+      - 'server/**'
+      - 'vite-plugins/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/demo-image.yml'
+  workflow_dispatch:
+
+concurrency:
+  # Superseded builds are wasted minutes AND a pointless extra deploy — whatever is
+  # watching this image rolls on every new digest.
+  group: demo-image
+  cancel-in-progress: true
+
+env:
+  # ⚠️ NOT `${{ github.repository }}` — the repo is `bazzite-native-store`, the image
+  # is `bazzite-store`. The deployment that consumes this derives the image name from
+  # its own directory name, so the two must agree.
+  #
+  # Renaming this is the footgun: nothing fails, the deployment simply never sees a new
+  # image and silently stops updating. If you rename it, rename it on both sides.
+  IMAGE: ghcr.io/claygorman/bazzite-store
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          # `latest` is the tag the deployment pins to, but what actually rolls is the
+          # resolved DIGEST — so the mutable tag is intentional, not sloppy.
+          # `sha-<short>` exists so a bad deploy can be rolled back to a specific build.
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          # Single arch on purpose: the only consumer is amd64. Adding arm64 would
+          # roughly double build time for an image nothing pulls.
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "### Demo image published" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "The demo deployment picks up the new digest automatically." >> "$GITHUB_STEP_SUMMARY"
