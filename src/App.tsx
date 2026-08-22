@@ -530,7 +530,32 @@ export const App = () => {
       }
       if (!settings.autoUpdate) return
       const result = await checkForUpdate(settings.updateChannel)
-      if (!cancelled) setUpdate(result)
+      if (cancelled) return
+      setUpdate(result)
+
+      /*
+       * Automatic means DOWNLOADED, not merely noticed — otherwise the row's own
+       * description ("check on launch and download in the background") is a lie, and
+       * the user still has to make a trip to Settings to get the thing they already
+       * said they wanted automatically.
+       *
+       * ⚠️ Skipped on a metered connection. This is a ~16 MB transfer with no user
+       * waiting on it, which is exactly what that setting exists to stop — the same
+       * reasoning as trailer and artwork prefetch.
+       */
+      if (result.status !== 'available' || settings.meteredConnection) return
+
+      const installed = await installUpdate(settings.updateChannel, (progress) => {
+        if (!cancelled) setUpdate(progress)
+      })
+      if (!cancelled) setUpdate(installed)
+      /*
+       * ⚠️ It stops at `ready` and never relaunches itself here, even with
+       * `notifyBeforeRestart` off. That setting means "do not make me confirm the
+       * restart I just asked for" — it is about the MANUAL path, where someone pressed
+       * Install and is watching. Restarting the app from under someone seconds after
+       * they launched it is a different act entirely, and not one they consented to.
+       */
     })()
     return () => {
       cancelled = true

@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 #
-# Install Bazzite Store, and optionally add it to Steam.
+# Install OR update Bazzite Store, and optionally add it to Steam.
 #
 #   curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh | bash
+#
+# Installing and updating are the same operation — it replaces the binary in place.
+# That makes this the CLI update path too, which matters over SSH and in `ujust`
+# recipes, where the in-app updater cannot be reached because there is no UI.
+#
+#   --check    print installed vs latest and exit; 0 = current, 10 = update available
+#   --yes      no prompts (same as ADD_TO_STEAM=1 for the Steam step)
 #
 # ⚠️ No sudo, anywhere. Bazzite is an immutable ostree image — there is nothing to
 # install into system paths, and a script that asked for root on a gaming handheld
@@ -16,12 +23,32 @@ REPO="claygorman/bazzite-native-store"
 APP_NAME="bazzite-store"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 APP_PATH="$BIN_DIR/$APP_NAME.AppImage"
+# ⚠️ A marker file, because the installed version is otherwise unknowable: the archive
+# carries the version in its FILENAME and we deliberately rename to a stable path so
+# the Steam shortcut never breaks. Without this, `--check` would have to download the
+# release to find out whether it needed to.
+VERSION_FILE="$BIN_DIR/.$APP_NAME.version"
+
+MODE="install"
+for arg in "$@"; do
+  case "$arg" in
+    --check) MODE="check" ;;
+    --yes|-y) ADD_TO_STEAM="${ADD_TO_STEAM:-1}" ;;
+    --help|-h) MODE="help" ;;
+    *) printf 'unknown option: %s\n' "$arg" >&2; exit 2 ;;
+  esac
+done
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 info() { printf '  %s\n' "$1"; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$1" >&2; exit 1; }
 
-bold "Bazzite Store"
+if [ "$MODE" = "help" ]; then
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+[ "$MODE" = "check" ] || bold "Bazzite Store"
 
 # ── Preconditions ────────────────────────────────────────────────────────────
 case "$(uname -s)" in
@@ -53,7 +80,22 @@ ASSET_URL=$(
     https://github.com/$REPO/releases"
 
 VERSION=$(basename "$(dirname "$ASSET_URL")")
-info "Found $VERSION"
+INSTALLED=$(cat "$VERSION_FILE" 2>/dev/null || echo "none")
+
+# ── --check: report and exit, for cron and `ujust` ───────────────────────────
+if [ "$MODE" = "check" ]; then
+  printf 'installed: %s\nlatest:    %s\n' "$INSTALLED" "$VERSION"
+  if [ "$INSTALLED" = "$VERSION" ]; then
+    echo "up to date"; exit 0
+  fi
+  echo "update available"; exit 10
+fi
+
+if [ "$INSTALLED" = "$VERSION" ]; then
+  info "Already on $VERSION — reinstalling anyway."
+else
+  info "Found $VERSION (installed: $INSTALLED)"
+fi
 
 # ── Download and unpack ──────────────────────────────────────────────────────
 TMP=$(mktemp -d)
@@ -73,7 +115,8 @@ head -c 4 "$EXTRACTED" | grep -q $'\x7fELF' || die "That file is not a Linux bin
 
 mkdir -p "$BIN_DIR"
 install -m 755 "$EXTRACTED" "$APP_PATH"
-info "Installed to $APP_PATH"
+printf '%s\n' "$VERSION" > "$VERSION_FILE"
+info "Installed $VERSION to $APP_PATH"
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
