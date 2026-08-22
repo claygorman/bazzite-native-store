@@ -8,6 +8,15 @@ import { useSetting } from '../hooks/useSettings'
 import { CARD_SIZES, SHELF_SURFACE, StoreCard, type CardAttention } from './StoreCard'
 import { ControllerGlyph } from './ControllerGlyph'
 
+/**
+ * ⚠️ `shelfWide` (440x204), not `shelf` (336x156) — design turn 12.
+ *
+ * The step up is not decoration: this is the tile that plays a microtrailer once focus
+ * settles, so it is the one surface on the home page where the art does more than label
+ * the game. 204 is a deliberate crop, not Steam's header ratio.
+ */
+const SHELF_SHAPE = CARD_SIZES.shelfWide
+
 type Props = {
   item: StoreItem
   focused: boolean
@@ -85,7 +94,7 @@ export const Tile = ({
 
   return (
     <StoreCard
-      {...CARD_SIZES.shelf}
+      {...SHELF_SHAPE}
       surface={SHELF_SURFACE}
       title={item.name}
       art={artFailed ? undefined : art}

@@ -55,6 +55,13 @@ html {
    * They differ by design, so neither may be substituted for the other.
    */
   --color-plate: #16202c;
+  /*
+   * The focused shelf tile's plate. Turn 12 lifts the plate itself rather than tinting
+   * it with `focus-wash`: the tile already carries a blue bloom around its edge, and a
+   * blue wash on top of a blue halo made the whole card read as one soft blue smear at
+   * distance. This is the same plate, one step brighter.
+   */
+  --color-plate-focus: #1b2a3c;
   --color-inset: rgb(8 13 22 / 0.45); /* note box inside a plate */
   --color-scrim: rgb(8 13 22 / 0.82); /* badge sitting over artwork */
   --color-ink-soft: rgb(232 238 241 / 0.9); /* resting title */
@@ -108,16 +115,55 @@ html {
   --color-bad-wash: rgb(208 104 95 / 0.18);
 
   /*
-   * ⚠️ `shadow-focused` carries a 48px (3rem) glow and does NOT fit the shelf: the
-   * track clips horizontally in order to scroll, and its escape hatch is 2rem. A
-   * shadow reaching further comes back as a hard rectangular seam — a bug now fixed
-   * three separate times. Use `shadow-focused` only where nothing clips; the shelf
-   * gets `shadow-focused-tile`, sized to reach ~1.9rem inside that 2rem.
+   * ⚠️ A shelf clips horizontally in order to scroll, so anything painted on a tile has
+   * to fit its escape hatch or it comes back as a hard rectangular seam — a bug now
+   * fixed four separate times. That hatch is `overflow-clip-margin: 3.5rem` in
+   * `Shelf.tsx`, and vertically the shelf no longer clips at all. Grow a tile shadow
+   * past 3.5rem laterally and you are re-opening the same bug.
    */
   --shadow-plate: 0 0.75rem 1.875rem rgb(0 0 0 / 0.45);
   --shadow-focused: 0 1.5rem 3.375rem rgb(0 0 0 / 0.7), 0 0 3rem rgb(77 155 230 / 0.5);
   --shadow-focused-bare: 0 0 3rem rgb(77 155 230 / 0.45);
   --shadow-focused-tile: 0 0.75rem 1.6875rem rgb(0 0 0 / 0.7);
+  /*
+   * Turn 12's focused plate. THREE tokens because the bloom breathes a blur radius as
+   * well as an alpha, and no amount of opacity animation can widen a blur — so the two
+   * ends of the breath are two static shadows crossfaded against each other, and the
+   * black drop shadow is held apart from both.
+   *
+   * ⚠️ The drop shadow must NOT ride in the crossfading pair. Two ease-in-out opacities
+   * moving in opposite directions do not sum to 1 in the middle, so an identical black
+   * shadow in both layers visibly dips in the centre of every breath.
+   *
+   * The edge is a lighter tint of the bloom, not a second colour — edge and halo have
+   * to read as one light source.
+   *
+   * ⚠️ ⚠️ A BLUR RADIUS IS NOT A REACH. This is the whole reason the blur below is
+   * 2.25rem and not the design's 3.375rem, and getting it wrong cost a visible seam.
+   *
+   * CSS defines a `box-shadow` blur of B as approximating a Gaussian with a standard
+   * deviation of **B/2**, and a Gaussian is still painting at 3σ. So the shadow keeps
+   * putting down pixels out to roughly **1.5 × B**, not B. Budgeting B and stopping
+   * there clips the tail — and a clipped Gaussian tail is a dead-straight line, which
+   * is precisely the "hard grey rectangle" artefact this file warns about elsewhere.
+   *
+   * The room available is 3.5rem, and it is not negotiable: it is the row stack's
+   * `px-14`, the page's own side margin, and past it is the physical screen edge. So
+   * the largest honest blur is 3.5 / 1.5 ≈ 2.33rem, and 2.25rem takes it with a little
+   * back. Verified against the FIRST tile of a row — the only one whose glow touches
+   * that margin. Mid-row tiles have neighbours and never show the problem.
+   *
+   * ⭐ To restore the design's 54px bloom you must first widen the page's side margin
+   * past 5rem. Changing this number alone re-opens the seam.
+   *
+   * Vertical is not free either: see the `pt-4` on the row stack in App.tsx, which
+   * exists solely to give this bloom its room upward.
+   */
+  --shadow-tile-glow-lo:
+    0 0 0 0.0625rem rgb(122 186 240 / 0.18), 0 0 1.625rem rgb(77 155 230 / 0.44);
+  --shadow-tile-glow-hi:
+    0 0 0 0.09375rem rgb(150 205 250 / 0.38), 0 0 2.25rem rgb(77 155 230 / 0.62);
+  --shadow-tile-drop: 0 1.25rem 2.875rem rgb(0 0 0 / 0.6);
   --shadow-flag: 0.125rem 0.0625rem 0.3125rem rgb(0 0 0 / 0.35);
   /*
    * The Settings badge dot in the Up menu. The dark ring is not decoration — the dot
@@ -201,10 +247,23 @@ html {
  * the shelves behind it at `opacity: .5` and `.28` before the gradient goes on, so its
  * page is already half gone; ours is a live screen at full strength. Same gradient
  * over twice the brightness reads as twice as transparent, which is exactly how it
- * looked on the TV. The delta between the stops is kept — that part is the design.
+ * looked on the TV.
+ *
+ * ⚠️ Raised a SECOND time (98.5/90 → 99.5/96.5) by design turn 12, and the cause is
+ * worth recording because it will recur: turn 12 gave every shelf tile a lit plate
+ * where the page previously showed bare art on the background. That roughly doubled
+ * the brightness behind this scrim again, and at 90% the tile CAPTIONS — near-white
+ * text — were legible straight through the menu cards, which are themselves only 6%
+ * white. Anything that brightens the page brightens what this has to cover.
+ *
+ * The delta between the stops is no longer the artboard's. It cannot be: the top stop
+ * is already within half a percent of opaque, so there is nowhere to put an 8.5-point
+ * spread that does not drop the bottom back into the range that bleeds. The gradient
+ * survives, and with it the intent — the page is still visible as SHAPES, just no
+ * longer as words.
  */
 @utility scrim-page {
-  background: linear-gradient(180deg, rgb(8 13 22 / 0.985) 32%, rgb(8 13 22 / 0.9));
+  background: linear-gradient(180deg, rgb(8 13 22 / 0.995) 32%, rgb(8 13 22 / 0.965));
 }
 
 /* Resting. Present, not absent — so the colour has something to animate FROM. */
@@ -276,4 +335,52 @@ body.controller-active * {
   animation-name: marquee;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
+}
+
+/*
+ * The focused tile's breath, 2.8s. Two layers carrying static shadows fade against each
+ * other; nothing animates a shadow.
+ *
+ * ⚠️ `box-shadow` is a paint property — animating it re-rasterises the element every
+ * frame, and at 4K a tile is a large surface to repaint 60 times a second. `opacity` is
+ * a compositor property, so this is the same picture for a fraction of the cost. Only
+ * one tile is focused at a time, but that tile is also the one playing a microtrailer.
+ *
+ * The pair is deliberately NOT symmetric-and-opposite: both sit at full strength at the
+ * ends and dip in the middle, which keeps the total light closer to constant than a
+ * true crossfade does.
+ */
+@keyframes tile-breath-lo {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes tile-breath-hi {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-tile-breath-lo,
+.animate-tile-breath-hi {
+  animation-duration: 2.8s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.animate-tile-breath-lo {
+  animation-name: tile-breath-lo;
+}
+
+.animate-tile-breath-hi {
+  animation-name: tile-breath-hi;
 }

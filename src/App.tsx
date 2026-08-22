@@ -1644,7 +1644,23 @@ export const App = () => {
           <motion.div
             key="home"
             {...PAGE_ENTER}
-            className="absolute inset-x-0 bottom-18.5 top-24 overflow-hidden px-14 pb-4"
+            /*
+              ⚠️ `pt-4` is headroom for the focused tile's bloom, not spacing.
+
+              The stack scrolls the focused SECTION flush against this box's content
+              edge (`y.set(-section.offsetTop)`), so the only room above the focused
+              card is its own heading — 2.77rem. Turn 12's bloom reaches 3.375rem, and
+              the missing 0.6rem came back as a hard horizontal line across the page,
+              because THIS is an `overflow-hidden` on both axes and no amount of fixing
+              `Shelf.tsx` reaches it.
+
+              It cannot be solved with `overflow-clip-margin` here the way it was on the
+              shelf: this box clips vertically on purpose, and letting content bleed
+              upward would show the previous row sliding under the header.
+
+              Everything is rem, so clearing it once clears it at every ui scale.
+            */
+            className="absolute inset-x-0 bottom-18.5 top-24 overflow-hidden px-14 pb-4 pt-4"
           >
             <motion.div
               ref={stackRef}

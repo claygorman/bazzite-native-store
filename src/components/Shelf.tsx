@@ -96,16 +96,32 @@ export const Shelf = ({
         )}
       </div>
       {/*
-        Negative margin + matching padding so the focused tile's ring and drop shadow
-        have room inside the clip region. Without it overflow-hidden shaves the focus
-        treatment off — which reads as "the ring is broken", or worse as a hard grey
-        rectangle, rather than as "the ring is clipped".
+        A shelf clips HORIZONTALLY in order to scroll. It must not clip vertically at
+        all, or the focused tile's glow is shaved into a hard rectangle — a bug now fixed
+        four separate times, most recently for turn 12's bloom.
 
-        ⚠️ The vertical pair is 2rem, sized against the tile's focus shadow reach
-        (~1.9rem). Grow them together or not at all: a shadow larger than this padding
-        comes back as a seam, and that bug has now been fixed three separate times.
+        ⚠️ `overflow-x: clip`, NOT `overflow-hidden`. This is the whole fix and the
+        distinction is easy to miss: `overflow: hidden` on one axis forces the other axis
+        to become a scroll container (`visible` computes to `auto`), so a horizontally
+        clipping shelf clips vertically too whether you asked for it or not. `clip` has
+        no such coupling — `overflow-y` genuinely stays `visible`.
+
+        `overflow-clip-margin` then lets the glow bleed past the horizontal clip, so the
+        leftmost and rightmost tiles keep theirs. Sized to the bloom's own reach:
+        `--shadow-tile-glow-hi` is a 3.375rem blur, and 3.5rem clears it.
+
+        ⚠️ The previous fix here — negative margins plus matching padding to enlarge an
+        `overflow-hidden` box — cannot be scaled to this glow, and the reason is worth
+        keeping. At the reach turn 12 needs, the vertical pair grew the box until
+        ADJACENT SHELVES OVERLAPPED each other by 117px, and the later row painted over
+        the earlier row's glow: a horizontal seam right across the page, which is the
+        exact artefact the technique existed to prevent. Measured, not theorised.
+
+        ⚠️ WebKitGTK is the renderer that matters (Tauri on Linux) and it is not what
+        this was verified in. Both properties are Baseline-era CSS, but if a Bazzite
+        build shows a clipped glow, this line is the first place to look.
       */}
-      <div className="-mx-6 -my-8 overflow-hidden px-6 py-8">
+      <div className="overflow-x-clip" style={{ overflowClipMargin: '3.5rem' }}>
         <motion.div
           ref={trackRef}
           className="flex items-start gap-5 will-change-transform"

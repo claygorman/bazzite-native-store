@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { TileFocusLight } from './TileFocusLight'
 import { DECK_COMPAT_LABEL, type ControllerSupport, type DeckCompat } from '../types/steam'
 import { DEAL_FLAG_GRADIENTS } from '../platform/steam'
 
@@ -213,15 +214,17 @@ export type StoreCardProps = Partial<CardShape> & {
 }
 
 /**
- * Boxed or bare for the home shelves — **undecided**, and not decidable on a monitor.
+ * Boxed for the home shelves — **settled by design turn 12**, after shipping as bare.
  *
- * Boxed is the design's default: a plate behind art AND caption, so each tile reads as
- * an object. Bare is what shipped: art with the caption floating on the page. Which one
- * makes a shelf read as a shelf rather than as a grid of labelled thumbnails is the
- * exact question that removed the hero panel, and it has to be answered at 4K from a
- * sofa. Flip this one line and rebuild to compare; see docs/DESIGN-PORT.md.
+ * A plate behind art AND caption, so each tile reads as an object. That is what lets
+ * the PLATE carry the focus glow instead of the artwork having to: bare art with a
+ * caption floating on the page has nothing to light up, which is why the shipped
+ * version's focus treatment was a ring drawn around the two of them together.
+ *
+ * ⚠️ Still not verified at 4K from a sofa — the question that removed the hero panel.
+ * The design's answer is recorded here; the television has not seen it yet.
  */
-export const SHELF_SURFACE: CardShape['surface'] = 'bare'
+export const SHELF_SURFACE: CardShape['surface'] = 'boxed'
 
 /* ─────────────────────────── component ─────────────────────────── */
 
@@ -262,12 +265,21 @@ export const StoreCard = ({
   const contentRem =
     width === undefined ? 0 : width - (side ? artWidth : 0) - (boxed ? BOXED_PADDING_REM : 0)
 
-  // §5.3 — beside the title a discount block competes with the name and truncates it
-  // to about 46%. Derived from the shape, overridable by the caller.
+  /*
+   * §5.3 — beside the title a discount block competes with the name and truncates it to
+   * about 46%. Still true, but turn 12 replaced the derivation with a fixed position.
+   *
+   * ⚠️ It used to depend on whether THIS item had a discount, which meant price sat
+   * beside the title on a full-price tile and dropped a row on a discounted one — so it
+   * landed somewhere different on adjacent tiles in the same shelf and the eye had to
+   * hunt for it. Fixing the position also gives the title its full width back, which is
+   * why a short name like WARDOGS no longer leaves a gap before a right-aligned price.
+   *
+   * The narrow branch is what a shelf tile always took anyway; the wide layouts
+   * (focusedSide, poster) pass `pricePlacement` explicitly when they want otherwise.
+   */
   const priceOnFacts =
-    pricePlacement === undefined
-      ? Boolean(discount ?? wasPrice) && contentRem < NARROW_CONTENT_REM
-      : pricePlacement === 'facts'
+    pricePlacement === undefined ? contentRem < NARROW_CONTENT_REM : pricePlacement === 'facts'
 
   const showTags = facts === 'tags' || facts === 'both'
   const showRating = facts !== 'tags'
@@ -316,20 +328,35 @@ export const StoreCard = ({
         // ⚠️ The ring must never be `outline-none` plus width/colour utilities — see
         // the utility definition in index.css. It is always present; only the colour
         // changes, which is also what gives it something to animate from.
-        focused ? 'card-ring z-10' : 'card-ring-off',
+        // ⚠️ A boxed plate carries its focus as light, not as a ring — turn 12. The two
+        // must not both fire: a ring outside a bloom draws a hard edge around the soft
+        // one and the tile reads as a boxed box.
+        boxed ? '' : focused ? 'card-ring z-10' : 'card-ring-off',
         boxed
-          ? // The plate clips its own art corners. Safe: an outline is clipped by an
-            // ANCESTOR's overflow, never by the element's own.
-            `overflow-hidden rounded-xl bg-plate ${focused ? 'shadow-focused-tile' : 'shadow-plate'}`
+          ? [
+              // ⚠️ NOT `overflow-hidden`, which is what it used to be. The focus bloom
+              // is painted by children whose shadows have to reach outside the plate,
+              // and an element's own overflow clips its children's shadows. The art
+              // panel rounds its own top corners instead — that clipping was the only
+              // job the plate's overflow was doing.
+              'isolate rounded-xl',
+              // The black drop shadow stays on the plate itself and stays STATIC — it is
+              // deliberately not part of the breathing pair. See index.css.
+              focused ? 'z-10 bg-plate-focus shadow-tile-drop' : 'bg-plate shadow-plate',
+            ].join(' ')
           : // Bare: only the art panel carries a surface, and the caption sits on the
             // page. Must stay `overflow-visible` or the ring is shaved off.
-            'gap-3 overflow-visible',
+            `gap-3 overflow-visible ${focused ? 'card-ring z-10' : 'card-ring-off'}`,
       ].join(' ')}
     >
+      {boxed && focused && <TileFocusLight />}
       <div
         className={[
           'relative shrink-0 overflow-hidden',
-          boxed ? '' : 'rounded-lg',
+          // ⚠️ The art rounds its OWN top corners now. The plate used to do it with
+          // `overflow-hidden`, which it can no longer afford — see the root above.
+          // Top only: the art bleeds to the plate edge and the caption sits beneath it.
+          boxed ? (side ? 'rounded-l-xl' : 'rounded-t-xl') : 'rounded-lg',
           side ? '' : 'w-full',
         ].join(' ')}
         style={{
