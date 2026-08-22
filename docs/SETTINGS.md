@@ -148,13 +148,29 @@ ostree, where a `.deb`/`.rpm` updater would need root and be undone by the next 
 Wired: the plugin, `createUpdaterArtifacts`, `bundle.targets: ["appimage"]`, the check/install/
 relaunch state machine, the channel, automatic checking, and notify-before-restart.
 
-**Not wired, because neither can live in this repo:**
+**The feed is GitHub Releases**, and `.github/workflows/release.yml` publishes it:
+`semantic-release` cuts the tag and the release, then a second job builds the AppImage on
+`ubuntu-22.04`, signs it, writes `latest.json` and attaches all three to that release. The endpoint
+in `tauri.conf.json` is `releases/latest/download/latest.json`, which GitHub always resolves to the
+newest release — so publishing a release *is* publishing the update.
 
-1. **A signing keypair.** `pnpm tauri signer generate`. The public half goes in
-   `tauri.conf.json` → `plugins.updater.pubkey`; the private half signs releases and stays out of
-   git.
-2. **A feed URL** in `plugins.updater.endpoints` — an HTTPS endpoint serving Tauri's `latest.json`.
-   This repo is private, so anonymous GitHub releases are not it.
+⚠️ **One thing is still missing, and it cannot live in this repo: the signing keypair.**
+
+```sh
+pnpm tauri signer generate -w ~/.tauri/bazzite-store.key
+```
+
+- the **public** half goes in `tauri.conf.json` → `plugins.updater.pubkey`
+- the **private** half and its password become the repository secrets
+  `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+Until both exist, `updater_configured` (Rust, reads the live config) returns false because `pubkey`
+is empty, and the page says **"Update feed not configured"**.
+
+⚠️ Without the secrets in CI the bundler still produces an AppImage but **no `.sig`**, and a client
+silently rejects every unsigned artifact — it reads as "no update available", not as an error. That
+is why `scripts/write-latest-json.mjs` refuses to emit a manifest when the signature is missing
+rather than shipping an empty one.
 
 Until both exist, `updater_configured` (Rust, reads the live config) returns false and the page
 reads **"Update feed not configured"**. It does **not** read "Up to date" — a client that has never
@@ -165,8 +181,12 @@ second endpoint. Tauri walks its endpoint list on *failure*, which is a fallback
 than a switch — a testing feed in slot two would only ever be reached when the stable feed was
 down. Your feed must read the header.
 
-⚠️ `tauri.conf.json` carries its own copy of the version number and `package.json` carries the one
-the UI reports (injected as `__APP_VERSION__` by `vite.config.ts`). **Bump both together.**
+⚠️ **The version lives in three files** — `package.json` (which the UI reports via
+`__APP_VERSION__`), `src-tauri/tauri.conf.json` (which the bundler stamps into the AppImage
+filename) and `src-tauri/Cargo.toml` (which the updater compares against the feed).
+`scripts/sync-version.mjs` keeps them together and semantic-release runs it in `prepare`, so they
+land in the release commit. If they ever drift the failure is quiet and specific: a freshly
+installed build offers itself as an update, forever.
 
 ---
 

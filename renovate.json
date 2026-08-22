@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "//": [
+    "GitHub counterpart of the GitLab `renovate` job. There is no scheduled pipeline",
+    "here — the Mend Renovate GitHub App runs it, so this file is the whole config",
+    "and there is no token to manage.",
+    "",
+    "Renovate detects both managers on its own: npm from package.json, and cargo from",
+    "src-tauri/Cargo.toml."
+  ],
+  "timezone": "America/New_York",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Patch and minor updates ride together — one PR a week rather than thirty.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies"
+    },
+    {
+      "description": [
+        "Tauri's Rust crates and JS packages are versioned together and must move",
+        "together. A tauri-plugin bumped without its @tauri-apps/plugin-* twin fails",
+        "at runtime with a missing-command error rather than at build time."
+      ],
+      "matchPackageNames": ["tauri", "tauri-build", "/^tauri-plugin-/", "/^@tauri-apps//"],
+      "groupName": "tauri"
+    },
+    {
+      "description": [
+        "Never let Renovate move these on its own. `react`/`react-dom` majors and",
+        "`tailwindcss` majors have both broken this codebase's idioms before — v4",
+        "replaced the entire config format — so they get a PR to read, not a merge."
+      ],
+      "matchPackageNames": ["react", "react-dom", "tailwindcss", "motion", "vite"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 6am on monday"] }
+}

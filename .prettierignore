@@ -5,3 +5,7 @@ dist/
 pnpm-lock.yaml
 src-tauri/target/
 src-tauri/gen/
+
+# Personal notes, never published and never formatted.
+private/
+CHANGELOG.md

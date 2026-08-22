@@ -208,3 +208,24 @@ MIT — see [LICENSE](LICENSE).
 Not affiliated with or endorsed by Valve. "Steam" and "Steam Deck" are trademarks of Valve
 Corporation; this client talks to Steam's public storefront endpoints and hands every purchase back
 to Steam itself.
+
+---
+
+## 10. Releasing
+
+`semantic-release` on **`main`**, tags without a `v` prefix (`0.2.0`), triggered manually from the
+**Actions → Release** tab — cutting a release publishes an update that every installed client will
+offer to install, so it is a decision rather than a consequence of merging.
+
+Two jobs. The first computes the version from the commits since the last tag, syncs it into
+`package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, commits, tags and creates the
+GitHub Release. The second checks out that tag, builds the AppImage on `ubuntu-22.04`, signs it, and
+attaches the bundle plus `latest.json` — which *is* the update feed the client polls.
+
+Commit messages drive the version, so they are Conventional Commits: `feat:` is a minor, `fix:` a
+patch, and a `BREAKING CHANGE:` footer a major.
+
+⚠️ **Two repository secrets are required** before a release can produce a usable artifact:
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, from
+`pnpm tauri signer generate`. Without them the bundler still emits an AppImage but no signature, and
+clients silently reject unsigned artifacts — see `docs/SETTINGS.md` §4.

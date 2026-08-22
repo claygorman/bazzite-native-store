@@ -1,0 +1,90 @@
+# Verify — the GitHub counterpart of the GitLab `build` stage.
+#
+# Runs on every pull request and every push to main, which is the same gate the
+# GitLab `workflow.rules` block enforces there.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # A second push to the same branch cancels the first. Nothing here has a side
+  # effect, so an in-flight run is only ever wasted minutes.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Typecheck, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # ⚠️ `node --experimental-strip-types`, not vitest — that is this repo's test
+      # runner, so the tests must be leaf modules with no DOM imports and explicit
+      # `.ts` extensions on relative imports.
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # Non-blocking: this repo was hand-formatted long before Prettier arrived, and
+      # a failing format check on an untouched file teaches people to ignore CI.
+      - name: Format check
+        run: pnpm format:check
+        continue-on-error: true
+
+  rust:
+    name: Rust
+    # ⚠️ 22.04, not `ubuntu-latest`. It is the oldest supported runner, so it links
+    # against the oldest glibc — and a binary built on a newer one refuses to start
+    # on anything older. The release job builds here for the same reason.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ⚠️ Tauri v2 wants webkit2gtk **4.1**. The 4.0 package is what every v1 guide
+      # installs and it fails at link time with a message that does not mention the
+      # version at all.
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev libxdo-dev libssl-dev \
+            build-essential curl wget file patchelf
+
+      - name: Format
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+        continue-on-error: true
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        continue-on-error: true
+
+      # The live CEF test is `#[ignore]`d and stays that way — it needs a running,
+      # logged-in Steam client, which no runner has.
+      - name: Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
