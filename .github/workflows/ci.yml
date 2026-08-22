@@ -22,6 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ⚠️ No `version:` here on purpose — it is read from `packageManager` in
+      # package.json, so CI and a laptop cannot drift. Without either, this action
+      # fails with "No pnpm version is specified", which is how the first run died.
+      # It must also come BEFORE setup-node, or `cache: pnpm` has no pnpm to ask.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
