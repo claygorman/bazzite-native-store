@@ -105,8 +105,10 @@ Steam runs there too, so the store does. Every release publishes:
 > xattr -dr com.apple.quarantine /Applications/bazzite-store.app
 > ```
 >
-> Signing them properly needs an Apple Developer account and a Windows code-signing
-> certificate. Until then, build from source if you would rather not do that.
+> Signing them properly costs $99/year for macOS and more again for Windows, for a
+> project whose audience is currently two Linux boxes.
+> [`docs/PACKAGING.md`](docs/PACKAGING.md) has the full reasoning and what turning it
+> on would involve. Build from source if you would rather not clear the flag.
 
 What degrades off Linux, and says so rather than pretending:
 
@@ -190,12 +192,13 @@ Two decisions that look odd until they don't:
 
 ## Docs
 
-|                                                |                                                            |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Why Tauri, why not a Decky plugin, why not Electron        |
-| [`docs/SETTINGS.md`](docs/SETTINGS.md)         | What counts as a setting, and what got cut from the design |
-| [`docs/DESIGN-PORT.md`](docs/DESIGN-PORT.md)   | Where the design spec is converted rather than copied      |
-| [`docs/DEMO-HOSTING.md`](docs/DEMO-HOSTING.md) | The web demo server                                        |
+|                                                |                                                                  |
+| ---------------------------------------------- | ---------------------------------------------------------------- |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Why Tauri, why not a Decky plugin, why not Electron              |
+| [`docs/SETTINGS.md`](docs/SETTINGS.md)         | What counts as a setting, and what got cut from the design       |
+| [`docs/DESIGN-PORT.md`](docs/DESIGN-PORT.md)   | Where the design spec is converted rather than copied            |
+| [`docs/DEMO-HOSTING.md`](docs/DEMO-HOSTING.md) | The web demo server                                              |
+| [`docs/PACKAGING.md`](docs/PACKAGING.md)       | What each platform ships, and why macOS and Windows are unsigned |
 
 Some comments cite `private/…` documents — Steam endpoint catalogs and notes naming specific
 hardware. Those are deliberately unpublished; every fact the code depends on is restated at its call
@@ -212,6 +215,8 @@ each signing its own bundle and writing one fragment of the update manifest. A f
 merges the fragments into the `latest.json` that installed clients poll. Linux is the
 shipping target, so a manifest missing it fails the release; the other three are built
 with `fail-fast: false` and may legitimately be absent.
+[`docs/PACKAGING.md`](docs/PACKAGING.md) covers the rest, including the Tauri v1-vs-v2
+AppImage trap that broke the first release.
 
 ## AI disclosure
 
