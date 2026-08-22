@@ -216,9 +216,7 @@ export const CalendarBand = ({
                 // Clipping is safe ONLY on the columns collapsing away: they cannot
                 // hold focus, so there is no ring here to be sliced off.
                 shrinking ? 'overflow-hidden' : '',
-                focused
-                  ? 'relative z-10 ring-tile'
-                  : '',
+                focused ? 'relative z-10 ring-tile' : '',
               ].join(' ')}
             >
               <div className="flex min-w-0 flex-col gap-3.5 p-4.5">
@@ -414,9 +412,7 @@ const RecommendedCard = ({
       onClick={() => onActivate(game.appid)}
       className={[
         'relative min-w-0 flex-1 rounded-lg text-left outline-none transition-opacity duration-200',
-        focused
-          ? 'z-10 ring-tile'
-          : 'opacity-70',
+        focused ? 'z-10 ring-tile' : 'opacity-70',
       ].join(' ')}
     >
       <div className="overflow-hidden rounded-lg bg-panel">

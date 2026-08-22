@@ -20,7 +20,9 @@ let failures = 0
 const check = (name: string, actual: unknown, expected: unknown) => {
   const ok = JSON.stringify(actual) === JSON.stringify(expected)
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `\n      expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`}`)
+  console.log(
+    `${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `\n      expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`}`,
+  )
 }
 
 // The bug: dpad held, stick centred. 'right' must stay true across every frame.
@@ -37,7 +39,11 @@ check('stick right reports pressed', resolveGamepadState(pad([], [0.9, 0])).get(
 check('stick inside deadzone is idle', resolveGamepadState(pad([], [0.2, 0])).get('right'), false)
 
 // Both at once is still one press, not a conflict.
-check('dpad + stick together stay pressed', resolveGamepadState(pad([15], [0.9, 0])).get('right'), true)
+check(
+  'dpad + stick together stay pressed',
+  resolveGamepadState(pad([15], [0.9, 0])).get('right'),
+  true,
+)
 
 // Opposing sources: dpad right + stick left should leave both directions live
 // rather than one silently cancelling the other.

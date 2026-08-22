@@ -1,9 +1,6 @@
 import { signIn, type SessionState } from '../platform/auth'
 
-const ring = (focused: boolean) =>
-  focused
-    ? 'relative z-10 ring-tile'
-    : ''
+const ring = (focused: boolean) => (focused ? 'relative z-10 ring-tile' : '')
 
 /**
  * Account state, top right — the mockup's account chip.
@@ -49,11 +46,7 @@ export const AccountChip = ({
       className={`flex items-center gap-2.5 rounded-full bg-chip py-1 pl-1 pr-3.5 text-sm font-semibold text-ink-2 transition-shadow ${ring(focused)}`}
     >
       {session.player?.avatarfull ? (
-        <img
-          src={session.player.avatarfull}
-          alt=""
-          className="h-7 w-7 rounded-full object-cover"
-        />
+        <img src={session.player.avatarfull} alt="" className="h-7 w-7 rounded-full object-cover" />
       ) : (
         <span className="h-7 w-7 rounded-full bg-hairline" />
       )}

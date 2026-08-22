@@ -15,23 +15,23 @@ The spec's §4 says "use arbitrary utilities, do not round", and lists `w-[336px
 friends. **Do not copy those classes.** Two independent reasons:
 
 - This app derives its root font size from viewport width — `html { font-size: clamp(12px, 0.8333vw,
-  34px) }` — so the viewport is always 120rem across and a browser window is a faithful preview of
-  the TV. A literal `w-[336px]` renders 336 *physical* pixels on a 3840-wide panel: about a sixth of
+34px) }` — so the viewport is always 120rem across and a browser window is a faithful preview of
+  the TV. A literal `w-[336px]` renders 336 _physical_ pixels on a 3840-wide panel: about a sixth of
   the intended size, at couch distance.
 - Arbitrary values are out by house rule. The codebase went from 182 of them to zero.
 
 The conversion is mechanical and exact. Design px ÷ 16 = rem; Tailwind's spacing step is 0.25rem, so
 the class number is **`n = rem × 4`**. Every §4 value lands on a quarter step:
 
-| Design | rem | Class | | Design | rem | Class |
-|---|---|---|---|---|---|---|
-| 336 | 21 | `w-84` | | 156 | 9.75 | `h-39` |
-| 340 | 21.25 | `w-85` | | 204 | 12.75 | `h-51` |
-| 440 | 27.5 | `w-110` | | 236 | 14.75 | `h-59` |
-| 512 | 32 | `w-128` | | 238 | 14.875 | `h-59.5` |
-| 688 | 43 | `w-172` | | 492 | 30.75 | `h-123` |
-| 272 | 17 | `w-68` | | 44 (title row) | 2.75 | `min-h-11` |
-| 312 | 19.5 | `w-78` | | 40 (facts row) | 2.5 | `min-h-10` |
+| Design | rem   | Class   |     | Design         | rem    | Class      |
+| ------ | ----- | ------- | --- | -------------- | ------ | ---------- |
+| 336    | 21    | `w-84`  |     | 156            | 9.75   | `h-39`     |
+| 340    | 21.25 | `w-85`  |     | 204            | 12.75  | `h-51`     |
+| 440    | 27.5  | `w-110` |     | 236            | 14.75  | `h-59`     |
+| 512    | 32    | `w-128` |     | 238            | 14.875 | `h-59.5`   |
+| 688    | 43    | `w-172` |     | 492            | 30.75  | `h-123`    |
+| 272    | 17    | `w-68`  |     | 44 (title row) | 2.75   | `min-h-11` |
+| 312    | 19.5  | `w-78`  |     | 40 (facts row) | 2.5    | `min-h-10` |
 
 ⚠️ Tailwind escapes the dot in decimal classes, so a generated `h-59.5` appears in the CSS as
 `.h-59\.5`. Grepping the build output with `grep -F ".h-59.5"` finds nothing and looks like the
@@ -72,13 +72,13 @@ deliberately, not overlooked.
 gives 20/28 for titles, 18/28 for rating and tier.
 
 Our `@theme` overrides the scale — `text-lg` is 19px, `text-xl` is 21px — and that override is
-load-bearing. The *previous* design revision specified 13/15/17/19/21, and every one of those sat
+load-bearing. The _previous_ design revision specified 13/15/17/19/21, and every one of those sat
 just above a Tailwind default stop (12/14/16/18/20). Snapping to the nearest therefore shrank the
 entire UI by ~5%, which is the wrong direction for a screen read from three metres.
 
 So following §2's class column renders about 5% **larger** than the design draws it. That is the
-safe direction and the one the spec's own rule demands — *"Never shrink type to make something fit;
-change the layout instead."*
+safe direction and the one the spec's own rule demands — _"Never shrink type to make something fit;
+change the layout instead."_
 
 **Consequence: §2 is a mapping table, not a pixel-exact check.** Use it to pick the class. Do not
 use it to verify a rendered pixel height.
@@ -87,10 +87,10 @@ use it to verify a rendered pixel height.
 
 One colour with two names is worse than a lookup, so these are **not** duplicated into `@theme`:
 
-| Spec | Ours | Note |
-|---|---|---|
-| `page` #080d16 | `surface` | identical |
-| `accent` #4d9be6 | `focus` | `--color-focus` was changed from #5aa9f0 to match; #5aa9f0 survives as `accent-hi` |
+| Spec             | Ours      | Note                                                                               |
+| ---------------- | --------- | ---------------------------------------------------------------------------------- |
+| `page` #080d16   | `surface` | identical                                                                          |
+| `accent` #4d9be6 | `focus`   | `--color-focus` was changed from #5aa9f0 to match; #5aa9f0 survives as `accent-hi` |
 
 And one false friend:
 
@@ -116,7 +116,7 @@ shipped once:
 5. **Never write `outline-none` in a base class list.** In Tailwind v4 it sets `outline-style: none`,
    and the focused-variant `outline-[3px]`/`outline-<color>` utilities set width and colour but never
    re-enable the style — so the ring silently never renders. The spec's own markup is safe because
-   `outline` is always present and only the *colour* swaps between transparent and accent. Keep it
+   `outline` is always present and only the _colour_ swaps between transparent and accent. Keep it
    that way.
 6. **Nothing painted on a tile may exceed the clip container's padding.** A shelf scrolls by
    clipping; a shadow or ring reaching past the escape hatch is sliced into a hard rectangle that
@@ -124,14 +124,14 @@ shipped once:
 
 ## 5. Data the spec's props need, and where it comes from
 
-| Prop | Source | Notes |
-|---|---|---|
-| `rating`, `price`, `wasPrice`, `discount`, `flag` | `IStoreBrowseService/GetItems` | batched, keyless — one request per screen |
-| `controllerSupport` | same call, `categories.controller_categoryids` | `28` full, `18` partial — see `private/STEAM-ENDPOINTS.md` |
-| `tier` | ProtonDB, a second host | per-app, lazy, 24h TTL; unrated apps return **HTML**, not JSON |
-| Deck verdict | same GetItems call, `platforms.steam_deck_compat_category` | shown alongside the ProtonDB tier, not instead of it |
-| `tags` | `GetLocalizedNameForTags` | `GetItems` returns tagids, never names |
-| `owned` | **no anonymous source** | `dynamicstore/userdata` fails *silently* (HTTP 200, empty arrays). The badge does not render rather than guessing. |
+| Prop                                              | Source                                                     | Notes                                                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `rating`, `price`, `wasPrice`, `discount`, `flag` | `IStoreBrowseService/GetItems`                             | batched, keyless — one request per screen                                                                          |
+| `controllerSupport`                               | same call, `categories.controller_categoryids`             | `28` full, `18` partial — see `private/STEAM-ENDPOINTS.md`                                                         |
+| `tier`                                            | ProtonDB, a second host                                    | per-app, lazy, 24h TTL; unrated apps return **HTML**, not JSON                                                     |
+| Deck verdict                                      | same GetItems call, `platforms.steam_deck_compat_category` | shown alongside the ProtonDB tier, not instead of it                                                               |
+| `tags`                                            | `GetLocalizedNameForTags`                                  | `GetItems` returns tagids, never names                                                                             |
+| `owned`                                           | **no anonymous source**                                    | `dynamicstore/userdata` fails _silently_ (HTTP 200, empty arrays). The badge does not render rather than guessing. |
 
 ---
 
@@ -153,12 +153,12 @@ unlabelled, so the `playstation` / `nintendo` / `deck` glyph sets render mono. I
 those would be drawing a controller nobody owns.
 
 ⚠️ **Two dpad paths, and they are not interchangeable.** `glyphs/dpad-union.svg` is the whole cross
-solid — "the dpad" as a noun. `glyphs/dpad-left.svg` is the cross as an *outline*, so one solid arm
+solid — "the dpad" as a noun. `glyphs/dpad-left.svg` is the cross as an _outline_, so one solid arm
 can be laid over it; that is what a direction prompt uses, rotated (left 0°, up 90°, right 180°,
 down 270°). Using the union for "press up" draws a full cross that says nothing about up.
 
 ⚠️ **LT and RT reuse the bumper silhouette.** The sheet draws bumpers only and says so explicitly.
-The right-hand pair is the same path mirrored — with the lettering kept *outside* the mirrored
+The right-hand pair is the same path mirrored — with the lettering kept _outside_ the mirrored
 group, or `RB` renders backwards.
 
 Not ported: the stick glyphs (rest, tilted, pressed, per-direction). No prompt in this app names a

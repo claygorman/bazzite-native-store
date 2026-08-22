@@ -26,18 +26,18 @@ by something; if you add one, wire it in the same commit.
 
 ## 2 · Rows that are not here
 
-| Row | Why not |
-|---|---|
-| **Include pre-release Proton builds** | Proton runtimes belong to Steam. We never launch a game, so we never choose one. |
-| **Rumble on focus** | `gilrs` force-feedback is not wired. A switch for a feature that does not exist. |
-| **Y button** (stepper: Wishlist / …) | Y is the global search shortcut. Rebinding it per screen is what `7b` already refused, and Settings is the *one* exception (Y = reset row) precisely because it has no search to reach. |
-| **Keyboard mirrors controller** | One right answer — it is always true, in both builds. |
-| **Warn on kernel anti-cheat** | No endpoint we have carries an anti-cheat signal. `categories` does not include one. |
-| **Bazzite community reports** | No such source exists. |
-| **Steam library target** · **Ask which drive each time** · **Queue install after buying** | We deep-link `steam://store/<appid>` and Steam picks the drive. Not ours to set — README §3. |
-| **Share compatibility reports** · **Anonymous usage reports** | This app sends nothing anywhere. Offering the switch implies it does, which is worse than not having it. |
-| **Changelog** · **Session log** · **Report an issue** | No release notes yet, no log file, and tasks go in `private/TASKS.md` — never GitHub issues. |
-| **Third-party licenses** | Deferred, not refused. It needs a real dependency manifest, not a hand-written list that goes stale. |
+| Row                                                                                       | Why not                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Include pre-release Proton builds**                                                     | Proton runtimes belong to Steam. We never launch a game, so we never choose one.                                                                                                        |
+| **Rumble on focus**                                                                       | `gilrs` force-feedback is not wired. A switch for a feature that does not exist.                                                                                                        |
+| **Y button** (stepper: Wishlist / …)                                                      | Y is the global search shortcut. Rebinding it per screen is what `7b` already refused, and Settings is the _one_ exception (Y = reset row) precisely because it has no search to reach. |
+| **Keyboard mirrors controller**                                                           | One right answer — it is always true, in both builds.                                                                                                                                   |
+| **Warn on kernel anti-cheat**                                                             | No endpoint we have carries an anti-cheat signal. `categories` does not include one.                                                                                                    |
+| **Bazzite community reports**                                                             | No such source exists.                                                                                                                                                                  |
+| **Steam library target** · **Ask which drive each time** · **Queue install after buying** | We deep-link `steam://store/<appid>` and Steam picks the drive. Not ours to set — README §3.                                                                                            |
+| **Share compatibility reports** · **Anonymous usage reports**                             | This app sends nothing anywhere. Offering the switch implies it does, which is worse than not having it.                                                                                |
+| **Changelog** · **Session log** · **Report an issue**                                     | No release notes yet, no log file, and tasks go in `private/TASKS.md` — never GitHub issues.                                                                                            |
+| **Third-party licenses**                                                                  | Deferred, not refused. It needs a real dependency manifest, not a hand-written list that goes stale.                                                                                    |
 
 ---
 
@@ -54,7 +54,7 @@ already happened to load would hide tiles seconds after they appeared — the wo
 behaviour on a focused grid.
 
 Valve's **Deck verdict** arrives free inside the `GetItems` hydration every surface already pays
-for. So the floor is built on that: *Show everything · Playable or better · Verified only*. Same
+for. So the floor is built on that: _Show everything · Playable or better · Verified only_. Same
 question, a source we can afford, applied to every list instantly.
 
 ⚠️ **Unrated is not below the floor.** Valve has rated a small fraction of the catalogue; treating
@@ -80,17 +80,17 @@ focused row has one" — and says "the rail is never focused directly; it is a p
 that LB/RB drives". Both had to go.
 
 Land on a stepper and left/right is spent, so a column of nothing but steppers could never be left.
-And with the rail unreachable, LB/RB is the *only* way to change page — which on a keyboard means Q
+And with the rail unreachable, LB/RB is the _only_ way to change page — which on a keyboard means Q
 and E, keys nobody reaches for before they have reached for an arrow.
 
-| | |
-|---|---|
-| **Left / Right** | Movement, and only movement: rail ↔ column A ↔ column B |
-| **Up / Down** | Rows within the focused column; in the rail, the page list |
-| **A** | Toggles, fires a button, or **opens a stepper's list** (then commits it) |
-| **Y** | Resets that one row |
-| **LT / RT** (`1` / `3`) | Adjusts the focused stepper in place, without opening it |
-| **LB / RB** (`Q` / `E`) | Still prev/next page, from anywhere on the screen |
+|                         |                                                                          |
+| ----------------------- | ------------------------------------------------------------------------ |
+| **Left / Right**        | Movement, and only movement: rail ↔ column A ↔ column B                  |
+| **Up / Down**           | Rows within the focused column; in the rail, the page list               |
+| **A**                   | Toggles, fires a button, or **opens a stepper's list** (then commits it) |
+| **Y**                   | Resets that one row                                                      |
+| **LT / RT** (`1` / `3`) | Adjusts the focused stepper in place, without opening it                 |
+| **LB / RB** (`Q` / `E`) | Still prev/next page, from anywhere on the screen                        |
 
 The triggers are the only buttons Settings does not otherwise spend, so nothing was taken from
 anything else. ⚠️ They are **named in the tray** (`1 Adjust · 3 Adjust`) because they are not
@@ -105,7 +105,7 @@ to do nothing.
 
 > **Stepper** — 3 to 8 ordered or named values, `◀ value ▶`. Never opens a panel.
 
-The doc was right about the *reason* — "at ten feet, hidden state is broken state" — and wrong
+The doc was right about the _reason_ — "at ten feet, hidden state is broken state" — and wrong
 about the remedy. A stepper that only steps forward on A dead-ends at the last value and then does
 nothing at all; the control dies under your thumb. Wrapping instead reads as one press undoing
 four.
@@ -152,7 +152,7 @@ relaunch state machine, the channel, automatic checking, and notify-before-resta
 `semantic-release` cuts the tag and the release, then a second job builds the AppImage on
 `ubuntu-22.04`, signs it, writes `latest.json` and attaches all three to that release. The endpoint
 in `tauri.conf.json` is `releases/latest/download/latest.json`, which GitHub always resolves to the
-newest release — so publishing a release *is* publishing the update.
+newest release — so publishing a release _is_ publishing the update.
 
 ⚠️ **One thing is still missing, and it cannot live in this repo: the signing keypair.**
 
@@ -177,7 +177,7 @@ reads **"Update feed not configured"**. It does **not** read "Up to date" — a 
 asked cannot know, and that is the exact lie this page exists to avoid.
 
 ⚠️ **The channel travels as a request header**, `x-update-channel: stable | testing`, not as a
-second endpoint. Tauri walks its endpoint list on *failure*, which is a fallback mechanism rather
+second endpoint. Tauri walks its endpoint list on _failure_, which is a fallback mechanism rather
 than a switch — a testing feed in slot two would only ever be reached when the stable feed was
 down. Your feed must read the header.
 
@@ -196,7 +196,7 @@ installed build offers itself as an update, forever.
 Settings**, account at the right end. It replaces the old two-item header bar, which was reachable
 only from the top shelf on home and could therefore never reach Settings from anywhere else.
 
-- **Up** works from the top shelf on home *only*. From any lower shelf Up still moves a shelf — a
+- **Up** works from the top shelf on home _only_. From any lower shelf Up still moves a shelf — a
   direction that sometimes navigates and sometimes opens a menu is one nobody trusts.
 - **☰ Menu** works from anywhere, including the search screen, whose own handler otherwise
   swallows every key. It is handled first in `onAction` for that reason.
@@ -210,10 +210,10 @@ only from the top shelf on home and could therefore never reach Settings from an
 
 ### Button changes this forced
 
-| Action | Was | Now |
-|---|---|---|
-| `menu` (☰ / **M**) | Start / `Tab`, toggled the controller HUD | Raises the Up menu |
-| `hud` (⊟ View / **F2**) | — | The controller HUD |
+| Action                  | Was                                       | Now                |
+| ----------------------- | ----------------------------------------- | ------------------ |
+| `menu` (☰ / **M**)     | Start / `Tab`, toggled the controller HUD | Raises the Up menu |
+| `hud` (⊟ View / **F2**) | —                                         | The controller HUD |
 
 ⚠️ `glyphs.ts` claimed `menu` was `F1` while `input.ts` bound `Tab` — a disagreement that survived
 because the tray never drew it on a screen where anyone pressed it. Both are `M` now, which is the
@@ -228,23 +228,23 @@ overlay, and a store client that could swallow it would make a wedged machine un
 
 Every row changes something. If you touch one of these, keep this table honest.
 
-| Setting | Read by |
-|---|---|
-| Interface scale, safe area | `--ui-scale` multiplying `index.css`'s root `clamp()`; padding on `<main>` |
-| Show clock, 24-hour time | `Clock` in `App.tsx` |
-| Microtrailer autoplay, delay | `useMicrotrailer` — **off stops the request**, not just the video |
-| Ambient art wash, reduce motion | `AmbientArt`, `MotionConfig` |
-| Left stick moves focus | `resolveGamepadState` via `setStickMovesFocus` |
-| Repeat delay / rate | `useInputActions` tuning |
-| Wrap at shelf ends | `useStoreFocus` (horizontal only) |
-| Glyph set | `glyphs.ts` — gamepad face buttons only, swapped by **position** |
+| Setting                                     | Read by                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Interface scale, safe area                  | `--ui-scale` multiplying `index.css`'s root `clamp()`; padding on `<main>`              |
+| Show clock, 24-hour time                    | `Clock` in `App.tsx`                                                                    |
+| Microtrailer autoplay, delay                | `useMicrotrailer` — **off stops the request**, not just the video                       |
+| Ambient art wash, reduce motion             | `AmbientArt`, `MotionConfig`                                                            |
+| Left stick moves focus                      | `resolveGamepadState` via `setStickMovesFocus`                                          |
+| Repeat delay / rate                         | `useInputActions` tuning                                                                |
+| Wrap at shelf ends                          | `useStoreFocus` (horizontal only)                                                       |
+| Glyph set                                   | `glyphs.ts` — gamepad face buttons only, swapped by **position**                        |
 | Minimum verdict, hide unrated, native first | `platform/compatFilter.ts`, applied in `useHydratedRows`, `useTagBrowse`, `useWishlist` |
-| ProtonDB ratings, refresh cadence | `setProtonPolicy` — off stops the requests |
-| Show Deck verdicts | `useSetting('deckVerified')` at each card wrapper |
-| Store region | `STORE_LOCALE.cc` via `setStoreRegion` |
-| Request timeout, offline mode | `setTransportPolicy` (and the Rust client's own timeout) |
-| Cache limit, clear on quit, clear cache | the Rust disk cache (`steam.rs`) |
-| Update channel, automatic, notify | `platform/updates.ts` |
+| ProtonDB ratings, refresh cadence           | `setProtonPolicy` — off stops the requests                                              |
+| Show Deck verdicts                          | `useSetting('deckVerified')` at each card wrapper                                       |
+| Store region                                | `STORE_LOCALE.cc` via `setStoreRegion`                                                  |
+| Request timeout, offline mode               | `setTransportPolicy` (and the Rust client's own timeout)                                |
+| Cache limit, clear on quit, clear cache     | the Rust disk cache (`steam.rs`)                                                        |
+| Update channel, automatic, notify           | `platform/updates.ts`                                                                   |
 
 ⚠️ Five of these are **module-level state** written by `useSettings`, not props: `glyphFor` is
 called from ~30 places, `STORE_LOCALE` from ~12, and the gamepad poll loop runs outside React and

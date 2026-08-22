@@ -59,15 +59,7 @@ type Props = {
  * ⚠️ The guide button is off limits. It belongs to Bazzite and the Steam overlay, and
  * if a wedged store client could swallow it the machine would be unrecoverable.
  */
-export const UpMenu = ({
-  index,
-  current,
-  disabled,
-  badge,
-  session,
-  source,
-  onActivate,
-}: Props) => (
+export const UpMenu = ({ index, current, disabled, badge, session, source, onActivate }: Props) => (
   <motion.div
     className="absolute inset-0 z-20"
     initial={{ opacity: 0 }}
@@ -115,19 +107,13 @@ export const UpMenu = ({
             <span
               className={[
                 'relative flex h-26 items-center rounded-xl px-6.5',
-                focused
-                  ? 'card-ring bg-focus-wash shadow-focused'
-                  : 'card-ring-off bg-chip-soft',
+                focused ? 'card-ring bg-focus-wash shadow-focused' : 'card-ring-off bg-chip-soft',
               ].join(' ')}
             >
               <span
                 className={[
                   'truncate text-3xl font-bold',
-                  why !== undefined
-                    ? 'text-ink-3/35'
-                    : focused
-                      ? 'text-ink'
-                      : 'text-ink-2/65',
+                  why !== undefined ? 'text-ink-3/35' : focused ? 'text-ink' : 'text-ink-2/65',
                 ].join(' ')}
               >
                 {entry.label}

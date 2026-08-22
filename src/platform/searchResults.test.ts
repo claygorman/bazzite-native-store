@@ -34,13 +34,14 @@ const check = (name: string, actual: unknown, expected: unknown) => {
     failed++
   }
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`)
-  if (!ok) console.log(`        expected ${JSON.stringify(expected)}\n        actual   ${JSON.stringify(actual)}`)
+  if (!ok)
+    console.log(
+      `        expected ${JSON.stringify(expected)}\n        actual   ${JSON.stringify(actual)}`,
+    )
 }
 
 // --- ordering and identity -------------------------------------------------
-const three = parseSearchResults(
-  page(ROW('App_790060') + ROW('App_3618850') + ROW('App_1145360')),
-)
+const three = parseSearchResults(page(ROW('App_790060') + ROW('App_3618850') + ROW('App_1145360')))
 check('keeps Steam’s ranking order', three.appids, [790060, 3618850, 1145360])
 check('reads total_count', three.total, 5214)
 
@@ -99,10 +100,24 @@ check('...and the rows survive it', badTotal.appids, [5])
 // --- the empty-page ambiguity ---------------------------------------------
 // A real total with no parseable rows means one of two very different things, and
 // only the offset separates them.
-const lastPage = parseSearchResults({ success: 1, start: 5200, total_count: 5214, results_html: '' })
-check('paging past the end keeps its real total', { t: lastPage.total, n: lastPage.appids.length }, { t: 5214, n: 0 })
+const lastPage = parseSearchResults({
+  success: 1,
+  start: 5200,
+  total_count: 5214,
+  results_html: '',
+})
+check(
+  'paging past the end keeps its real total',
+  { t: lastPage.total, n: lastPage.appids.length },
+  { t: 5214, n: 0 },
+)
 
-const brokenFirst = parseSearchResults({ success: 1, start: 0, total_count: 5214, results_html: '<div class="renamed"></div>' })
+const brokenFirst = parseSearchResults({
+  success: 1,
+  start: 0,
+  total_count: 5214,
+  results_html: '<div class="renamed"></div>',
+})
 check(
   'but "5,214 matches" with nothing to show at offset 0 is a broken parser, not a result',
   { t: brokenFirst.total, n: brokenFirst.appids.length },

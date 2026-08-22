@@ -190,10 +190,7 @@ export const LADDERS = {
     v === 'stable' ? 'Stable' : 'Testing',
   ),
   uiScalePercent: ladder<'uiScalePercent'>([90, 100, 110, 125, 150], (v) => `${v}%`),
-  safeAreaPercent: ladder<'safeAreaPercent'>(
-    [0, 2, 4, 6],
-    (v) => (v === 0 ? 'None' : `${v}%`),
-  ),
+  safeAreaPercent: ladder<'safeAreaPercent'>([0, 2, 4, 6], (v) => (v === 0 ? 'None' : `${v}%`)),
   trailerAutoplay: ladder<'trailerAutoplay'>(['off', 'focus'], (v) =>
     v === 'off' ? 'Off' : 'On focus',
   ),
@@ -204,10 +201,7 @@ export const LADDERS = {
     ['xbox', 'playstation', 'nintendo', 'deck'],
     (v) => GLYPH_SET_NAMES[v],
   ),
-  deckFloor: ladder<'deckFloor'>(
-    ['all', 'playable', 'verified'],
-    (v) => DECK_FLOOR_NAMES[v],
-  ),
+  deckFloor: ladder<'deckFloor'>(['all', 'playable', 'verified'], (v) => DECK_FLOOR_NAMES[v]),
   refreshCadence: ladder<'refreshCadence'>(['hourly', 'daily', 'weekly'], (v) =>
     v === 'hourly' ? 'Hourly' : v === 'daily' ? 'Daily' : 'Weekly',
   ),
@@ -215,10 +209,7 @@ export const LADDERS = {
     v >= 1024 ? `${v / 1024} GB` : `${v} MB`,
   ),
   region: ladder<'region'>(REGIONS, (v) => REGION_NAMES[v] ?? v),
-  requestTimeoutMs: ladder<'requestTimeoutMs'>(
-    [5000, 8000, 12000, 20000],
-    (v) => `${v / 1000} s`,
-  ),
+  requestTimeoutMs: ladder<'requestTimeoutMs'>([5000, 8000, 12000, 20000], (v) => `${v / 1000} s`),
 } as const
 
 export type SteppableKey = keyof typeof LADDERS

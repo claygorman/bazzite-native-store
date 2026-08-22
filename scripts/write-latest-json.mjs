@@ -38,7 +38,9 @@ const archive = files.find((f) => f.endsWith('.AppImage.tar.gz'))
 const sig = files.find((f) => f.endsWith('.AppImage.tar.gz.sig'))
 
 if (!archive) {
-  console.error(`write-latest-json: no .AppImage.tar.gz in ${bundleDir}\nfound: ${files.join(', ')}`)
+  console.error(
+    `write-latest-json: no .AppImage.tar.gz in ${bundleDir}\nfound: ${files.join(', ')}`,
+  )
   process.exit(1)
 }
 if (!sig) {

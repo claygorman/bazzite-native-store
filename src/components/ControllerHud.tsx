@@ -164,9 +164,7 @@ export const ControllerHud = ({ position }: Props) => {
         ) : (
           <span
             className={
-              Math.abs(steamScale.scale - impliedUiScale()) > 0.15
-                ? 'text-amber-400'
-                : 'text-focus'
+              Math.abs(steamScale.scale - impliedUiScale()) > 0.15 ? 'text-amber-400' : 'text-focus'
             }
           >
             {steamScale.scale.toFixed(2)}x steam ({steamScale.automatic ? 'auto' : 'MANUAL'})

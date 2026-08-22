@@ -1,13 +1,7 @@
 import { steamGet } from './transport'
 import { isAdultContent } from './contentFilter'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
-import type {
-  AppDetails,
-  ReviewSummary,
-  StoreItem,
-  StoreRow,
-  StoreTag,
-} from '../types/steam'
+import type { AppDetails, ReviewSummary, StoreItem, StoreRow, StoreTag } from '../types/steam'
 
 /**
  * Steam data facade. Raw shapes are parsed here and nowhere else.

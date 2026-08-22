@@ -104,10 +104,7 @@ export const loadCacheStats = async (): Promise<CacheStats> => {
     entries: typeof raw.entries === 'number' ? raw.entries : 0,
     bytes: typeof raw.bytes === 'number' ? raw.bytes : 0,
     newestAgeSeconds: typeof age === 'number' ? age : undefined,
-    byHost:
-      byHost && typeof byHost === 'object'
-        ? (byHost as Record<string, number>)
-        : {},
+    byHost: byHost && typeof byHost === 'object' ? (byHost as Record<string, number>) : {},
   }
 }
 

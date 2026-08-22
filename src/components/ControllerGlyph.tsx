@@ -105,7 +105,17 @@ const BUMPER_PATH =
  */
 const LETTER_FONT = 'Segoe UI, Archivo, sans-serif'
 
-const Letter = ({ text, x, y, size = 17 }: { text: string; x: number; y: number; size?: number }) => (
+const Letter = ({
+  text,
+  x,
+  y,
+  size = 17,
+}: {
+  text: string
+  x: number
+  y: number
+  size?: number
+}) => (
   <text
     x={x}
     y={y}

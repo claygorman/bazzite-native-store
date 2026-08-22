@@ -60,8 +60,7 @@ export const TagPicker = ({
    * and nothing on screen saying so. Requiring the preview to name the tag it belongs
    * to makes that state unrenderable rather than merely unlikely.
    */
-  const ready =
-    focused !== undefined && preview.tagid === focused.tagid && !preview.loading
+  const ready = focused !== undefined && preview.tagid === focused.tagid && !preview.loading
 
   return (
     <div className="absolute inset-x-0 bottom-18.5 top-0 flex flex-col gap-6 px-14 py-11">
@@ -142,7 +141,11 @@ export const TagPicker = ({
                     asking a different way would promise 13,912 here and deliver 5,214 on
                     press.
                   */}
-                  {ready ? `${preview.total.toLocaleString()} games` : <Bar className="h-3.5 w-36" />}
+                  {ready ? (
+                    `${preview.total.toLocaleString()} games`
+                  ) : (
+                    <Bar className="h-3.5 w-36" />
+                  )}
                 </span>
               </div>
 
@@ -247,7 +250,9 @@ const BazziteSplit = ({ preview, ready }: { preview: TagPreview; ready: boolean 
   return (
     <div className="flex flex-col gap-2.5">
       <Heading>Runs on Bazzite</Heading>
-      <div className={`flex h-3 overflow-hidden rounded-full bg-chip ${ready ? '' : 'animate-pulse'}`}>
+      <div
+        className={`flex h-3 overflow-hidden rounded-full bg-chip ${ready ? '' : 'animate-pulse'}`}
+      >
         {ready &&
           preview.split.map((bar) => (
             <span
@@ -273,7 +278,9 @@ const BazziteSplit = ({ preview, ready }: { preview: TagPreview; ready: boolean 
                 {DECK_COMPAT_LABEL[bar.verdict]} {Math.round((bar.count / preview.sampled) * 100)}%
               </span>
             ))
-          : ['w-32', 'w-32', 'w-36'].map((width, i) => <Bar key={i} className={`h-3.5 ${width}`} />)}
+          : ['w-32', 'w-32', 'w-36'].map((width, i) => (
+              <Bar key={i} className={`h-3.5 ${width}`} />
+            ))}
       </div>
       {/*
         ⚠️ Word this precisely. "of the 90 most-reviewed games" would be wrong: the

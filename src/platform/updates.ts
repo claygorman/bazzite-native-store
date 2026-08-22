@@ -56,7 +56,10 @@ type TauriUpdate = {
   date?: string
   body?: string
   downloadAndInstall: (
-    onEvent?: (event: { event: string; data?: { contentLength?: number; chunkLength?: number } }) => void,
+    onEvent?: (event: {
+      event: string
+      data?: { contentLength?: number; chunkLength?: number }
+    }) => void,
   ) => Promise<void>
 }
 

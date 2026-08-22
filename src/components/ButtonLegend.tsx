@@ -180,15 +180,14 @@ export const ButtonLegend = ({
     </span>
 
     <span className="flex items-center gap-6 text-sm font-semibold text-ink-3/75">
-      {(screen === 'search' && source === 'keyboard'
-        ? KEYBOARD_SEARCH
-        : NAVIGATION[screen]
-      ).map((hint) => (
-        <span key={hint.action} className="flex items-center gap-2">
-          <Prompt action={hint.action} source={source} />
-          {hint.label}
-        </span>
-      ))}
+      {(screen === 'search' && source === 'keyboard' ? KEYBOARD_SEARCH : NAVIGATION[screen]).map(
+        (hint) => (
+          <span key={hint.action} className="flex items-center gap-2">
+            <Prompt action={hint.action} source={source} />
+            {hint.label}
+          </span>
+        ),
+      )}
     </span>
 
     <span className="ml-auto flex items-center gap-6">

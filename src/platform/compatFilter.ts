@@ -50,10 +50,7 @@ const passes = (item: StoreItem, settings: Settings): boolean => {
  * to whatever question produced the list (top sellers, most reviewed, release date),
  * and re-sorting across it would quietly replace that answer with ours.
  */
-export const applyCompatFilter = (
-  items: readonly StoreItem[],
-  settings: Settings,
-): StoreItem[] => {
+export const applyCompatFilter = (items: readonly StoreItem[], settings: Settings): StoreItem[] => {
   const kept = items.filter((item) => passes(item, settings))
   if (!settings.nativeLinuxFirst) return kept
   return [

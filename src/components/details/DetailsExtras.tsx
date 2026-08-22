@@ -22,9 +22,7 @@ const Panel = ({
   <div
     className={`flex min-h-0 flex-col gap-3 rounded-lg bg-panel p-4.5 transition-shadow ${sectionRing(focused)}`}
   >
-    <span className="text-sm font-bold uppercase tracking-label text-ink-3/45">
-      {title}
-    </span>
+    <span className="text-sm font-bold uppercase tracking-label text-ink-3/45">{title}</span>
     {children}
   </div>
 )
@@ -44,9 +42,8 @@ const Panel = ({
 export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex }: Props) => {
   const keys = extrasSections(details, reviews)
   const active: SectionKey | undefined = keys[sectionIndex]
-  const positivePct = reviews && reviews.total > 0
-    ? Math.round((reviews.positive / reviews.total) * 100)
-    : undefined
+  const positivePct =
+    reviews && reviews.total > 0 ? Math.round((reviews.positive / reviews.total) * 100) : undefined
 
   return (
     // `items-stretch` plus `justify-between` on both columns: the panels spread down
@@ -58,9 +55,7 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
           {reviews ? (
             <>
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-extrabold text-ok">
-                  {reviews.scoreDescription}
-                </span>
+                <span className="text-3xl font-extrabold text-ok">{reviews.scoreDescription}</span>
                 {positivePct !== undefined && (
                   <span className="text-lg font-semibold text-ink-2/70">
                     {positivePct}% of {reviews.total.toLocaleString('en-US')}
@@ -69,10 +64,7 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
               </div>
               {/* Proportion bar — positive vs negative, at a glance from the couch. */}
               <div className="flex h-2.5 overflow-hidden rounded-full bg-chip-strong">
-                <div
-                  className="bg-ok"
-                  style={{ width: `${positivePct ?? 0}%` }}
-                />
+                <div className="bg-ok" style={{ width: `${positivePct ?? 0}%` }} />
               </div>
               <span className="text-sm font-medium text-ink-3/50">
                 Counted across all languages, matching Steam's own figure.
@@ -112,7 +104,11 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
         <Panel title="Players online" focused={active === 'players'}>
           <span className="text-4xl font-extrabold leading-none text-ink">
-            {players !== undefined ? players.toLocaleString('en-US') : loading ? '—' : 'Unavailable'}
+            {players !== undefined
+              ? players.toLocaleString('en-US')
+              : loading
+                ? '—'
+                : 'Unavailable'}
           </span>
           {/* Point-in-time only: GetNumberOfCurrentPlayers has no history behind it,
               so this must never be presented as a trend. */}
@@ -124,9 +120,7 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
             className={`flex items-center gap-3 rounded-lg bg-ok-wash px-4.5 py-4 transition-shadow ${sectionRing(active === 'demo')}`}
           >
             <span className="text-base font-bold text-pad-ok">Demo available</span>
-            <span className="text-sm font-medium text-ink-2/70">
-              Install it from Steam
-            </span>
+            <span className="text-sm font-medium text-ink-2/70">Install it from Steam</span>
           </div>
         )}
 

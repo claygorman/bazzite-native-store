@@ -88,21 +88,26 @@ const SpeakerIcon = ({ muted }: { muted: boolean }) => (
       />
     ) : (
       <>
-        <path d="M15.6 9a4.2 4.2 0 010 6" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M18.2 6.8a7.6 7.6 0 010 10.4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <path
+          d="M15.6 9a4.2 4.2 0 010 6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d="M18.2 6.8a7.6 7.6 0 010 10.4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          fill="none"
+          strokeLinecap="round"
+        />
       </>
     )}
   </svg>
 )
 
-export const MediaGallery = ({
-  items,
-  index,
-  focused,
-  muted,
-  onAudioChange,
-  source,
-}: Props) => {
+export const MediaGallery = ({ items, index, focused, muted, onAudioChange, source }: Props) => {
   const stripRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   /** undefined = not determined yet. */
@@ -141,10 +146,12 @@ export const MediaGallery = ({
     // Give an adaptive stream longer: nothing decodes until hls.js has fetched the
     // manifest and the first segments, so probing too early always reads "silent".
     const timer = setTimeout(() => {
-      const video = videoRef.current as (HTMLVideoElement & {
-        webkitAudioDecodedByteCount?: number
-        mozHasAudio?: boolean
-      }) | null
+      const video = videoRef.current as
+        | (HTMLVideoElement & {
+            webkitAudioDecodedByteCount?: number
+            mozHasAudio?: boolean
+          })
+        | null
       if (!video) return
       const report = (value: boolean | undefined) => {
         setHasAudio(value)
@@ -267,9 +274,7 @@ export const MediaGallery = ({
               key={`${item.src}-${i}`}
               className={[
                 'relative h-18 w-32 shrink-0 overflow-hidden rounded-md transition-all duration-150',
-                i === safeIndex
-                  ? 'relative z-10 opacity-100 ring-flat'
-                  : 'opacity-45',
+                i === safeIndex ? 'relative z-10 opacity-100 ring-flat' : 'opacity-45',
               ].join(' ')}
             >
               <img src={item.thumb} alt="" className="h-full w-full object-cover" />

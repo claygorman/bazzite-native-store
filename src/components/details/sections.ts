@@ -40,10 +40,7 @@ export const aboutSections = (details?: AppDetails): SectionKey[] => {
   return keys
 }
 
-export const extrasSections = (
-  details?: AppDetails,
-  reviews?: ReviewSummary,
-): SectionKey[] => {
+export const extrasSections = (details?: AppDetails, reviews?: ReviewSummary): SectionKey[] => {
   const keys: SectionKey[] = []
   if (reviews) keys.push('reviews')
   if (details?.achievementsTotal) keys.push('achievements')
@@ -71,6 +68,4 @@ export const sectionsFor = (
  * above its neighbours.
  */
 export const sectionRing = (focused: boolean): string =>
-  focused
-    ? 'relative z-10 shadow-[0_0_0_0.25rem_#080d16,0_0_0_0.4375rem_var(--color-focus)]'
-    : ''
+  focused ? 'relative z-10 shadow-[0_0_0_0.25rem_#080d16,0_0_0_0.4375rem_var(--color-focus)]' : ''

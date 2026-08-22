@@ -39,11 +39,11 @@ here, the fourth person to open the demo gets an empty store.
 
 `server/cache.ts` does three things, and the second is the one a plain cache misses:
 
-| | |
-|---|---|
-| **TTL cache** | keyed on the full upstream URL. Repeat visitors cost nothing. |
-| **In-flight de-duplication** | ten people opening the page at once produce **one** upstream request. A cold cache plus a launch burst is exactly how a demo gets rate-limited. |
-| **Serve-stale-on-failure** | if the upstream 429s or dies, an expired entry is returned instead of an error — endpoint rule 3 (*never let a dead endpoint blank the UI*) applied one layer out. |
+|                              |                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **TTL cache**                | keyed on the full upstream URL. Repeat visitors cost nothing.                                                                                                      |
+| **In-flight de-duplication** | ten people opening the page at once produce **one** upstream request. A cold cache plus a launch burst is exactly how a demo gets rate-limited.                    |
+| **Serve-stale-on-failure**   | if the upstream 429s or dies, an expired entry is returned instead of an error — endpoint rule 3 (_never let a dead endpoint blank the UI_) applied one layer out. |
 
 Measured on a cold cache, 12 simultaneous identical requests:
 

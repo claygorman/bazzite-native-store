@@ -97,8 +97,7 @@ const probe = async (spec: (typeof PROBES)[number]): Promise<ServiceHealth> => {
 }
 
 /** All four at once — sequential probes would report the last one as slower. */
-export const checkServices = async (): Promise<ServiceHealth[]> =>
-  Promise.all(PROBES.map(probe))
+export const checkServices = async (): Promise<ServiceHealth[]> => Promise.all(PROBES.map(probe))
 
 /** The worst state present, which is what the page's pill says. */
 export const worstState = (services: readonly ServiceHealth[]): ServiceState =>

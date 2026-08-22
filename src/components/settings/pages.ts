@@ -70,12 +70,13 @@ const step = (key: SteppableKey, label: string, desc: string): SettingsRow => ({
   label,
   desc,
 })
-const button = (
-  action: RowAction,
-  label: string,
-  desc: string,
-  value: string,
-): SettingsRow => ({ kind: 'button', action, label, desc, value })
+const button = (action: RowAction, label: string, desc: string, value: string): SettingsRow => ({
+  kind: 'button',
+  action,
+  label,
+  desc,
+  value,
+})
 
 export const SETTINGS_PAGES: readonly SettingsPage[] = [
   {
@@ -91,7 +92,12 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
          * reason to exist is an action" — putting the action here satisfies both rules
          * at once without giving the status card a focusable control of its own.
          */
-        button('check-updates', 'Check for updates', 'Ask the feed whether there is a newer build', 'Check'),
+        button(
+          'check-updates',
+          'Check for updates',
+          'Ask the feed whether there is a newer build',
+          'Check',
+        ),
         toggle('autoUpdate', 'Automatic updates', 'Check on launch and download in the background'),
         step('updateChannel', 'Update channel', 'Testing gets builds before they are tagged'),
         toggle(
@@ -110,7 +116,11 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
           'Drops the cached ProtonDB and Deck verdicts so the next look is live',
           'Refresh',
         ),
-        toggle('cacheArtwork', 'Cache artwork and trailers', 'Keeps shelves instant on a second visit'),
+        toggle(
+          'cacheArtwork',
+          'Cache artwork and trailers',
+          'Keeps shelves instant on a second visit',
+        ),
       ],
     },
   },
@@ -154,9 +164,7 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
     },
     colB: {
       title: 'Glyphs',
-      rows: [
-        step('glyphSet', 'Glyph set', 'Which button names the hint bar draws'),
-      ],
+      rows: [step('glyphSet', 'Glyph set', 'Which button names the hint bar draws')],
     },
   },
 
@@ -187,7 +195,11 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
       title: 'Data sources',
       rows: [
         toggle('protonRatings', 'ProtonDB ratings', 'Community tiers and the coloured dots'),
-        toggle('deckVerified', 'Show Deck verdicts', "Valve's badge on every card. The filter above uses it either way"),
+        toggle(
+          'deckVerified',
+          'Show Deck verdicts',
+          "Valve's badge on every card. The filter above uses it either way",
+        ),
         step('refreshCadence', 'Refresh cadence', 'How long a compatibility rating is kept'),
       ],
     },
@@ -234,7 +246,12 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
       title: 'Requests',
       rows: [
         toggle('prefetchFocused', 'Prefetch focused tile', 'Loads details before you press A'),
-        button('run-diagnostics', 'Re-check services', 'Times a real request to each of the four', 'Run'),
+        button(
+          'run-diagnostics',
+          'Re-check services',
+          'Times a real request to each of the four',
+          'Run',
+        ),
       ],
     },
   },

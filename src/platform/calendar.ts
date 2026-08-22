@@ -180,7 +180,9 @@ const sessionGet = async (path: string, query: Record<string, string | number>) 
   (await import('./steamSession')).steamSessionGet(path, query)
 
 const asRecord = (v: unknown): Record<string, unknown> | undefined =>
-  typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : undefined
 
 const asNumber = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined
@@ -203,7 +205,10 @@ const ASSET_BASE = 'https://shared.akamai.steamstatic.com/store_item_assets/'
  * `split/join` rather than `replace` because the replacement is Steam-controlled and
  * `$` sequences in a `replace` replacement string are magic.
  */
-const assetUrl = (assets: Record<string, unknown> | undefined, ...fields: string[]): string | undefined => {
+const assetUrl = (
+  assets: Record<string, unknown> | undefined,
+  ...fields: string[]
+): string | undefined => {
   const format = asString(assets?.asset_url_format)
   if (!format) return undefined
   for (const field of fields) {
@@ -469,4 +474,5 @@ export const fetchCalendarBand = async (now: Date = new Date()): Promise<Calenda
 }
 
 /** The band's day columns. See `fetchCalendarBand` for the recommended row. */
-export const fetchCalendarDays = async (): Promise<CalendarDay[]> => (await fetchCalendarBand()).days
+export const fetchCalendarDays = async (): Promise<CalendarDay[]> =>
+  (await fetchCalendarBand()).days

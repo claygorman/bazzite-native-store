@@ -13,9 +13,7 @@ import { fetchProtonRating, type ProtonRating } from '../platform/protondb'
  * per tile passed through.
  */
 export type ProtonState =
-  | { status: 'loading' }
-  | { status: 'rated'; rating: ProtonRating }
-  | { status: 'unrated' }
+  { status: 'loading' } | { status: 'rated'; rating: ProtonRating } | { status: 'unrated' }
 
 export const useProtonRating = (appid: number | undefined, delayMs = 400): ProtonState => {
   const [state, setState] = useState<ProtonState>({ status: 'loading' })

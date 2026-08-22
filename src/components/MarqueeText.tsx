@@ -63,7 +63,11 @@ export const MarqueeText = ({ children, className = '', pxPerSecond = 42 }: Prop
     >
       <span
         ref={textRef}
-        className={animate ? 'inline-block will-change-transform motion-safe:animate-marquee' : 'block truncate'}
+        className={
+          animate
+            ? 'inline-block will-change-transform motion-safe:animate-marquee'
+            : 'block truncate'
+        }
         style={
           animate
             ? ({

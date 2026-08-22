@@ -18,8 +18,7 @@ import type { DeckCompat, StoreItem } from '../types/steam'
  * bounded chart, not a catalogue — 619 Roguelikes against 5,214 — so it reads as a
  * suspiciously small library and pages out after a few screens.
  */
-export const DEFAULT_TAG_SORT: TagSort =
-  TAG_SORTS.find((s) => s.id === 'reviews') ?? TAG_SORTS[0]!
+export const DEFAULT_TAG_SORT: TagSort = TAG_SORTS.find((s) => s.id === 'reviews') ?? TAG_SORTS[0]!
 
 /**
  * ⚠️ 25, not the design's 15, and this is Steam's decision rather than ours.

@@ -24,7 +24,8 @@ frontend at runtime. (You already run Decky — `decky-proton-launch`.)
 
 That gives two viable shapes, and they are genuinely different projects:
 
-### Path A — Decky plugin (*inside* Steam's UI)
+### Path A — Decky plugin (_inside_ Steam's UI)
+
 - React + TypeScript against `@decky/ui`, Python backend, loaded by Decky Loader.
 - `routerHook.addRoute()` registers a full-screen route; menu entries come from patching Steam's
   nav components.
@@ -35,6 +36,7 @@ That gives two viable shapes, and they are genuinely different projects:
   the host UI the whole way.
 
 ### Path B — Standalone app, added as a non-Steam shortcut ✅ **recommended**
+
 - Own window, own render loop, full-screen in gamescope like any game.
 - ✅ **Total design freedom** — the Claude Design output ports over essentially 1:1.
 - ✅ Robust. Steam frontend updates cannot break it.
@@ -51,12 +53,12 @@ launching.
 
 ## 2. Stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Shell | **Tauri v2** (Rust) | ~10 MB vs Electron's ~150 MB; native HTTP; no bundled browser |
-| UI | **React + TypeScript + Vite + Tailwind** | Claude Design output ports directly |
-| Input | **`gilrs` in Rust**, events → webview | See the warning below |
-| HTTP/cache | **Rust `reqwest`** in the Tauri backend | No CORS, real caching, keeps keys off the frontend |
+| Layer      | Choice                                   | Why                                                           |
+| ---------- | ---------------------------------------- | ------------------------------------------------------------- |
+| Shell      | **Tauri v2** (Rust)                      | ~10 MB vs Electron's ~150 MB; native HTTP; no bundled browser |
+| UI         | **React + TypeScript + Vite + Tailwind** | Claude Design output ports directly                           |
+| Input      | **`gilrs` in Rust**, events → webview    | See the warning below                                         |
+| HTTP/cache | **Rust `reqwest`** in the Tauri backend  | No CORS, real caching, keeps keys off the frontend            |
 
 ### ⚠️ Do not rely on the browser Gamepad API here
 
@@ -110,7 +112,7 @@ here and in the comments at every call site.
    it returns markup inside JSON and there is no alternative for that one job.
 
 2. **Anonymous means anonymous.** No cart, no purchase, no recommendations. Owned games and the
-   wishlist *are* reachable, but only by reading the local Steam client's own logged-in session on
+   wishlist _are_ reachable, but only by reading the local Steam client's own logged-in session on
    the machine — never by an API key, and never by handling a credential. Everything else is
    deep-linked out with `steam://store/<appid>`.
 
@@ -118,7 +120,7 @@ here and in the comments at every call site.
    v1 shortcut.
 
 ⚠️ They are undocumented, unversioned and rate-limited to roughly **200 requests per 5 minutes per
-IP**, so caching is a correctness requirement rather than an optimisation. They also fail *quietly*
+IP**, so caching is a correctness requirement rather than an optimisation. They also fail _quietly_
 — several return HTTP 200 with empty arrays or silently stripped fields rather than an error — so
 every reader in this codebase is written to tell "no data" apart from "we could not ask", and to
 degrade rather than blank the UI.
@@ -176,7 +178,7 @@ Tasks live in **`private/TASKS.md`** (gitignored) — not GitHub issues.
 
 ## 7. Further reading
 
-`docs/` carries the notes that are about *this codebase*:
+`docs/` carries the notes that are about _this codebase_:
 
 - **`docs/DESIGN-PORT.md`** — where the design spec has to be converted rather than copied, and the
   Xbox glyph kit's own rules.
@@ -220,7 +222,7 @@ offer to install, so it is a decision rather than a consequence of merging.
 Two jobs. The first computes the version from the commits since the last tag, syncs it into
 `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, commits, tags and creates the
 GitHub Release. The second checks out that tag, builds the AppImage on `ubuntu-22.04`, signs it, and
-attaches the bundle plus `latest.json` — which *is* the update feed the client polls.
+attaches the bundle plus `latest.json` — which _is_ the update feed the client polls.
 
 Commit messages drive the version, so they are Conventional Commits: `feat:` is a minor, `fix:` a
 patch, and a `BREAKING CHANGE:` footer a major.

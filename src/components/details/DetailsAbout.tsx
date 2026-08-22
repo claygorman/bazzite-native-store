@@ -38,13 +38,9 @@ const RequirementsCard = ({
   <div
     className={`flex flex-1 flex-col gap-1.75 rounded-lg bg-panel p-4 transition-shadow ${sectionRing(focused)}`}
   >
-    <span className="text-sm font-bold uppercase tracking-label text-ink-3/45">
-      {title}
-    </span>
+    <span className="text-sm font-bold uppercase tracking-label text-ink-3/45">{title}</span>
     {lines.length === 0 ? (
-      <span className="text-sm font-medium leading-[1.35] text-ink-3/40">
-        Not published
-      </span>
+      <span className="text-sm font-medium leading-[1.35] text-ink-3/40">Not published</span>
     ) : (
       lines.map((line) => (
         <span key={line} className="text-sm font-medium leading-[1.35] text-ink-2/80">
@@ -99,7 +95,14 @@ const usePopularTags = (appid: number | undefined): string[] => {
  * rather than faked. The tag row that follows it in the design IS here — `GetItems`
  * supplies those as ids and `GetLocalizedNameForTags` names them, both keyless.
  */
-export const DetailsAbout = ({ details, proton, loading, sectionIndex, expanded, source }: Props) => {
+export const DetailsAbout = ({
+  details,
+  proton,
+  loading,
+  sectionIndex,
+  expanded,
+  source,
+}: Props) => {
   const tier = proton.status === 'rated' ? proton.rating.tier : 'pending'
   const style = TIER_STYLE[tier]
 

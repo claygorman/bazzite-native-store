@@ -200,10 +200,7 @@ export const TagSpotlight = ({
               )}
               {tier !== undefined && (
                 <span className="flex items-center gap-2 rounded bg-chip px-3 py-1 text-base font-medium text-ink-mute">
-                  <span
-                    className="size-3 shrink-0 rounded-full"
-                    style={{ background: tier.dot }}
-                  />
+                  <span className="size-3 shrink-0 rounded-full" style={{ background: tier.dot }} />
                   Proton {tier.label}
                 </span>
               )}

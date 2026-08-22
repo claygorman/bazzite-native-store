@@ -18,8 +18,8 @@ export const rowLength = (row: number): number =>
 /** Character (or action) at a focus position. */
 export const keyAt = (focus: SearchFocus): string =>
   focus.row === ACTION_ROW_INDEX
-    ? ACTION_ROW[focus.col] ?? ''
-    : KEY_ROWS[focus.row]?.[focus.col] ?? ''
+    ? (ACTION_ROW[focus.col] ?? '')
+    : (KEY_ROWS[focus.row]?.[focus.col] ?? '')
 
 type Props = {
   query: string
@@ -76,9 +76,7 @@ export const SearchView = ({ query, focus, onResults, results, resultFocus, sour
   const cell = (active: boolean, extra = '') =>
     [
       'grid place-items-center rounded-lg transition-all duration-150',
-      active
-        ? 'relative z-10 bg-chip-strong ring-flat'
-        : 'bg-chip',
+      active ? 'relative z-10 bg-chip-strong ring-flat' : 'bg-chip',
       extra,
     ].join(' ')
 
@@ -96,9 +94,7 @@ export const SearchView = ({ query, focus, onResults, results, resultFocus, sour
           className={[
             'relative z-10 flex h-22.5 items-center gap-4 rounded-lg',
             'bg-chip px-6.5 transition-shadow',
-            resultFocus === null
-              ? 'ring-tile'
-              : '',
+            resultFocus === null ? 'ring-tile' : '',
           ].join(' ')}
         >
           <span className="truncate text-3xl font-semibold text-ink">{query}</span>
@@ -192,11 +188,7 @@ export const SearchView = ({ query, focus, onResults, results, resultFocus, sour
             they stay in proportion at 4K. */}
         <div className="-mx-2 -my-2 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-2">
           {results.map((item, index) => (
-            <SearchResult
-              key={item.appid}
-              item={item}
-              focused={resultFocus === index}
-            />
+            <SearchResult key={item.appid} item={item} focused={resultFocus === index} />
           ))}
         </div>
       </div>

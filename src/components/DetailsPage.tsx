@@ -120,14 +120,10 @@ export const DetailsPage = ({
             key={label}
             className={[
               'rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all',
-              index === screen
-                ? 'bg-ink text-ink-on-light'
-                : 'bg-chip-strong text-ink-3/60',
+              index === screen ? 'bg-ink text-ink-on-light' : 'bg-chip-strong text-ink-3/60',
               // Only ring the active tab while the tab strip actually holds focus,
               // so "where am I" and "what is selected" stay distinguishable.
-              zone === 'tabs' && index === screen
-                ? 'relative z-10 ring-tile'
-                : '',
+              zone === 'tabs' && index === screen ? 'relative z-10 ring-tile' : '',
             ].join(' ')}
           >
             {label}
@@ -137,131 +133,128 @@ export const DetailsPage = ({
 
       {screen === 1 && (
         <motion.div key="about" {...PAGE_ENTER}>
-        <DetailsAbout
-          details={details}
-          proton={proton}
-          loading={loading}
-          sectionIndex={sectionIndex}
-          expanded={sectionExpanded}
-          source={source}
-        />
+          <DetailsAbout
+            details={details}
+            proton={proton}
+            loading={loading}
+            sectionIndex={sectionIndex}
+            expanded={sectionExpanded}
+            source={source}
+          />
         </motion.div>
       )}
       {screen === 2 && (
         <motion.div key="extras" {...PAGE_ENTER}>
-        <DetailsExtras
-          details={details}
-          reviews={reviews}
-          players={state.players}
-          loading={loading}
-          sectionIndex={sectionIndex}
-        />
+          <DetailsExtras
+            details={details}
+            reviews={reviews}
+            players={state.players}
+            loading={loading}
+            sectionIndex={sectionIndex}
+          />
         </motion.div>
       )}
 
       {screen === 0 && (
-      <motion.div
-        key="overview-text"
-        {...PAGE_ENTER}
-        className="absolute left-14 top-24 flex w-205 flex-col gap-3.5"
-      >
-        {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
+        <motion.div
+          key="overview-text"
+          {...PAGE_ENTER}
+          className="absolute left-14 top-24 flex w-205 flex-col gap-3.5"
+        >
+          {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
             overflow:hidden, which clips a text-shadow into a hard rectangle. A
             drop-shadow filter on an unclipped parent renders the same effect. */}
-        <div className="[filter:drop-shadow(0_0.25rem_1.25rem_rgba(0,0,0,.75))]">
-          {/*
+          <div className="[filter:drop-shadow(0_0.25rem_1.25rem_rgba(0,0,0,.75))]">
+            {/*
             Wraps to two lines rather than scrolling. This page has vertical room to
             spare, and a title you can simply read beats one you have to wait for.
             The home hero cannot do this — its band is a fixed 140px — so that one
             marquees instead.
           */}
-          <h1 className="line-clamp-2 text-6xl font-extrabold leading-[0.96] tracking-[-0.015em] text-ink">
-            {name}
-          </h1>
-        </div>
+            <h1 className="line-clamp-2 text-6xl font-extrabold leading-[0.96] tracking-[-0.015em] text-ink">
+              {name}
+            </h1>
+          </div>
 
-        {unavailable ? (
-          // success:false — age-gated or delisted, and the response cannot tell us
-          // which. Say what we know rather than rendering an empty page.
-          <p className="max-w-175 text-xl leading-relaxed text-amber-300/80">
-            Steam returned no details for this app. It is either age-gated or no longer
-            listed — the store API does not distinguish the two.
-          </p>
-        ) : (
-          <p className="max-w-175 text-xl leading-[1.45] text-ink-2/80">
-            {loading ? '' : details?.shortDescription}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          {proton.status === 'loading' ? (
-            <Chip className="animate-pulse bg-scrim-soft text-ink-3/40">
-              <span className="h-2.75 w-2.75 rounded-full bg-ink-3/25" />
-              ProtonDB
-            </Chip>
+          {unavailable ? (
+            // success:false — age-gated or delisted, and the response cannot tell us
+            // which. Say what we know rather than rendering an empty page.
+            <p className="max-w-175 text-xl leading-relaxed text-amber-300/80">
+              Steam returned no details for this app. It is either age-gated or no longer listed —
+              the store API does not distinguish the two.
+            </p>
           ) : (
-            (() => {
-              const tier = proton.status === 'rated' ? proton.rating.tier : 'pending'
-              const style = TIER_STYLE[tier]
-              return (
-                <Chip
-                  className="bg-scrim-soft ring-1 ring-inset"
-                  style={{ color: style.text, boxShadow: `inset 0 0 0 1px ${style.dot}55` }}
-                >
-                  <span
-                    className="h-2.75 w-2.75 rounded-full"
-                    style={{ background: style.dot }}
-                  />
-                  ProtonDB {style.label}
-                  {proton.status === 'rated' && ` · ${proton.rating.total} reports`}
-                </Chip>
-              )
-            })()
+            <p className="max-w-175 text-xl leading-[1.45] text-ink-2/80">
+              {loading ? '' : details?.shortDescription}
+            </p>
           )}
 
-          {details?.controllerSupport && (
-            <Chip className="bg-ok-wash text-pad-ok">
-              {details.controllerSupport === 'full' ? 'Full' : 'Partial'} controller support
-            </Chip>
-          )}
-          {details?.metacritic !== undefined && (
-            <Chip className="bg-chip-strong text-ink-2/85">
-              Metacritic {details.metacritic}
-            </Chip>
-          )}
-        </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {proton.status === 'loading' ? (
+              <Chip className="animate-pulse bg-scrim-soft text-ink-3/40">
+                <span className="h-2.75 w-2.75 rounded-full bg-ink-3/25" />
+                ProtonDB
+              </Chip>
+            ) : (
+              (() => {
+                const tier = proton.status === 'rated' ? proton.rating.tier : 'pending'
+                const style = TIER_STYLE[tier]
+                return (
+                  <Chip
+                    className="bg-scrim-soft ring-1 ring-inset"
+                    style={{ color: style.text, boxShadow: `inset 0 0 0 1px ${style.dot}55` }}
+                  >
+                    <span
+                      className="h-2.75 w-2.75 rounded-full"
+                      style={{ background: style.dot }}
+                    />
+                    ProtonDB {style.label}
+                    {proton.status === 'rated' && ` · ${proton.rating.total} reports`}
+                  </Chip>
+                )
+              })()
+            )}
 
-        <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-6 text-base font-medium leading-[1.6]">
-          <MetaRow
-            label="RELEASE"
-            value={details?.releaseDate || (loading ? '—' : 'Unannounced')}
-          />
-          <MetaRow label="DEVELOPER" value={details?.developers.join(', ') || '—'} />
-          <MetaRow
-            label="REVIEWS"
-            value={
-              reviews
-                ? `${reviews.scoreDescription} (${reviews.total.toLocaleString('en-US')})`
-                : loading
-                  ? '—'
-                  : 'No user reviews yet'
-            }
-          />
-        </div>
+            {details?.controllerSupport && (
+              <Chip className="bg-ok-wash text-pad-ok">
+                {details.controllerSupport === 'full' ? 'Full' : 'Partial'} controller support
+              </Chip>
+            )}
+            {details?.metacritic !== undefined && (
+              <Chip className="bg-chip-strong text-ink-2/85">Metacritic {details.metacritic}</Chip>
+            )}
+          </div>
 
-        <div className="mt-2 flex items-center gap-3.5">
-          <button
-            type="button"
-            onClick={onOpenInSteam}
-            className="flex items-center gap-3 whitespace-nowrap rounded-full bg-gradient-to-br from-focus to-focus-deep px-7 py-3.75 text-xl font-bold text-ink-on-accent shadow-[0_0_2.75rem_rgba(77,155,230,.5)]"
-          >
-            <ControllerGlyph action="accept" source={source} className="!size-6.5" />
-            Open in Steam
-            {priceLabel && ` · ${priceLabel}`}
-          </button>
+          <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-6 text-base font-medium leading-[1.6]">
+            <MetaRow
+              label="RELEASE"
+              value={details?.releaseDate || (loading ? '—' : 'Unannounced')}
+            />
+            <MetaRow label="DEVELOPER" value={details?.developers.join(', ') || '—'} />
+            <MetaRow
+              label="REVIEWS"
+              value={
+                reviews
+                  ? `${reviews.scoreDescription} (${reviews.total.toLocaleString('en-US')})`
+                  : loading
+                    ? '—'
+                    : 'No user reviews yet'
+              }
+            />
+          </div>
 
-        </div>
-      </motion.div>
+          <div className="mt-2 flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={onOpenInSteam}
+              className="flex items-center gap-3 whitespace-nowrap rounded-full bg-gradient-to-br from-focus to-focus-deep px-7 py-3.75 text-xl font-bold text-ink-on-accent shadow-[0_0_2.75rem_rgba(77,155,230,.5)]"
+            >
+              <ControllerGlyph action="accept" source={source} className="!size-6.5" />
+              Open in Steam
+              {priceLabel && ` · ${priceLabel}`}
+            </button>
+          </div>
+        </motion.div>
       )}
 
       {/* The trailer as the object on screen, not a widget in a column. */}

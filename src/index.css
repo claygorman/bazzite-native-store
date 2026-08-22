@@ -204,11 +204,7 @@ html {
  * looked on the TV. The delta between the stops is kept — that part is the design.
  */
 @utility scrim-page {
-  background: linear-gradient(
-    180deg,
-    rgb(8 13 22 / 0.985) 32%,
-    rgb(8 13 22 / 0.9)
-  );
+  background: linear-gradient(180deg, rgb(8 13 22 / 0.985) 32%, rgb(8 13 22 / 0.9));
 }
 
 /* Resting. Present, not absent — so the colour has something to animate FROM. */

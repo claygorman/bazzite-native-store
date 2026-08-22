@@ -127,15 +127,17 @@ export const SettingsView = ({
               className={[
                 'flex items-center gap-4 rounded-lg px-5 py-4 text-xl font-semibold',
                 'transition-colors duration-150',
-                i === focus.page
-                  ? 'bg-info-wash text-focus-ink'
-                  : 'text-ink-2/60',
+                i === focus.page ? 'bg-info-wash text-focus-ink' : 'text-ink-2/60',
                 i === focus.page && onRail ? 'shadow-focused-bare' : '',
               ].join(' ')}
             >
               <span
                 className={`w-1 rounded-sm bg-focus transition-all duration-150 ${
-                  i === focus.page ? (onRail ? 'h-8 opacity-100' : 'h-5.5 opacity-100') : 'h-5.5 opacity-0'
+                  i === focus.page
+                    ? onRail
+                      ? 'h-8 opacity-100'
+                      : 'h-5.5 opacity-100'
+                    : 'h-5.5 opacity-0'
                 }`}
               />
               {p.title}
@@ -144,7 +146,13 @@ export const SettingsView = ({
         </nav>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6.5">
-          <PageStatus page={page} settings={settings} status={status} update={update} version={version} />
+          <PageStatus
+            page={page}
+            settings={settings}
+            status={status}
+            update={update}
+            version={version}
+          />
 
           {/*
             ⚠️ `-m-1.5 p-1.5` — the rows draw an INSET ring, but the focus glow
@@ -279,7 +287,9 @@ const PageStatus = ({
           tone={UPDATE_TONE[update.status]}
           pill={describeUpdate(update)}
           sub={
-            update.status === 'current' || update.status === 'available' || update.status === 'error'
+            update.status === 'current' ||
+            update.status === 'available' ||
+            update.status === 'error'
               ? `Checked ${formatAge(Math.round((Date.now() - update.checkedAt) / 1000))}`
               : update.status === 'unconfigured'
                 ? 'No feed URL or signing key in tauri.conf.json'
