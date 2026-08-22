@@ -1,54 +1,55 @@
 #!/usr/bin/env node
 /**
- * Emit the update manifest Tauri's updater fetches.
+ * Emit ONE platform's fragment of the update manifest.
  *
- * This file IS the update feed. `plugins.updater.endpoints` in tauri.conf.json points
- * at `releases/latest/download/latest.json`, which GitHub always resolves to the newest
- * release's copy — so publishing a release publishes the update.
+ * `latest.json` is the update feed: `plugins.updater.endpoints` points at
+ * `releases/latest/download/latest.json`, which GitHub always resolves to the newest
+ * release — so publishing a release publishes the update.
  *
- * The shape is Tauri's, verified against `RemoteRelease` in tauri-plugin-updater:
+ * ⚠️ It is written in two passes because the platforms are built on different runners
+ * and none of them can see the others' signatures. Each build job writes a fragment
+ * (this script); a final job merges them (`merge-latest-json.mjs`). A manifest written
+ * by one runner would silently omit every other platform, and the symptom on those is
+ * `TargetsNotFound` — which reads like a network error.
  *
- * ```json
- * { "version": "0.2.0", "notes": "…", "pub_date": "…",
- *   "platforms": { "linux-x86_64": { "signature": "…", "url": "https://…" } } }
- * ```
- *
- * ⚠️ The platform key is `{os}-{arch}` — `linux-x86_64`. The updater tries
- * `linux-x86_64-appimage` first and falls back to this, so the bare form covers both.
- * Get it wrong and `check()` fails with `TargetsNotFound`, which reads like a network
- * problem.
- *
- * ⚠️ `signature` is the **contents** of the `.sig` file, not a path or a URL. A path
- * here fails signature verification on the client with no useful message.
+ * Usage: write-latest-json.mjs <version> <target> <bundle-dir> <archive-glob-suffix>
+ *   e.g.  0.2.0 darwin-aarch64 src-tauri/target/release/bundle/macos .app.tar.gz
  */
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const version = process.argv[2]
-if (!version) {
-  console.error('write-latest-json: expected a version argument')
+const [version, target, bundleDir, suffix] = process.argv.slice(2)
+if (!version || !target || !bundleDir || !suffix) {
+  console.error('usage: write-latest-json.mjs <version> <target> <bundle-dir> <archive-suffix>')
   process.exit(1)
 }
 
 const repo = process.env.GITHUB_REPOSITORY ?? 'claygorman/bazzite-native-store'
-const bundleDir = 'src-tauri/target/release/bundle/appimage'
 
-const files = readdirSync(bundleDir)
-const archive = files.find((f) => f.endsWith('.AppImage.tar.gz'))
-const sig = files.find((f) => f.endsWith('.AppImage.tar.gz.sig'))
+let files
+try {
+  files = readdirSync(bundleDir)
+} catch {
+  console.error(`write-latest-json: no such directory ${bundleDir}`)
+  process.exit(1)
+}
+
+const archive = files.find((f) => f.endsWith(suffix))
+const sig = files.find((f) => f.endsWith(`${suffix}.sig`))
 
 if (!archive) {
   console.error(
-    `write-latest-json: no .AppImage.tar.gz in ${bundleDir}\nfound: ${files.join(', ')}`,
+    `write-latest-json: nothing ending in ${suffix} under ${bundleDir}\nfound: ${files.join(', ')}`,
   )
   process.exit(1)
 }
 if (!sig) {
   /*
-   * ⚠️ Fail loudly rather than emitting an unsigned manifest. Without the signing
-   * secrets the bundler still produces an AppImage, and a manifest with an empty
-   * signature would be rejected by every client as "no update available" — a silent
-   * failure that looks exactly like having nothing to release.
+   * ⚠️ Fail loudly rather than emit an unsigned fragment. Without the signing secrets
+   * the bundler still produces the archive, and a manifest carrying an empty signature
+   * is rejected by every client as "no update available" — a silent failure that looks
+   * exactly like having nothing to release. Verified locally: a build with no
+   * TAURI_SIGNING_PRIVATE_KEY produces the .tar.gz and no .sig beside it.
    */
   console.error(
     `write-latest-json: no .sig beside ${archive}.\n` +
@@ -58,17 +59,15 @@ if (!sig) {
   process.exit(1)
 }
 
-const manifest = {
-  version,
-  notes: `See https://github.com/${repo}/releases/tag/${version}`,
-  pub_date: new Date().toISOString(),
-  platforms: {
-    'linux-x86_64': {
-      signature: readFileSync(join(bundleDir, sig), 'utf8').trim(),
-      url: `https://github.com/${repo}/releases/download/${version}/${archive}`,
-    },
+const fragment = {
+  [target]: {
+    // ⚠️ The CONTENTS of the .sig file, not a path or a URL. A path here fails
+    // signature verification on the client with no useful message.
+    signature: readFileSync(join(bundleDir, sig), 'utf8').trim(),
+    url: `https://github.com/${repo}/releases/download/${version}/${encodeURIComponent(archive)}`,
   },
 }
 
-writeFileSync('latest.json', `${JSON.stringify(manifest, null, 2)}\n`)
-console.log(`write-latest-json: ${version} -> ${archive}`)
+const out = `latest-${target}.json`
+writeFileSync(out, `${JSON.stringify(fragment, null, 2)}\n`)
+console.log(`write-latest-json: ${target} -> ${archive}`)

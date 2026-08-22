@@ -8,8 +8,19 @@
 # That makes this the CLI update path too, which matters over SSH and in `ujust`
 # recipes, where the in-app updater cannot be reached because there is no UI.
 #
+# Options:
 #   --check    print installed vs latest and exit; 0 = current, 10 = update available
-#   --yes      no prompts (same as ADD_TO_STEAM=1 for the Steam step)
+#   --yes, -y  no prompts; add the Steam shortcut without asking
+#   --help, -h print this and exit
+#
+# Environment:
+#   ADD_TO_STEAM=1   add the Steam shortcut without asking. Needed when piping from
+#                    curl, because then stdin is the SCRIPT and there is no terminal
+#                    left to read an answer from. Set it to 0 to skip the step
+#                    silently. Unset = ask, when run interactively.
+#   BIN_DIR=<path>   where the AppImage lands. Default ~/.local/bin. Must be a path
+#                    that survives an ostree rebase — anywhere under $HOME does.
+#   REPO=<o/r>       the GitHub repo to install from. For forks and testing.
 #
 # ⚠️ No sudo, anywhere. Bazzite is an immutable ostree image — there is nothing to
 # install into system paths, and a script that asked for root on a gaming handheld
@@ -19,7 +30,7 @@
 # shortcut for a name that already exists.
 set -euo pipefail
 
-REPO="claygorman/bazzite-native-store"
+REPO="${REPO:-claygorman/bazzite-native-store}"
 APP_NAME="bazzite-store"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 APP_PATH="$BIN_DIR/$APP_NAME.AppImage"
@@ -33,7 +44,7 @@ MODE="install"
 for arg in "$@"; do
   case "$arg" in
     --check) MODE="check" ;;
-    --yes|-y) ADD_TO_STEAM="${ADD_TO_STEAM:-1}" ;;
+    --yes|-y) ADD_TO_STEAM=1 ;;
     --help|-h) MODE="help" ;;
     *) printf 'unknown option: %s\n' "$arg" >&2; exit 2 ;;
   esac
@@ -44,7 +55,10 @@ info() { printf '  %s\n' "$1"; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$1" >&2; exit 1; }
 
 if [ "$MODE" = "help" ]; then
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  # Print the header comment block — everything from line 2 up to the first line
+  # that is not a comment. A hardcoded line range goes stale the moment the header
+  # grows, and silently starts printing shell code as though it were documentation.
+  awk 'NR==1 { next } !/^#/ { exit } { sub(/^# ?/, ""); print }' "$0"
   exit 0
 fi
 
@@ -53,25 +67,30 @@ fi
 # ── Preconditions ────────────────────────────────────────────────────────────
 case "$(uname -s)" in
   Linux) ;;
-  *) die "This installs a Linux AppImage. On macOS or Windows, build from source:
-    git clone https://github.com/$REPO && cd bazzite-native-store
-    pnpm install && pnpm tauri:dev" ;;
+  *) die "This installs a Linux AppImage. macOS and Windows builds are published
+  as a .dmg and a -setup.exe on the releases page:
+    https://github.com/$REPO/releases/latest" ;;
 esac
 
 [ "$(uname -m)" = "x86_64" ] || die "Only x86_64 is published right now (found $(uname -m))."
 
-for cmd in curl tar; do
+for cmd in curl; do
   command -v "$cmd" >/dev/null || die "\`$cmd\` is required but not installed."
 done
 
 # ── Find the newest release ──────────────────────────────────────────────────
 # ⚠️ Reads the API rather than /releases/latest/download/<file>, because the
 # artifact filename contains the version — there is no stable name to guess.
+#
+# ⚠️ Matches `.AppImage`, not `.AppImage.tar.gz`. Tauri v1 tarballed the AppImage for
+# the updater; v2 signs the AppImage itself, so there is exactly one Linux asset and
+# it is directly runnable. Confirmed against the 0.2.0 build, which produced
+# `bazzite-store_0.2.0_amd64.AppImage` and its `.sig` and nothing else.
 info "Looking up the latest release…"
 API="https://api.github.com/repos/$REPO/releases/latest"
 ASSET_URL=$(
   curl -fsSL "$API" \
-    | grep -o '"browser_download_url": *"[^"]*\.AppImage\.tar\.gz"' \
+    | grep -o '"browser_download_url": *"[^"]*\.AppImage"' \
     | head -1 | cut -d'"' -f4
 ) || true
 
@@ -102,15 +121,12 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 info "Downloading…"
-curl -fsSL --proto '=https' --tlsv1.2 -o "$TMP/app.tar.gz" "$ASSET_URL" \
+EXTRACTED="$TMP/app.AppImage"
+curl -fsSL --proto '=https' --tlsv1.2 -o "$EXTRACTED" "$ASSET_URL" \
   || die "Download failed: $ASSET_URL"
 
-tar -xzf "$TMP/app.tar.gz" -C "$TMP" || die "The download is not a valid archive."
-EXTRACTED=$(find "$TMP" -name '*.AppImage' -type f | head -1)
-[ -n "$EXTRACTED" ] || die "No .AppImage inside the archive."
-
-# ⚠️ Check it really is one before making it executable. A truncated download or an
-# HTML error page saved to disk would otherwise be chmod +x'd and handed to Steam.
+# ⚠️ Check it really is a binary before making it executable. A truncated download or
+# an HTML error page saved to disk would otherwise be chmod +x'd and handed to Steam.
 head -c 4 "$EXTRACTED" | grep -q $'\x7fELF' || die "That file is not a Linux binary."
 
 mkdir -p "$BIN_DIR"

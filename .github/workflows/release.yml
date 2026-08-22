@@ -69,16 +69,54 @@ jobs:
             echo "No release: nothing since $before warrants one."
           fi
 
-  appimage:
-    name: Build and publish the AppImage
+  bundles:
+    name: ${{ matrix.target }}
     needs: release
     if: needs.release.outputs.published == 'true'
-    # ⚠️ 22.04 pins the glibc the binary links against. A newer runner produces an
-    # AppImage that will not start on an older host, and the failure is a bare
-    # "version `GLIBC_2.xx' not found" with nothing pointing back at CI.
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    strategy:
+      # ⚠️ One platform failing must not block the others. Linux is the shipping
+      # target; macOS and Windows are a convenience, and losing them to a transient
+      # runner problem should not cost the release.
+      fail-fast: false
+      matrix:
+        include:
+          # ⚠️ ubuntu-22.04, not `latest` — it is the oldest supported runner, so it
+          # links the oldest glibc. A binary built on a newer one refuses to start on
+          # an older host with a bare "GLIBC_2.xx not found".
+          # ⚠️ `.AppImage`, NOT `.AppImage.tar.gz`. Tauri v1 tarballed the AppImage
+          # before signing; v2 signs the AppImage itself, so the updater artifact and
+          # the human download are the SAME file and there is no `ship:` here. Measured
+          # on release 0.2.0, whose bundle dir held exactly:
+          #   bazzite-store_0.2.0_amd64.AppImage
+          #   bazzite-store_0.2.0_amd64.AppImage.sig
+          - os: ubuntu-22.04
+            target: linux-x86_64
+            bundles: appimage
+            dir: src-tauri/target/release/bundle/appimage
+            suffix: .AppImage
+            ship: ''
+          # macos-latest is Apple silicon; macos-13 is the last Intel runner.
+          - os: macos-latest
+            target: darwin-aarch64
+            bundles: app,dmg
+            dir: src-tauri/target/release/bundle/macos
+            suffix: .app.tar.gz
+            ship: '../dmg/*.dmg'
+          - os: macos-13
+            target: darwin-x86_64
+            bundles: app,dmg
+            dir: src-tauri/target/release/bundle/macos
+            suffix: .app.tar.gz
+            ship: '../dmg/*.dmg'
+          - os: windows-latest
+            target: windows-x86_64
+            bundles: nsis
+            dir: src-tauri/target/release/bundle/nsis
+            suffix: .nsis.zip
+            ship: '*-setup.exe'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -99,20 +137,19 @@ jobs:
           # so with `pnpm@…` in package.json nothing is cached unless we say so here.
           cache: pnpm
 
-      # ⚠️ `@stable` is a moving ref that tracks the current Rust release, and is
-      # what this action documents. It is not a version tag to bump.
       - uses: dtolnay/rust-toolchain@stable
-      # v2 IS the latest major — not a stale pin.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: ${{ matrix.target }}
 
-      # ⚠️ `libudev-dev` is not optional here and is easy to miss: `gilrs` — the whole
+      # ⚠️ `libudev-dev` is not optional and is easy to miss: `gilrs` — the whole
       # gamepad layer — pulls `libudev-sys`, whose build script panics with
       # "Package libudev was not found in the pkg-config search path". Nothing in the
       # error names gilrs or the gamepad, so it reads like a toolchain problem.
       # `libdbus-1-dev` is `libdbus-sys`, reached the same way through Tauri.
       - name: System dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -123,24 +160,71 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build the AppImage
+      - name: Build
         env:
-          # Both are repository secrets. Without them the bundler still produces an
-          # AppImage but NO `.sig`, and the updater refuses every unsigned artifact —
-          # so a missing secret shows up as "no update available", never as an error.
+          # Both are repository secrets. Without them the bundler still produces the
+          # archive but NO `.sig`, and the updater refuses every unsigned artifact — so
+          # a missing secret shows up as "no update available", never as an error.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build --bundles appimage
+        run: pnpm tauri build --bundles ${{ matrix.bundles }}
 
-      - name: Write latest.json
-        run: node scripts/write-latest-json.mjs "${{ needs.release.outputs.version }}"
+      - name: Write this platform's manifest fragment
+        run: >
+          node scripts/write-latest-json.mjs
+          "${{ needs.release.outputs.version }}"
+          "${{ matrix.target }}"
+          "${{ matrix.dir }}"
+          "${{ matrix.suffix }}"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ matrix.target }}
+          path: latest-${{ matrix.target }}.json
+
+      # The updater archive + signature, and the human-facing installer beside them.
       - name: Attach to the release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ needs.release.outputs.version }}" \
-            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz \
-            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz.sig \
-            latest.json \
+            "${{ matrix.dir }}"/*"${{ matrix.suffix }}" \
+            "${{ matrix.dir }}"/*"${{ matrix.suffix }}.sig" \
             --clobber
+          # `ship` is the human-facing installer where it differs from the updater
+          # archive. Empty on Linux, where they are one file; a glob elsewhere, which
+          # may still legitimately match nothing.
+          shopt -s nullglob
+          extra=()
+          [ -n "${{ matrix.ship }}" ] && extra=( ${{ matrix.dir }}/${{ matrix.ship }} )
+          if [ ${#extra[@]} -gt 0 ]; then
+            gh release upload "${{ needs.release.outputs.version }}" "${extra[@]}" --clobber
+          fi
+
+  manifest:
+    name: Publish the update feed
+    needs: [release, bundles]
+    # ⚠️ `always()` so a partial matrix still publishes: if macOS fails, Linux clients
+    # must still get their update. merge-latest-json refuses to write a manifest with
+    # no linux-x86_64 in it, which is the case that IS a failed release.
+    if: always() && needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-*
+          path: fragments
+
+      - run: node scripts/merge-latest-json.mjs "${{ needs.release.outputs.version }}" fragments
+
+      - name: Attach the feed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release.outputs.version }}" latest.json --clobber

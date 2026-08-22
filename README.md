@@ -51,50 +51,105 @@ That fetches the latest AppImage, drops it in `~/.local/bin`, and offers to add 
 Steam as a non-Steam game. No `sudo` — Bazzite is an immutable ostree image, so
 everything lands under `$HOME`. Re-run it any time to update.
 
-Piping from `curl` means the script cannot ask you anything, so to add the Steam
-shortcut in one go:
+Piping from `curl` means the script cannot ask you anything — stdin is the script
+itself, so there is no terminal left to read an answer from. Pass the choice in:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh \
   | ADD_TO_STEAM=1 bash
 ```
 
-Prefer to do it by hand? Grab the `.AppImage.tar.gz` from
-[Releases](https://github.com/claygorman/bazzite-native-store/releases), extract it into
+**Flags** (`--help` prints these too):
+
+|                |                                                                            |
+| -------------- | -------------------------------------------------------------------------- |
+| `--check`      | Print installed vs latest and exit. `0` = current, `10` = update available |
+| `--yes`, `-y`  | No prompts; add the Steam shortcut without asking                          |
+| `--help`, `-h` | Print usage and exit                                                       |
+
+**Environment variables:**
+
+|                |                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ADD_TO_STEAM` | `1` adds the Steam shortcut without asking, `0` skips it silently. Unset means ask — which only works when run interactively, not through a pipe |
+| `BIN_DIR`      | Where the AppImage lands. Default `~/.local/bin`. Keep it under `$HOME`, which survives an ostree rebase                                         |
+| `REPO`         | The GitHub repo to install from, as `owner/name`. For forks and testing                                                                          |
+
+Prefer to do it by hand? Grab the `.AppImage` from
+[Releases](https://github.com/claygorman/bazzite-native-store/releases), drop it in
 `~/.local/bin`, and `chmod +x`.
 
 > [!IMPORTANT]
-> Point the Steam shortcut at the **`.AppImage` itself**, not an extracted binary. The
-> updater replaces the file at `$APPIMAGE`, which only the AppImage runtime sets — from
-> an extracted binary, updates silently do nothing.
+> Point the Steam shortcut at the **`.AppImage` file itself**. The updater replaces the
+> file at `$APPIMAGE`, an environment variable only the AppImage runtime sets — run it
+> any other way (an `--appimage-extract`'d tree, a wrapper script) and updates download
+> and then silently do nothing.
 
 Once installed, it updates itself: **Settings → Updates**.
 
-## Running it on macOS or Windows
+## macOS and Windows
 
-The app builds and runs on all three platforms — this is a Tauri app, and nothing in the
-UI is Linux-specific. There are no published macOS or Windows binaries yet, so build it
-yourself:
+Steam runs there too, so the store does. Every release publishes:
 
-```sh
-git clone https://github.com/claygorman/bazzite-native-store
-cd bazzite-native-store
-pnpm install
-pnpm tauri:dev      # or: pnpm tauri build
-```
+|             |                                  |
+| ----------- | -------------------------------- |
+| **Linux**   | `.AppImage` (x86_64)             |
+| **macOS**   | `.dmg` — Apple silicon and Intel |
+| **Windows** | `-setup.exe` (x86_64)            |
 
-Everything works — shelves, search, tags, game pages, trailers, settings — because all of
-it is live Steam data over plain HTTPS. What degrades, and says so rather than pretending:
+> [!WARNING]
+> The macOS and Windows builds are **unsigned**. macOS will refuse to open the app until
+> you clear the quarantine flag, and Windows SmartScreen will warn once:
+>
+> ```sh
+> xattr -dr com.apple.quarantine /Applications/bazzite-store.app
+> ```
+>
+> Signing them properly needs an Apple Developer account and a Windows code-signing
+> certificate. Until then, build from source if you would rather not do that.
 
-|                                  |                                                                                                                                                                         |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Owned badges and wishlist**    | Read from the local Steam client's logged-in session over its debug port. Works wherever Steam runs with that port open; otherwise the Wishlist entry dims and says why |
-| **Steam's UI scale**             | Read from Steam's own `config.vdf` — found on all three platforms, but the scale keys only exist on a Game Mode install                                                 |
-| **Host facts on the About page** | `/proc` and `/etc/os-release` are Linux-only, so CPU/GPU/kernel simply do not render elsewhere                                                                          |
-| **The updater**                  | AppImage-only for now, so a self-built app will not self-update                                                                                                         |
+What degrades off Linux, and says so rather than pretending:
+
+|                                  |                                                                                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Owned badges and wishlist**    | Read from the local Steam client's logged-in session over its debug port — which the desktop client has on all three platforms. Where it is unreachable, the Wishlist entry dims and says why |
+| **Steam's UI scale**             | Read from Steam's own `config.vdf`, found on all three — but the scale keys only exist on a Game Mode install                                                                                 |
+| **Host facts on the About page** | `/proc` and `/etc/os-release` are Linux-only, so CPU/GPU/kernel simply do not render elsewhere                                                                                                |
 
 You do not need Linux to work on it either — `pnpm dev` runs the whole thing in a browser
 against live Steam data.
+
+## Updating
+
+**Automatically — on by default.** The app checks on every launch and downloads a new
+build in the background, then Settings → Updates offers **Restart**. It never restarts
+itself, and it skips the download entirely on a metered connection.
+
+**Manually, in the app.** Settings → Updates → **Check for updates**. That one row is
+three actions in sequence: `Check` → `Install` → `Restart`.
+
+**From a shell** — for SSH, `ujust` recipes, or cron, where there is no UI to reach:
+
+```sh
+# install or update — the same command either way
+curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh | bash
+
+# just ask: exits 0 if current, 10 if an update is available
+bash <(curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh) --check
+```
+
+The exit code is what makes it scriptable:
+
+```sh
+# a `ujust` recipe or a cron entry
+bazzite-store-update:
+    #!/usr/bin/env bash
+    if ! bash <(curl -fsSL .../install.sh) --check; then
+        bash <(curl -fsSL .../install.sh) --yes
+    fi
+```
+
+Turn automatic updates off in Settings → Updates if you would rather drive it yourself.
 
 ## Development
 
@@ -152,8 +207,11 @@ site.
 drive the version: `feat:` is a minor, `fix:` a patch. The project is held below `1.0.0` on purpose,
 so a `BREAKING CHANGE:` footer also maps to a minor.
 
-The release builds the AppImage, signs it, and attaches `latest.json` — which is the update feed the
-installed client polls.
+The release then fans out over four runners — Linux, Apple silicon, Intel Mac, Windows —
+each signing its own bundle and writing one fragment of the update manifest. A final job
+merges the fragments into the `latest.json` that installed clients poll. Linux is the
+shipping target, so a manifest missing it fails the release; the other three are built
+with `fail-fast: false` and may legitimately be absent.
 
 ## AI disclosure
 
