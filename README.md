@@ -224,8 +224,15 @@ Two jobs. The first computes the version from the commits since the last tag, sy
 GitHub Release. The second checks out that tag, builds the AppImage on `ubuntu-22.04`, signs it, and
 attaches the bundle plus `latest.json` — which _is_ the update feed the client polls.
 
-Commit messages drive the version, so they are Conventional Commits: `feat:` is a minor, `fix:` a
-patch, and a `BREAKING CHANGE:` footer a major.
+Commit messages drive the version, so they are Conventional Commits: `feat:` is a minor and `fix:`
+a patch.
+
+⚠️ **This project is deliberately held below 1.0.0.** A `BREAKING CHANGE:` footer would normally
+bump the major, which from `0.x` means jumping straight to `1.0.0` — one footer in one commit
+message declaring the project stable by accident. `release.config.js` maps breaking changes to a
+minor instead, which is also what semver says about `0.x` ("anything MAY change at any time"). The
+changelog still gets its BREAKING CHANGES section; only the number differs. Shipping 1.0.0 is then
+a deliberate act: remove that rule.
 
 ⚠️ **Two repository secrets are required** before a release can produce a usable artifact:
 `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, from

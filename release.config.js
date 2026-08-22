@@ -26,7 +26,28 @@ export default {
   branches: ['main'],
   tagFormat: '${version}',
   plugins: [
-    '@semantic-release/commit-analyzer',
+    [
+      '@semantic-release/commit-analyzer',
+      {
+        /*
+         * ⚠️ Stay below 1.0.0 until it is a deliberate decision.
+         *
+         * By default a `BREAKING CHANGE:` footer bumps the MAJOR, which from 0.x jumps
+         * straight to 1.0.0 — measured, not assumed: the analyzer returns `major` for
+         * such a commit with no rules set. One footer in one commit message would
+         * therefore declare the project stable, permanently and by accident.
+         *
+         * Mapping breaking to `minor` is also what semver already says about 0.x —
+         * "anything MAY change at any time", so the minor is where breakage belongs
+         * before 1.0. The change is only to the NUMBER: `release-notes-generator` still
+         * renders a BREAKING CHANGES section in the changelog either way (verified).
+         *
+         * ⭐ To ship 1.0.0, delete this block and land a commit with a BREAKING CHANGE
+         * footer — or run `npx semantic-release` once with it removed.
+         */
+        releaseRules: [{ breaking: true, release: 'minor' }],
+      },
+    ],
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
     ['@semantic-release/npm', { npmPublish: false }],
