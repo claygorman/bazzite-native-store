@@ -14,15 +14,17 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 | `linux-x86_64`   | `ubuntu-22.04`   | `*.AppImage`     | the same file  |
 | `darwin-aarch64` | `macos-latest`   | `*.app.tar.gz`   | `*.dmg`        |
 | `darwin-x86_64`  | `macos-13`       | `*.app.tar.gz`   | `*.dmg`        |
-| `windows-x86_64` | `windows-latest` | `*.nsis.zip`     | `*-setup.exe`  |
+| `windows-x86_64` | `windows-latest` | `*-setup.exe`    | the same file  |
 
 > [!IMPORTANT]
-> **Linux is the only target where the updater artifact and the download are one file.**
-> Tauri **v1** tarballed the AppImage before signing it; **v2 signs the AppImage
-> itself**, so there is no `.AppImage.tar.gz`. Release 0.2.0 died on exactly this — the
+> **Only macOS ships a separate updater archive.** Tauri **v1** wrapped the Linux and
+> Windows artifacts before signing them; **v2 signs the AppImage and the NSIS installer
+> directly**, so there is no `.AppImage.tar.gz` and no `.nsis.zip`. Release 0.2.0 died on exactly this — the
 > bundle directory held `bazzite-store_0.2.0_amd64.AppImage` and its `.sig` and nothing
 > else, while both the manifest writer and `install.sh` were looking for the v1 name.
-> Every pre-v2 guide on the internet still shows the tarball.
+> Fixing Linux alone was not enough — 0.3.0 then failed on Windows for the identical
+> reason, having produced `bazzite-store_0.3.0_x64-setup.exe` and its `.sig` and no zip.
+> Every pre-v2 guide on the internet still shows the wrapped names.
 >
 > Setting `bundle.createUpdaterArtifacts: "v1Compatible"` brings the tarball back, and
 > is only correct if you already have v1 clients in the field. This project does not.
@@ -35,6 +37,17 @@ output**. So each build job writes `latest-<target>.json` (`scripts/write-latest
 and uploads it as a workflow artifact; a final job merges the fragments
 (`scripts/merge-latest-json.mjs`) and attaches the result to the release.
 
+> [!WARNING]
+> **Both macOS runners name their archive `bazzite-store.app.tar.gz`, with no
+> architecture in it.** Uploaded as-is with `--clobber`, whichever finishes second
+> overwrites the first — and the manifest then points _both_ `darwin` entries at one
+> file whose signature matches only one of them. An Apple silicon client would fetch an
+> Intel binary, or fail verification, depending on which runner won the race.
+>
+> So the workflow stamps the target into every updater artifact before uploading:
+> `bazzite-store_<version>_<target><suffix>`. The `.dmg` and `-setup.exe` already carry
+> their own architecture and are left alone.
+
 Two guards, because both failure modes are silent:
 
 - **A missing `.sig` fails the build.** Without the signing secrets the bundler still
@@ -45,6 +58,10 @@ Two guards, because both failure modes are silent:
 - **A manifest with no `linux-x86_64` fails the release.** macOS and Windows build with
   `fail-fast: false`, so a flaky runner there must not cost a Linux release — but a
   manifest quietly missing Linux would stop updating the machines this exists for.
+
+This is not hypothetical: 0.3.0 shipped with Windows failed and the Intel Mac cancelled,
+and published a perfectly valid two-platform manifest covering Linux and Apple silicon.
+Clients on those two updated; the other two were simply offered nothing.
 
 ## Signing, per platform
 

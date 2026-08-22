@@ -111,12 +111,17 @@ jobs:
             dir: src-tauri/target/release/bundle/macos
             suffix: .app.tar.gz
             ship: '../dmg/*.dmg'
+          # ⚠️ `-setup.exe`, NOT `.nsis.zip` — the same v1/v2 change as the AppImage
+          # above. v2 signs the installer itself, so this is another target where the
+          # updater artifact and the human download are one file. Measured on 0.3.0:
+          #   bazzite-store_0.3.0_x64-setup.exe
+          #   bazzite-store_0.3.0_x64-setup.exe.sig
           - os: windows-latest
             target: windows-x86_64
             bundles: nsis
             dir: src-tauri/target/release/bundle/nsis
-            suffix: .nsis.zip
-            ship: '*-setup.exe'
+            suffix: -setup.exe
+            ship: ''
     steps:
       - uses: actions/checkout@v7
         with:
@@ -168,6 +173,26 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build --bundles ${{ matrix.bundles }}
+
+      # ⚠️ Both macOS runners produce `bazzite-store.app.tar.gz` — no architecture in
+      # the name. Uploaded as-is with --clobber, whichever finishes second overwrites
+      # the first, and the manifest then points BOTH darwin entries at one file whose
+      # signature matches only one of them. The Apple silicon client would download an
+      # Intel binary, or fail verification, depending on which won the race.
+      #
+      # So stamp the target into every updater artifact. The .dmg and -setup.exe carry
+      # their own arch already and are untouched.
+      - name: Disambiguate the updater artifact
+        shell: bash
+        run: |
+          cd "${{ matrix.dir }}"
+          archive=$(ls *"${{ matrix.suffix }}" | head -1)
+          renamed="bazzite-store_${{ needs.release.outputs.version }}_${{ matrix.target }}${{ matrix.suffix }}"
+          if [ "$archive" != "$renamed" ]; then
+            mv "$archive" "$renamed"
+            mv "$archive.sig" "$renamed.sig"
+          fi
+          ls -la
 
       - name: Write this platform's manifest fragment
         run: >
