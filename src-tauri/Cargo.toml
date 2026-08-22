@@ -1,0 +1,40 @@
+[package]
+name = "bazzite-store"
+version = "0.1.0"
+description = "Controller-first Steam store client for Bazzite Game Mode"
+authors = ["Clay Gorman"]
+edition = "2021"
+
+[lib]
+name = "bazzite_store_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+# The updater and the relaunch it needs. AppImage is the one Linux format Tauri can
+# swap without elevation, which is exactly the shipping route on an immutable ostree
+# (README §4) — a .deb/.rpm updater would need root and be undone by the next rebase.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# rustls rather than native-tls: one less system library to satisfy inside a Flatpak
+# sandbox, which is the intended shipping route (README §4).
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip"] }
+# `net` is for the CDP WebSocket below; the rest were already here.
+tokio = { version = "1", features = ["time", "rt", "net"] }
+# Steam's CEF debugger. `Runtime.evaluate` is only reachable over the WebSocket — CDP's
+# HTTP endpoints cannot evaluate — and this is ws:// to 127.0.0.1, so no TLS feature.
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+gilrs = "0.11"
+thiserror = "2"
+serde_urlencoded = "0.7"
+
+[dev-dependencies]
+# The live CEF test is async; the app itself never needs the macros.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

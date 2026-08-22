@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+  @theme {
+    --font-sans: 'Archivo', sans-serif;
+    --color-page: #080d16;
+    --color-plate: #16202c;
+    --color-inset: rgb(8 13 22 / 0.45);
+    --color-scrim: rgb(8 13 22 / 0.82);
+    --color-ink: #f4f7f9;
+    --color-ink-soft: rgb(232 238 241 / 0.90);
+    --color-ink-mute: rgb(232 238 241 / 0.80);
+    --color-ink-faint: rgb(223 230 234 / 0.50);
+    --color-accent: #4d9be6;
+    --color-sale: rgb(161 205 68);
+    --color-rating-up: #a1cd44;
+    --color-rating-dn: #e0ab84;
+    --color-pad-ok: #b9d99c;
+    --color-hairline: rgb(244 247 249 / 0.18);
+    --color-chip: rgb(244 247 249 / 0.10);
+    --color-chip-soft: rgb(244 247 249 / 0.06);
+    --shadow-plate: 0 12px 30px rgb(0 0 0 / 0.45);
+    --shadow-focused: 0 24px 54px rgb(0 0 0 / 0.70), 0 0 48px rgb(77 155 230 / 0.50);
+    --shadow-flag: 2px 1px 5px rgb(0 0 0 / 0.35);
+  }
+</style>
+<style>
+  body { margin:0; }
+</style>
+</helmet>
+
+<div class="min-h-screen bg-page p-10 flex flex-col gap-8 font-sans">
+
+  <div class="flex flex-col gap-2">
+    <span class="text-xs font-bold leading-4 tracking-widest uppercase text-ink-faint">Store Card — Tailwind port, with knobs</span>
+    <p class="max-w-[880px] text-base font-medium leading-6 text-ink-mute text-pretty">Real Tailwind classes against the tokens in <span class="text-ink">Store Card - Tailwind port.md</span> §1, driven by the same tweak panel as the design files. Change a knob and every state below updates — if a state stops matching the inline-styled design, the port is wrong.</p>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <span class="text-xs font-bold leading-4 tracking-widest uppercase text-ink-faint">Resting · 336 — price on facts row</span>
+    <div class="w-[336px] shrink-0 flex flex-col bg-plate rounded-xl overflow-hidden shadow-plate outline outline-[3px] outline-offset-4 outline-transparent">
+      <div class="relative shrink-0 w-full overflow-hidden">
+        <img src="{{ art }}" alt="" class="block w-full h-[156px] object-cover object-center"/>
+        <span class="absolute left-0 top-0 px-3 py-1 shadow-flag text-sm font-medium leading-5 tracking-wide uppercase text-white" style="display:{{ flagDisplay }};background-image:{{ flagBg }}">{{ flag }}</span>
+        <span class="absolute right-2 top-2 grid place-items-center size-7 rounded-full bg-accent text-[#04121f] text-sm font-extrabold leading-5 ring-4 ring-scrim" style="display:{{ ownedGrid }}">✓</span>
+        <span class="absolute left-2 bottom-2 flex items-center gap-2 px-2 py-1 rounded-md bg-scrim text-sm font-bold leading-5 text-pad-ok" style="display:{{ padDisplay }}">Full controller support</span>
+      </div>
+      <div class="flex-1 min-w-0 flex flex-col gap-2 px-4 pt-4 pb-5">
+        <div class="flex items-center gap-3 min-h-11">
+          <span class="flex-1 min-w-0 truncate text-xl font-bold leading-7 text-ink-soft">{{ title }}</span>
+        </div>
+        <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+          <span class="shrink-0 flex items-center gap-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-sale text-[#0b1114] text-base font-extrabold leading-6 tabular-nums" style="display:{{ discountDisplay }}">{{ discount }}</span>
+            <span class="flex flex-col">
+              <span class="text-sm font-semibold leading-4 line-through tabular-nums text-ink-faint" style="display:{{ wasDisplay }}">{{ wasPrice }}</span>
+              <span class="text-xl font-extrabold leading-6 tabular-nums text-white">{{ price }}</span>
+            </span>
+          </span>
+          <span class="w-px h-5 bg-hairline"></span>
+          <span class="shrink-0 flex items-center gap-2 text-lg font-bold leading-7 tabular-nums" style="color:{{ ratingColor }}">
+            <svg viewBox="0 0 24 24" class="size-5 shrink-0" fill="currentColor" aria-hidden="true" style="display:{{ thumbDisplay }};transform:{{ thumbFlip }}"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+            {{ ratingLabel }}
+          </span>
+          <span class="w-px h-5 bg-hairline"></span>
+          <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <span class="text-xs font-bold leading-4 tracking-widest uppercase text-ink-faint">Selected · 688 — side by side, large title, tags</span>
+    <div class="w-[688px] shrink-0 flex bg-plate rounded-xl overflow-hidden shadow-focused outline outline-[3px] outline-offset-4 outline-accent">
+      <div class="relative shrink-0 w-[272px] overflow-hidden">
+        <img src="{{ art }}" alt="" class="block w-full h-full min-h-[236px] object-cover object-center"/>
+        <span class="absolute left-0 top-0 px-3 py-1 shadow-flag text-sm font-medium leading-5 tracking-wide uppercase text-white" style="display:{{ flagDisplay }};background-image:{{ flagBg }}">{{ flag }}</span>
+        <span class="absolute left-2 bottom-2 flex items-center gap-2 px-2 py-1 rounded-md bg-scrim text-sm font-bold leading-5 text-pad-ok" style="display:{{ padDisplay }}">Full controller support</span>
+      </div>
+      <div class="flex-1 min-w-0 flex flex-col gap-2 px-4 pt-4 pb-5">
+        <div class="flex items-center gap-3 min-h-11">
+          <span class="flex-1 min-w-0 truncate text-2xl font-bold leading-8 text-ink">{{ title }}</span>
+        </div>
+        <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+          <span class="shrink-0 flex items-center gap-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-sale text-[#0b1114] text-base font-extrabold leading-6 tabular-nums" style="display:{{ discountDisplay }}">{{ discount }}</span>
+            <span class="flex flex-col">
+              <span class="text-sm font-semibold leading-4 line-through tabular-nums text-ink-faint" style="display:{{ wasDisplay }}">{{ wasPrice }}</span>
+              <span class="text-xl font-extrabold leading-6 tabular-nums text-white">{{ price }}</span>
+            </span>
+          </span>
+          <span class="w-px h-5 bg-hairline"></span>
+          <span class="shrink-0 flex items-center gap-2 text-lg font-bold leading-7 tabular-nums" style="color:{{ ratingColor }}">
+            <svg viewBox="0 0 24 24" class="size-5 shrink-0" fill="currentColor" aria-hidden="true" style="display:{{ thumbDisplay }};transform:{{ thumbFlip }}"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+            {{ ratingLabel }}
+          </span>
+          <span class="w-px h-5 bg-hairline"></span>
+          <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <sc-for list="{{ tagList }}" as="tag" hint-placeholder-count="4">
+            <span class="px-3 py-1 rounded bg-chip text-base font-medium leading-6 text-ink-mute">{{ tag }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <span class="text-xs font-bold leading-4 tracking-widest uppercase text-ink-faint">Constant art height — both 204px, equal card height</span>
+    <div class="flex items-start gap-6">
+      <div class="w-[336px] shrink-0 flex flex-col bg-plate rounded-xl overflow-hidden shadow-plate outline outline-[3px] outline-offset-4 outline-transparent">
+        <div class="relative shrink-0 w-full overflow-hidden">
+          <img src="{{ art }}" alt="" class="block w-full h-[204px] object-cover object-center"/>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col gap-2 px-4 pt-4 pb-5">
+          <div class="flex items-center gap-3 min-h-11">
+            <span class="flex-1 min-w-0 truncate text-xl font-bold leading-7 text-ink-soft">{{ title }}</span>
+          </div>
+          <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+            <span class="shrink-0 flex items-center gap-2 text-lg font-bold leading-7 tabular-nums" style="color:{{ ratingColor }}">
+              <svg viewBox="0 0 24 24" class="size-5 shrink-0" fill="currentColor" aria-hidden="true" style="display:{{ thumbDisplay }};transform:{{ thumbFlip }}"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+              {{ ratingLabel }}
+            </span>
+            <span class="w-px h-5 bg-hairline"></span>
+            <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="w-[512px] shrink-0 flex flex-col bg-plate rounded-xl overflow-hidden shadow-focused outline outline-[3px] outline-offset-4 outline-accent">
+        <div class="relative shrink-0 w-full overflow-hidden">
+          <img src="{{ art }}" alt="" class="block w-full h-[204px] object-cover object-center"/>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col gap-2 px-4 pt-4 pb-5">
+          <div class="flex items-center gap-3 min-h-11">
+            <span class="flex-1 min-w-0 truncate text-xl font-bold leading-7 text-ink">{{ title }}</span>
+            <span class="shrink-0 text-xl font-extrabold leading-6 tabular-nums text-white">{{ price }}</span>
+          </div>
+          <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+            <span class="shrink-0 flex items-center gap-2 text-lg font-bold leading-7 tabular-nums" style="color:{{ ratingColor }}">
+              <svg viewBox="0 0 24 24" class="size-5 shrink-0" fill="currentColor" aria-hidden="true" style="display:{{ thumbDisplay }};transform:{{ thumbFlip }}"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+              {{ ratingLabel }}
+            </span>
+            <span class="w-px h-5 bg-hairline"></span>
+            <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <span class="text-xs font-bold leading-4 tracking-widest uppercase text-ink-faint">Poster · 340 — boxed vs bare surface</span>
+    <div class="flex items-start gap-10">
+      <div class="w-[340px] shrink-0 flex flex-col bg-plate rounded-xl overflow-hidden shadow-plate outline outline-[3px] outline-offset-4 outline-transparent">
+        <div class="relative shrink-0 w-full overflow-hidden">
+          <img src="{{ poster }}" alt="" class="block w-full h-[492px] object-cover object-center"/>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col gap-2 px-4 pt-4 pb-5">
+          <div class="flex items-center gap-3 min-h-11">
+            <span class="flex-1 min-w-0 truncate text-xl font-bold leading-7 text-ink-soft">{{ title }}</span>
+            <span class="shrink-0 text-xl font-extrabold leading-6 tabular-nums text-white">{{ price }}</span>
+          </div>
+          <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+            <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="w-[340px] shrink-0 flex flex-col gap-3">
+        <div class="relative shrink-0 w-full rounded-lg overflow-hidden">
+          <img src="{{ poster }}" alt="" class="block w-full h-[492px] object-cover object-center"/>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col gap-2">
+          <div class="flex items-center gap-3 min-h-11">
+            <span class="flex-1 min-w-0 truncate text-xl font-bold leading-7 text-ink-soft">{{ title }}</span>
+            <span class="shrink-0 text-xl font-extrabold leading-6 tabular-nums text-white">{{ price }}</span>
+          </div>
+          <div class="flex items-center gap-2.5 min-h-10 whitespace-nowrap">
+            <span class="shrink-0 flex items-center gap-2 text-lg font-semibold leading-7 text-ink-mute"><span class="size-3 rounded-full" style="background:{{ tierColor }}"></span>{{ tier }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;art&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;},
+  &quot;poster&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/library_600x900.jpg&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;},
+  &quot;title&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Warhammer 40,000: Space Marine II&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;},
+  &quot;price&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$41.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;wasPrice&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$59.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;discount&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;-30%&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;rating&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 92, &quot;min&quot;: 0, &quot;max&quot;: 100, &quot;unit&quot;: &quot;%&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;tier&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Gold&quot;, &quot;options&quot;: [&quot;Platinum&quot;, &quot;Gold&quot;, &quot;Silver&quot;, &quot;Bronze&quot;, &quot;Native&quot;, &quot;Unknown&quot;, &quot;Borked&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;flag&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;WEEKEND DEAL&quot;, &quot;options&quot;: [&quot;&quot;, &quot;WEEKEND DEAL&quot;, &quot;TODAY'S DEAL&quot;, &quot;MIDWEEK DEAL&quot;, &quot;FREE WEEKEND&quot;, &quot;NEW RELEASE&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;tags&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Shooter, Action, Co-op, Warhammer&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;owned&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;controllerSupport&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Facts&quot;}
+}">
+const TIER_COLORS = {
+  Platinum: "#b5eaff", Gold: "#cfb53b", Silver: "#c3ccd4",
+  Bronze: "#c08457", Native: "#9ec97f", Unknown: "#7d8b95", Borked: "#d0685f"
+};
+const DEAL_FLAGS = {
+  "WEEKEND DEAL": "linear-gradient(315deg, rgb(183, 37, 90) 5%, rgb(140, 28, 95) 50%, rgb(97, 14, 93) 95%)",
+  "TODAY'S DEAL": "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)",
+  "MIDWEEK DEAL": "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)",
+  "FREE WEEKEND": "linear-gradient(315deg, rgb(150, 40, 165) 5%, rgb(110, 32, 150) 50%, rgb(74, 24, 130) 95%)",
+  "NEW RELEASE":  "linear-gradient(315deg, rgb(46, 121, 159) 5%, rgb(43, 92, 166) 50%, rgb(55, 73, 132) 95%)"
+};
+
+class Component extends DCLogic {
+  // The browser build scans the DOM when it loads. This page's markup arrives after that, so a
+  // fresh instance has to run once the cards are mounted or most utilities never get generated.
+  componentDidMount() {
+    requestAnimationFrame(() => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
+      document.head.appendChild(s);
+    });
+  }
+
+  renderVals() {
+    const p = this.props;
+    const rating = p.rating ?? 92;
+    const discount = p.discount ?? "-30%";
+    const was = p.wasPrice ?? "$59.99";
+    const tier = p.tier ?? "Gold";
+    const flag = p.flag ?? "WEEKEND DEAL";
+    return {
+      art: p.art ?? "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg",
+      poster: p.poster ?? "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/library_600x900.jpg",
+      title: p.title ?? "Warhammer 40,000: Space Marine II",
+      price: p.price ?? "$41.99",
+      wasPrice: was,
+      wasDisplay: was ? "block" : "none",
+      discount,
+      discountDisplay: discount ? "flex" : "none",
+      rating,
+      ratingLabel: rating ? rating + "%" : "No reviews",
+      ratingColor: rating ? (rating >= 80 ? "#a1cd44" : "#e0ab84") : "rgba(223,230,234,.5)",
+      thumbDisplay: rating ? "block" : "none",
+      thumbFlip: rating && rating < 70 ? "rotate(180deg)" : "none",
+      tier,
+      tierColor: TIER_COLORS[tier] || TIER_COLORS.Unknown,
+      flag,
+      flagDisplay: flag ? "block" : "none",
+      flagBg: DEAL_FLAGS[flag] || DEAL_FLAGS["NEW RELEASE"],
+      ownedGrid: (p.owned ?? false) ? "grid" : "none",
+      padDisplay: (p.controllerSupport ?? true) ? "flex" : "none",
+      tagList: String(p.tags ?? "Shooter, Action, Co-op, Warhammer").split(",").map(t => t.trim()).filter(Boolean).slice(0, 8)
+    };
+  }
+}
+</script>
+</body>
+</html>

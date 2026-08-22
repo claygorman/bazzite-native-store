@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  body { margin:0; padding:40px; background:#080d16; font-family:Archivo, sans-serif; }
+  a { color:#9fc9f5; text-decoration:none; }
+  a:hover { color:#c6e0fb; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:32px;font-family:Archivo, sans-serif">
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Store Card — every state below is the same component</span>
+    <span style="max-width:880px;font:500 16px/24px Archivo;color:rgba(232,238,241,.7);text-wrap:pretty">One card, driven by inputs: width, art height, stacked or side-by-side, price beside the title or on the facts row, facts as rating + tier or tags. Content props are shared, so editing a price or tier here updates every state at once.</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Resting · 336 — shelf default</span>
+    <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 336 }}" art-height="{{ 156 }}" hint-size="336px,272px"></dc-import>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Resting · 440 — wider shelf</span>
+    <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 440 }}" art-height="{{ 204 }}" hint-size="440px,320px"></dc-import>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Selected · 688 — expands in place, art beside the facts</span>
+    <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 688 }}" art-width="{{ 272 }}" art-height="{{ 236 }}" layout="Side by side" emphasis="Large" facts="Both" focused="{{ true }}" hint-size="688px,260px"></dc-import>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Selected · 512 — same columns, wider artwork, price on the facts row</span>
+    <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 512 }}" art-height="{{ 238 }}" emphasis="Large" facts="Both" price-placement="On facts row" focused="{{ true }}" hint-size="512px,436px"></dc-import>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Constant art height — narrow crops in, wide reveals</span>
+    <span style="max-width:880px;font:500 16px/24px Archivo;color:rgba(232,238,241,.7);text-wrap:pretty">Both hold a 204px art height, so a row never changes height when a tile expands. The narrow tile is cropped tighter than the source ratio; growing to 512px uncovers more of the same frame instead of scaling it.</span>
+    <div style="display:flex;align-items:flex-start;gap:24px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font:600 14px/20px Archivo;color:rgba(223,230,234,.5)">336 × 204 — cropped in</span>
+        <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 336 }}" art-height="{{ 204 }}" hint-size="336px,320px"></dc-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font:600 14px/20px Archivo;color:rgba(223,230,234,.5)">512 × 204 — same height, more frame</span>
+        <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 512 }}" art-height="{{ 204 }}" focused="{{ true }}" hint-size="512px,320px"></dc-import>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Poster · 340 — the same card with portrait art</span>
+    <dc-import name="Store Card" art="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/library_600x900.jpg" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" controller-support="{{ controllerSupport }}" tags="{{ tags }}" width="{{ 340 }}" art-height="{{ 492 }}" hint-size="340px,610px"></dc-import>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;art&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;name&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Warhammer 40,000: Space Marine II&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;price&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$41.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;wasPrice&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$59.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;discount&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;-30%&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;rating&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 92, &quot;min&quot;: 0, &quot;max&quot;: 100, &quot;unit&quot;: &quot;%&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;tier&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Gold&quot;, &quot;options&quot;: [&quot;Platinum&quot;, &quot;Gold&quot;, &quot;Silver&quot;, &quot;Bronze&quot;, &quot;Native&quot;, &quot;Unknown&quot;, &quot;Borked&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;flag&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;WEEKEND DEAL&quot;, &quot;options&quot;: [&quot;&quot;, &quot;WEEKEND DEAL&quot;, &quot;TODAY'S DEAL&quot;, &quot;MIDWEEK DEAL&quot;, &quot;FREE WEEKEND&quot;, &quot;NEW RELEASE&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;owned&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;controllerSupport&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;tags&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;FPS, Action, Tactical, Military, PvP, Realistic&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;}
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    return {
+      art: p.art ?? "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg",
+      name: p.name ?? "Warhammer 40,000: Space Marine II",
+      price: p.price ?? "$41.99",
+      wasPrice: p.wasPrice ?? "$59.99",
+      discount: p.discount ?? "-30%",
+      rating: p.rating ?? 92,
+      tier: p.tier ?? "Gold",
+      flag: p.flag ?? "WEEKEND DEAL",
+      owned: p.owned ?? false,
+      controllerSupport: p.controllerSupport ?? true,
+      tags: p.tags ?? "FPS, Action, Tactical, Military, PvP, Realistic"
+    };
+  }
+}
+</script>
+</body>
+</html>

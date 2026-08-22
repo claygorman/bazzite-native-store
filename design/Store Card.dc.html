@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  body { margin:0; padding:40px; background:#080d16; font-family:Archivo, sans-serif; }
+  a { color:#9fc9f5; text-decoration:none; }
+  a:hover { color:#c6e0fb; }
+</style>
+</helmet>
+
+<div style="width:{{ cardWidth }};display:flex;flex-direction:{{ plateDirection }};background:{{ plateBg }};border-radius:12px;overflow:{{ plateOverflow }};box-shadow:{{ plateShadow }};outline:{{ ring }};outline-offset:4px;gap:{{ plateGap }};font-family:Archivo, sans-serif;transition:outline-color .2s ease, box-shadow .2s ease">
+  <div style="position:relative;flex:none;width:{{ artWidth }};border-radius:{{ artRadius }};overflow:hidden">
+    <img src="{{ art }}" alt="" style="display:block;width:100%;height:{{ artHeightPx }};min-height:{{ artMinHeight }};object-fit:cover;object-position:center"/>
+    <span style="display:{{ flagDisplay }};position:absolute;left:0;top:0;padding:4px 12px;background:{{ flagBg }};box-shadow:2px 1px 5px rgba(0,0,0,.35);font:500 14px/20px Archivo;letter-spacing:.025em;text-transform:uppercase;color:#fff">{{ flag }}</span>
+    <span style="display:{{ ownedDisplay }};position:absolute;right:8px;top:8px;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:#4d9be6;color:#04121f;font:800 14px/20px Archivo;box-shadow:0 0 0 4px rgba(8,13,22,.7)">✓</span>
+    <span style="display:{{ padDisplay }};position:absolute;left:8px;bottom:8px;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:rgba(8,13,22,.82);font:700 14px/20px Archivo;color:#b9d99c">Full controller support</span>
+  </div>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:{{ captionPadding }}">
+    <div style="display:flex;align-items:center;gap:12px;min-height:44px">
+      <span style="flex:1;min-width:0;font:700 {{ titleType }} Archivo;color:{{ nameColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</span>
+      <span style="flex:none;display:{{ priceTopDisplay }};align-items:center;gap:8px">
+        <span style="display:{{ discountDisplay }};padding:4px 8px;border-radius:4px;background:rgb(161,205,68);font:800 16px/24px Archivo;color:#0b1114;font-variant-numeric:tabular-nums">{{ discount }}</span>
+        <span style="display:flex;flex-direction:column;align-items:flex-end">
+          <span style="display:{{ wasDisplay }};font:600 14px/16px Archivo;color:rgba(223,230,234,.5);text-decoration:line-through;font-variant-numeric:tabular-nums">{{ wasPrice }}</span>
+          <span style="font:800 20px/24px Archivo;color:{{ priceColor }};font-variant-numeric:tabular-nums">{{ price }}</span>
+        </span>
+      </span>
+    </div>
+
+    <div style="display:{{ factsRowDisplay }};align-items:center;gap:10px;min-height:40px;white-space:nowrap">
+      <span style="flex:none;display:{{ priceInlineDisplay }};align-items:center;gap:6px">
+        <span style="display:{{ discountDisplay }};padding:2px 6px;border-radius:4px;background:rgb(161,205,68);font:800 16px/24px Archivo;color:#0b1114;font-variant-numeric:tabular-nums">{{ discount }}</span>
+        <span style="display:flex;flex-direction:column">
+          <span style="display:{{ wasDisplay }};font:600 14px/16px Archivo;color:rgba(223,230,234,.5);text-decoration:line-through;font-variant-numeric:tabular-nums">{{ wasPrice }}</span>
+          <span style="font:800 20px/24px Archivo;color:{{ priceColor }};font-variant-numeric:tabular-nums">{{ price }}</span>
+        </span>
+      </span>
+      <span style="flex:none;display:{{ priceInlineDisplay }};width:1px;height:20px;background:rgba(244,247,249,.18)"></span>
+      <span style="flex:none;display:flex;align-items:center;gap:8px;font:700 18px/28px Archivo;color:{{ ratingColor }};font-variant-numeric:tabular-nums">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:none;display:{{ thumbDisplay }};transform:{{ thumbFlip }}" aria-hidden="true"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+        {{ ratingLabel }}
+      </span>
+      <span style="flex:none;width:1px;height:20px;background:rgba(244,247,249,.18)"></span>
+      <span style="flex:none;display:flex;align-items:center;gap:8px;font:600 18px/28px Archivo;color:rgba(232,238,241,.8)"><span style="width:12px;height:12px;border-radius:9999px;background:{{ tierColor }}"></span>{{ tierLabel }}</span>
+    </div>
+
+    <div style="display:{{ tagRowDisplay }};flex-wrap:wrap;align-items:center;gap:8px">
+      <span style="display:{{ tierChipDisplay }};align-items:center;gap:8px;padding:4px 12px;border-radius:4px;background:rgba(244,247,249,.06);font:600 16px/24px Archivo;color:rgba(232,238,241,.8)"><span style="width:12px;height:12px;border-radius:9999px;background:{{ tierColor }}"></span>{{ tierLabel }}</span>
+      <sc-for list="{{ tagList }}" as="tag" hint-placeholder-count="5">
+        <span style="padding:4px 12px;border-radius:4px;background:rgba(244,247,249,.1);font:500 16px/24px Archivo;color:rgba(232,238,241,.82)">{{ tag }}</span>
+      </sc-for>
+    </div>
+
+    <div style="display:{{ noteDisplay }};flex-direction:column;gap:8px;margin-top:4px;padding:16px;border-radius:8px;background:rgba(8,13,22,.45);border-top:2px solid {{ noteAccent }}">
+      <span style="display:{{ noteLabelDisplay }};font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.5)">{{ noteLabel }}</span>
+      <span style="font:500 16px/24px Archivo;color:rgba(232,238,241,.86);text-wrap:pretty">{{ note }}</span>
+      <sc-if value="{{ hasChildren }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:8px">{{ children }}</div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: {&quot;width&quot;: 416, &quot;height&quot;: 400},
+  &quot;art&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;},
+  &quot;title&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Warhammer 40,000: Space Marine II&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;},
+  &quot;width&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 336, &quot;min&quot;: 240, &quot;max&quot;: 900, &quot;unit&quot;: &quot;px&quot;, &quot;tsType&quot;: &quot;number | string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;artHeight&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 156, &quot;min&quot;: 100, &quot;max&quot;: 560, &quot;unit&quot;: &quot;px&quot;, &quot;tsType&quot;: &quot;number | string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;surface&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Boxed&quot;, &quot;options&quot;: [&quot;Boxed&quot;, &quot;Bare&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;layout&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Stacked&quot;, &quot;options&quot;: [&quot;Stacked&quot;, &quot;Side by side&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;artWidth&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 312, &quot;min&quot;: 200, &quot;max&quot;: 520, &quot;unit&quot;: &quot;px&quot;, &quot;tsType&quot;: &quot;number | string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;emphasis&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Standard&quot;, &quot;options&quot;: [&quot;Standard&quot;, &quot;Large&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shape&quot;},
+  &quot;price&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$49.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;wasPrice&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;discount&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;pricePlacement&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Beside title&quot;, &quot;options&quot;: [&quot;Beside title&quot;, &quot;On facts row&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Price&quot;},
+  &quot;facts&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Rating + tier&quot;, &quot;options&quot;: [&quot;Rating + tier&quot;, &quot;Tags only&quot;, &quot;Both&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;tags&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;FPS, Action, Tactical, Military, PvP, Realistic&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;rating&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 0, &quot;min&quot;: 0, &quot;max&quot;: 100, &quot;unit&quot;: &quot;%&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;tier&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Gold&quot;, &quot;options&quot;: [&quot;Platinum&quot;, &quot;Gold&quot;, &quot;Silver&quot;, &quot;Bronze&quot;, &quot;Native&quot;, &quot;Unknown&quot;, &quot;Borked&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;flag&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;&quot;, &quot;options&quot;: [&quot;&quot;, &quot;WEEKEND DEAL&quot;, &quot;TODAY'S DEAL&quot;, &quot;MIDWEEK DEAL&quot;, &quot;FREE WEEKEND&quot;, &quot;NEW RELEASE&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;owned&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;controllerSupport&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Facts&quot;},
+  &quot;focused&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;State&quot;},
+  &quot;note&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;},
+  &quot;noteLabel&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;},
+  &quot;noteAccent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#4d9be6&quot;, &quot;options&quot;: [&quot;#4d9be6&quot;, &quot;#a1cd44&quot;, &quot;#c08457&quot;, &quot;#c2247f&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;},
+  &quot;children&quot;: {&quot;editor&quot;: null, &quot;tsType&quot;: &quot;React.ReactNode&quot;, &quot;section&quot;: &quot;Note box&quot;}
+}">
+const TIER_COLORS = {
+  Platinum: "#b5eaff", Gold: "#cfb53b", Silver: "#c3ccd4",
+  Bronze: "#c08457", Native: "#9ec97f", Unknown: "#7d8b95", Borked: "#d0685f"
+};
+const DEAL_FLAGS = {
+  "WEEKEND DEAL": "linear-gradient(315deg, rgb(183, 37, 90) 5%, rgb(140, 28, 95) 50%, rgb(97, 14, 93) 95%)",
+  "TODAY'S DEAL": "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)",
+  "MIDWEEK DEAL": "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)",
+  "FREE WEEKEND": "linear-gradient(315deg, rgb(150, 40, 165) 5%, rgb(110, 32, 150) 50%, rgb(74, 24, 130) 95%)",
+  "NEW RELEASE":  "linear-gradient(315deg, rgb(46, 121, 159) 5%, rgb(43, 92, 166) 50%, rgb(55, 73, 132) 95%)"
+};
+const px = (v, fallback) => {
+  if (v === undefined || v === null || v === "") return fallback;
+  return typeof v === "number" ? v + "px" : String(v);
+};
+
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const focused = p.focused ?? false;
+    const rating = p.rating ?? 0;
+    const discount = p.discount ?? "";
+    const was = p.wasPrice ?? "";
+    const tier = p.tier ?? "Gold";
+    const flag = p.flag ?? "";
+    const note = p.note ?? "";
+    const facts = p.facts ?? "Rating + tier";
+    const side = (p.layout ?? "Stacked") === "Side by side";
+    const bare = (p.surface ?? "Boxed") === "Bare";
+    const width = p.width ?? 336;
+    const artW = side ? px(p.artWidth ?? 312) : "100%";
+    // the title shares its row with the price block, so a narrow content column has to give the
+    // price its own line or the name ellipsises mid-word
+    const contentColumn = (typeof width === "number" ? width : parseInt(width, 10) || 336)
+      - (side ? (typeof (p.artWidth ?? 312) === "number" ? (p.artWidth ?? 312) : parseInt(p.artWidth, 10) || 312) : 0)
+      - 32;
+    const priceNeedsRoom = (p.discount ?? "") || (p.wasPrice ?? "");
+    const pricePlace = p.pricePlacement
+      ?? ((priceNeedsRoom && contentColumn < 420) ? "On facts row" : "Beside title");
+
+    return {
+      art: p.art ?? "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/header.jpg",
+      title: p.title ?? "Warhammer 40,000: Space Marine II",
+      price: p.price ?? "$49.99",
+      wasPrice: was,
+      discount,
+      cardWidth: px(width),
+      artWidth: artW,
+      artHeightPx: side ? "100%" : px(p.artHeight ?? 156),
+      artMinHeight: side ? px(p.artHeight ?? 212) : "0",
+      plateDirection: side ? "row" : "column",
+      titleType: (p.emphasis ?? "Standard") === "Large" ? "24px/32px" : "20px/28px",
+      priceTopDisplay: pricePlace === "Beside title" ? "flex" : "none",
+      priceInlineDisplay: pricePlace === "Beside title" ? "none" : "flex",
+      discountDisplay: discount ? "flex" : "none",
+      wasDisplay: was ? "block" : "none",
+      priceColor: focused ? "#fff" : "rgba(244,247,249,.92)",
+      nameColor: focused ? "#f4f7f9" : "rgba(232,238,241,.9)",
+      ring: focused ? "3px solid #4d9be6" : "3px solid transparent",
+      plateShadow: bare
+        ? (focused ? "0 0 48px rgba(77,155,230,.45)" : "none")
+        : (focused
+            ? "0 24px 54px rgba(0,0,0,.7), 0 0 48px rgba(77,155,230,.5)"
+            : "0 12px 30px rgba(0,0,0,.45)"),
+      plateBg: bare ? "transparent" : "#16202c",
+      plateOverflow: bare ? "visible" : "hidden",
+      plateGap: bare ? "12px" : "0",
+      artRadius: bare ? "10px" : "0",
+      captionPadding: bare ? "0" : "16px 16px 20px",
+      tierLabel: tier,
+      tierColor: TIER_COLORS[tier] || TIER_COLORS.Unknown,
+      ratingLabel: rating ? rating + "%" : "No reviews",
+      ratingColor: rating ? (rating >= 80 ? "#a1cd44" : "#e0ab84") : "rgba(223,230,234,.5)",
+      thumbDisplay: rating ? "block" : "none",
+      thumbFlip: rating && rating < 70 ? "rotate(180deg)" : "none",
+      factsRowDisplay: facts === "Tags only" ? "none" : "flex",
+      tagRowDisplay: (facts === "Tags only" || facts === "Both") ? "flex" : "none",
+      tierChipDisplay: facts === "Tags only" ? "flex" : "none",
+      tagList: String(p.tags ?? "").split(",").map(t => t.trim()).filter(Boolean).slice(0, 8),
+      flag,
+      flagDisplay: flag ? "block" : "none",
+      flagBg: DEAL_FLAGS[flag] || DEAL_FLAGS["NEW RELEASE"],
+      ownedDisplay: (p.owned ?? false) ? "flex" : "none",
+      padDisplay: (p.controllerSupport ?? false) ? "flex" : "none",
+      note,
+      noteLabel: p.noteLabel ?? "",
+      noteLabelDisplay: (p.noteLabel ?? "") ? "block" : "none",
+      noteAccent: p.noteAccent ?? "#4d9be6",
+      noteDisplay: (note || p.children) ? "flex" : "none",
+      hasChildren: !!p.children,
+      children: p.children
+    };
+  }
+}
+</script>
+</body>
+</html>

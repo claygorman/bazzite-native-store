@@ -1,0 +1,283 @@
+@import 'tailwindcss';
+
+/*
+ * 4K-first sizing.
+ *
+ * The target is a 3840x2160 TV viewed from ~10 feet, but development happens in a
+ * browser window a fraction that size. Rather than maintain two scales, the root
+ * font-size is derived from viewport width — 0.8333vw is exactly 16px at a 1920
+ * reference width, and 32px at 3840. Everything else is expressed in rem (which is
+ * what Tailwind's spacing/typography scales already use), so the entire layout
+ * scales proportionally and a browser window is a faithful preview of the TV.
+ *
+ * Clamped at both ends so a narrow window stays legible and an ultrawide does not
+ * produce absurd type.
+ *
+ * ⚠️ `--ui-scale` is the Appearance page's Interface scale row, and it multiplies the
+ * ROOT FONT SIZE rather than applying a transform. Everything in the app is sized in
+ * rem, so scaling the root scales type, spacing, gaps, radii and focus rings together
+ * and no component has to know it happened. A `transform: scale()` would instead
+ * resample text, leave the viewport the wrong size, and break every `position: fixed`
+ * descendant. Set by `hooks/useSettings.tsx`; the fallback keeps this rule correct
+ * before any React has run.
+ */
+html {
+  font-size: calc(clamp(12px, 0.8333vw, 34px) * var(--ui-scale, 1));
+}
+
+/* Palette taken from the design (5a). */
+@theme {
+  --color-surface: #080d16;
+  --color-surface-raised: #101725;
+  --color-ink: #f4f7f9;
+  --color-ink-2: #e8eef1;
+  --color-ink-3: #dfe6ea;
+  /*
+   * ⚠️ Was #5aa9f0. The 2026-08-21 card spec labels #4d9be6 "focus ring, owned badge"
+   * and demotes #5aa9f0 to `accent-hi`, a gradient stop. Changed here rather than at
+   * ~20 call sites, so every existing ring picks it up; revert this one line to undo.
+   */
+  --color-focus: #4d9be6;
+  --color-focus-deep: #2f6fd0;
+  --font-sans: Archivo, system-ui, sans-serif;
+
+  /*
+   * Card tokens — `design/Store Card - Tailwind port.md` §1, translated to v4 `@theme`
+   * from its v3 `tailwind.config` form. See docs/DESIGN-PORT.md for the parts of that
+   * spec that must be CONVERTED rather than copied.
+   *
+   * Two of its names are deliberately absent because we already have them under other
+   * names, and one colour with two names is worse than a lookup: its `page` is our
+   * `surface` (identical #080d16), and its `accent` is our `--color-focus` above.
+   *
+   * ⚠️ `plate` is NOT `surface-raised`. #16202c is the card plate the design puts
+   * behind art and caption; #101725 is the darker fill we use for art placeholders.
+   * They differ by design, so neither may be substituted for the other.
+   */
+  --color-plate: #16202c;
+  --color-inset: rgb(8 13 22 / 0.45); /* note box inside a plate */
+  --color-scrim: rgb(8 13 22 / 0.82); /* badge sitting over artwork */
+  --color-ink-soft: rgb(232 238 241 / 0.9); /* resting title */
+  --color-ink-mute: rgb(232 238 241 / 0.8); /* tier label, tag text */
+  --color-ink-faint: rgb(223 230 234 / 0.5); /* struck price, "No reviews" */
+  --color-accent-hi: #5aa9f0;
+  --color-accent-lo: #2f6fd0;
+  --color-sale: rgb(161 205 68); /* discount chip — Steam's own green */
+  --color-rating-up: #a1cd44;
+  --color-rating-dn: #e0ab84;
+  --color-pad-ok: #b9d99c; /* controller-support text */
+  --color-hairline: rgb(244 247 249 / 0.18);
+  --color-chip: rgb(244 247 249 / 0.1);
+  --color-chip-soft: rgb(244 247 249 / 0.06);
+  /*
+   * The rest of the app's repeated surfaces and inks, promoted out of arbitrary values.
+   *
+   * ⚠️ These were `bg-[rgba(244,247,249,.12)]` and friends scattered across a dozen
+   * files. Tokens added for the card work were only ever used by the new components,
+   * which left two vocabularies for the same colours — the exact thing the note above
+   * warns against. Anything used more than once lives here now.
+   *
+   * Near-identical alphas were consolidated rather than preserved: `.8` and `.82` scrim,
+   * `.16` and `.18` wash. A 2% alpha difference is not visible and was not deliberate.
+   */
+  --color-chip-strong: rgb(244 247 249 / 0.12);
+  --color-panel: rgb(244 247 249 / 0.07); /* section panels on the details screens */
+  --color-scrim-soft: rgb(8 13 22 / 0.6); /* lighter scrim over media */
+  --color-ok: #9ec97f; /* connected / available */
+  --color-ok-wash: rgb(158 201 127 / 0.18);
+  --color-ink-on-light: #0b1114; /* text on `sale`, on `ink` */
+  --color-ink-on-accent: #04121f; /* text on `focus` */
+
+  /*
+   * Settings and the Up menu (design 8a-8g, 9a).
+   *
+   * ⚠️ `focus-wash` is the plate tint under a focused settings row and a focused menu
+   * entry, and it is the SAME blue as the ring by design — "the focused row gets the
+   * client's standard declaration: 3px #4d9be6 ring, plate lifted to a blue tint, blue
+   * glow", so focus reads identically here and on a store tile.
+   *
+   * `warn`/`bad` complete the status vocabulary `ok` started. Three states is all the
+   * status cards ever need: answering, slow, not answering.
+   */
+  --color-focus-wash: rgb(77 155 230 / 0.16);
+  --color-focus-ink: #bcdcfa; /* text that has to read as "on", on a dark plate */
+  --color-info-wash: rgb(77 155 230 / 0.18);
+  --color-warn: #cfb53b;
+  --color-warn-wash: rgb(207 181 59 / 0.18);
+  --color-bad: #d0685f;
+  --color-bad-wash: rgb(208 104 95 / 0.18);
+
+  /*
+   * ⚠️ `shadow-focused` carries a 48px (3rem) glow and does NOT fit the shelf: the
+   * track clips horizontally in order to scroll, and its escape hatch is 2rem. A
+   * shadow reaching further comes back as a hard rectangular seam — a bug now fixed
+   * three separate times. Use `shadow-focused` only where nothing clips; the shelf
+   * gets `shadow-focused-tile`, sized to reach ~1.9rem inside that 2rem.
+   */
+  --shadow-plate: 0 0.75rem 1.875rem rgb(0 0 0 / 0.45);
+  --shadow-focused: 0 1.5rem 3.375rem rgb(0 0 0 / 0.7), 0 0 3rem rgb(77 155 230 / 0.5);
+  --shadow-focused-bare: 0 0 3rem rgb(77 155 230 / 0.45);
+  --shadow-focused-tile: 0 0.75rem 1.6875rem rgb(0 0 0 / 0.7);
+  --shadow-flag: 0.125rem 0.0625rem 0.3125rem rgb(0 0 0 / 0.35);
+  /*
+   * The Settings badge dot in the Up menu. The dark ring is not decoration — the dot
+   * sits on a card whose focused state is also blue, and without a gap punched out of
+   * the plate behind it the two blues merge at ten feet.
+   */
+  --shadow-badge: 0 0 0 0.25rem rgb(8 13 22 / 0.85), 0 0 1.125rem rgb(77 155 230 / 0.9);
+
+  /*
+   * Type scale, retuned to the design's own sizes.
+   *
+   * ⚠️ Why override rather than use Tailwind's defaults: the design specifies 13, 15,
+   * 17, 19 and 21px, and every one of those sits just ABOVE a default stop (12, 14,
+   * 16, 18, 20). Snapping to the nearest therefore shrank all of them, and a blanket
+   * ~5% reduction is the wrong direction for a screen read from three metres — the
+   * project's first rule is that text which reads fine on a monitor is unreadable at
+   * 10 feet. Redefining the scale keeps call sites on plain `text-sm`/`text-lg` while
+   * restoring the intended size.
+   *
+   * The larger stops (2xl/3xl/4xl/6xl) already landed within 2px of the design and
+   * are left at Tailwind's defaults.
+   */
+  --text-xs: 0.8125rem; /* 13px */
+  --text-sm: 0.9375rem; /* 15px */
+  --text-base: 1.0625rem; /* 17px */
+  --text-lg: 1.1875rem; /* 19px */
+  --text-xl: 1.3125rem; /* 21px */
+
+  /*
+   * Named typography and ratios, for the values that repeat.
+   *
+   * v4 exposes `--tracking-*`, `--aspect-*` and `--blur-*` as theme namespaces, so these
+   * become ordinary utilities (`tracking-label`, `aspect-header`) instead of arbitrary
+   * values. One-off tracking and leading that appears once is left inline — a name for a
+   * single call site is a lookup, not a vocabulary.
+   */
+  --tracking-label: 0.14em; /* small-caps section headings */
+  --tracking-display: -0.01em; /* large headings, optically tightened */
+  --aspect-header: 460 / 215; /* Steam's store header art */
+  --aspect-poster: 2 / 3; /* library_capsule portrait */
+  --blur-wash: 1.125rem; /* the ambient backdrop */
+
+  /* The calendar's "Your Personal Calendar" headline. Its 40px has no near stop —
+     4xl is 36 and 5xl is 48 — so it gets a name instead of an arbitrary value. */
+  --text-display: 2.5rem; /* 40px */
+}
+
+/*
+ * The focus ring, as a real utility rather than an arbitrary value.
+ *
+ * The card spec asks for `outline outline-[3px] outline-offset-4`, and an outline is
+ * the right primitive: unlike a layered box-shadow it gives a genuinely TRANSPARENT
+ * offset gap, and it is not clipped by its own element's `overflow-hidden` — only by
+ * an ancestor's. That matters because a boxed card must clip its own art corners
+ * while still painting a ring outside itself.
+ *
+ * ⚠️ But Tailwind's outline widths are px (`outline-3` is 3px), and a px ring does not
+ * scale: at 4K the root font is 32px and everything around it doubles while a 3px
+ * outline stays a 3px hairline at three metres. So the width has to be rem, and a rem
+ * width would mean `outline-[0.1875rem]` at every call site. A named utility is the
+ * way to keep the value on the scale and out of the markup.
+ *
+ * ⚠️ Never pair these with `outline-none`. In Tailwind v4 that sets `outline-style:
+ * none`, and width/colour utilities do not re-enable it — the ring silently never
+ * renders. That bug has been paid for once already; see docs/DESIGN-PORT.md §4.5.
+ */
+@utility card-ring {
+  outline: 0.1875rem solid var(--color-focus);
+  outline-offset: 0.25rem;
+}
+
+/*
+ * The dim behind the Up menu.
+ *
+ * A gradient, not a flat fill: the page underneath stays faintly legible at the
+ * bottom — you are choosing where to go FROM here, and a solid backdrop would lose
+ * that context — while the top is dark enough for the menu row to read as the only
+ * thing on screen.
+ *
+ * ⚠️ The artboard's own numbers are 94%/82% and they are NOT enough here. `9a` draws
+ * the shelves behind it at `opacity: .5` and `.28` before the gradient goes on, so its
+ * page is already half gone; ours is a live screen at full strength. Same gradient
+ * over twice the brightness reads as twice as transparent, which is exactly how it
+ * looked on the TV. The delta between the stops is kept — that part is the design.
+ */
+@utility scrim-page {
+  background: linear-gradient(
+    180deg,
+    rgb(8 13 22 / 0.985) 32%,
+    rgb(8 13 22 / 0.9)
+  );
+}
+
+/* Resting. Present, not absent — so the colour has something to animate FROM. */
+@utility card-ring-off {
+  outline: 0.1875rem solid transparent;
+  outline-offset: 0.25rem;
+}
+
+/*
+ * The two older focus rings, named.
+ *
+ * `card-ring` above is the design's outline. These two are box-shadow rings that
+ * predate it and are still correct where they are used: `ring-tile` paints a dark gap
+ * before the blue so a ring never sits directly on artwork, and `ring-flat` is a single
+ * line for controls that already sit on a solid surface.
+ *
+ * ⚠️ Both reach further than they look. Nothing painted on a tile may exceed its clip
+ * container's padding — see Shelf.tsx.
+ */
+@utility ring-tile {
+  box-shadow:
+    0 0 0 0.25rem var(--color-surface),
+    0 0 0 0.4375rem var(--color-focus);
+}
+
+@utility ring-flat {
+  box-shadow: 0 0 0 0.1875rem var(--color-focus);
+}
+
+body {
+  @apply bg-surface text-white antialiased;
+  margin: 0;
+  overflow: hidden; /* full-screen app; rows scroll by transform, the page never does */
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* This is a controller app. A mouse pointer parked on the TV is just a dead pixel. */
+body.controller-active,
+body.controller-active * {
+  cursor: none;
+}
+
+/*
+ * Marquee for titles too long to fit a fixed-height band.
+ *
+ * The holds at 0-12% and 46-58% are the point: continuously scrolling text cannot
+ * be read, and the eye needs a beat at each end. Distance comes in as a custom
+ * property so one keyframe set serves every length, and the duration is set
+ * per-element to keep the speed constant.
+ */
+@keyframes marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  46%,
+  58% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+  }
+  92%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-marquee {
+  animation-name: marquee;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}

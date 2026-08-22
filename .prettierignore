@@ -1,0 +1,7 @@
+# Generated Claude Design export — committed as-is so it diffs against the source.
+design/
+
+dist/
+pnpm-lock.yaml
+src-tauri/target/
+src-tauri/gen/

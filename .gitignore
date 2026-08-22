@@ -1,0 +1,25 @@
+# Personal and operational notes stay local and out of source control:
+# tasks, the two-box lab notes, the Steam endpoint catalogs, and the saved
+# reference HTML (which carries other people's Steam profiles).
+private/
+
+# Machine-specific agent context. Kept on disk so it keeps working locally;
+# never published, because it names hosts, MACs and personal preferences.
+CLAUDE.md
+
+node_modules/
+dist/
+.vite/
+*.log
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Tauri icons are generated; keep them, but ignore build output
+src-tauri/target/

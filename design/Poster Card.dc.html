@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  body { margin:0; padding:40px; background:#080d16; font-family:Archivo, sans-serif; }
+  a { color:#9fc9f5; text-decoration:none; }
+  a:hover { color:#c6e0fb; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:32px;font-family:Archivo, sans-serif">
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:700 12px/16px Archivo;letter-spacing:.1em;text-transform:uppercase;color:rgba(223,230,234,.45)">Poster card — one component, two surfaces</span>
+    <span style="max-width:880px;font:500 16px/24px Archivo;color:rgba(232,238,241,.7);text-wrap:pretty">Both are Store Card with portrait art. The boxed one sets a plate behind the whole card so it reads as an object on any page background; the bare one lets the page show through and only the art carries a surface. Content props are shared between them.</span>
+  </div>
+
+  <div style="display:flex;align-items:flex-start;gap:40px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font:600 14px/20px Archivo;color:rgba(223,230,234,.5)">Boxed — plate behind the facts</span>
+      <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" facts="{{ facts }}" tags="{{ tags }}" note="{{ note }}" note-label="{{ noteLabel }}" note-accent="{{ noteAccent }}" focused="{{ focused }}" width="{{ 340 }}" art-height="{{ 492 }}" surface="Boxed" hint-size="340px,640px"></dc-import>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font:600 14px/20px Archivo;color:rgba(223,230,234,.5)">Bare — facts sit on the page</span>
+      <dc-import name="Store Card" art="{{ art }}" title="{{ name }}" price="{{ price }}" was-price="{{ wasPrice }}" discount="{{ discount }}" rating="{{ rating }}" tier="{{ tier }}" flag="{{ flag }}" owned="{{ owned }}" controller-support="{{ controllerSupport }}" facts="{{ facts }}" tags="{{ tags }}" note="{{ note }}" note-label="{{ noteLabel }}" note-accent="{{ noteAccent }}" focused="{{ focused }}" width="{{ 340 }}" art-height="{{ 492 }}" surface="Bare" hint-size="340px,640px"></dc-import>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;art&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/library_600x900.jpg&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;name&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Space Marine II&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;price&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$41.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;wasPrice&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;$59.99&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;discount&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;-30%&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;rating&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 92, &quot;min&quot;: 0, &quot;max&quot;: 100, &quot;unit&quot;: &quot;%&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;tier&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Gold&quot;, &quot;options&quot;: [&quot;Platinum&quot;, &quot;Gold&quot;, &quot;Silver&quot;, &quot;Bronze&quot;, &quot;Native&quot;, &quot;Unknown&quot;, &quot;Borked&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;flag&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;WEEKEND DEAL&quot;, &quot;options&quot;: [&quot;&quot;, &quot;WEEKEND DEAL&quot;, &quot;TODAY'S DEAL&quot;, &quot;MIDWEEK DEAL&quot;, &quot;FREE WEEKEND&quot;, &quot;NEW RELEASE&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;facts&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Rating + tier&quot;, &quot;options&quot;: [&quot;Rating + tier&quot;, &quot;Tags only&quot;, &quot;Both&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;tags&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Shooter, Action, Co-op, Warhammer&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;owned&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;controllerSupport&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Shared content&quot;},
+  &quot;focused&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;State&quot;},
+  &quot;note&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;},
+  &quot;noteLabel&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;},
+  &quot;noteAccent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#4d9be6&quot;, &quot;options&quot;: [&quot;#4d9be6&quot;, &quot;#a1cd44&quot;, &quot;#c08457&quot;, &quot;#c2247f&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Note box&quot;}
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    return {
+      art: p.art ?? "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183900/library_600x900.jpg",
+      name: p.name ?? "Space Marine II",
+      price: p.price ?? "$41.99",
+      wasPrice: p.wasPrice ?? "$59.99",
+      discount: p.discount ?? "-30%",
+      rating: p.rating ?? 92,
+      tier: p.tier ?? "Gold",
+      flag: p.flag ?? "WEEKEND DEAL",
+      owned: p.owned ?? false,
+      controllerSupport: p.controllerSupport ?? true,
+      facts: p.facts ?? "Rating + tier",
+      tags: p.tags ?? "Shooter, Action, Co-op, Warhammer",
+      note: p.note ?? "",
+      noteLabel: p.noteLabel ?? "",
+      noteAccent: p.noteAccent ?? "#4d9be6",
+      focused: p.focused ?? false
+    };
+  }
+}
+</script>
+</body>
+</html>

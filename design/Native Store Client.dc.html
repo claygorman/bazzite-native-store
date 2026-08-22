@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#0f1013;font-family:Archivo,system-ui,sans-serif}
+a{color:#a78bfa;text-decoration:none}a:hover{color:#c4b5fd}
+.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(255,255,255,.07)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px;max-width:1400px}
+.dv-tid{font:700 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#e8ecf2;color:#0b0c10;border-radius:4px;text-decoration:none}
+.dv-tname{font:500 13px/1.5 Archivo,sans-serif;color:rgba(232,236,242,.75)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px}
+.dv-oid{font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(255,255,255,.12);color:#e8ecf2;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:9px;font:400 12px/1.3 Archivo,sans-serif;color:rgba(232,236,242,.6);max-width:960px}
+.dv-card{width:1920px;height:1080px;overflow:hidden;background:#08090c;border:1px solid rgba(255,255,255,.1);border-radius:10px;position:relative;color:#e8ecf2}
+.dv-opt:target .dv-oid{background:#8b5cf6;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.6 Archivo,sans-serif;color:rgba(232,236,242,.5)}
+@keyframes caret{from{opacity:1}to{opacity:.15}}
+</style></helmet>
+
+<section class="dv-turn" id="t7">
+<div class="dv-thd"><a class="dv-tid" href="#t7">7</a><span class="dv-tname">Browse by tag — a third way in, alongside the home shelves in <a class="dv-oid" href="#5a">5a</a> and the keyboard search in <a class="dv-oid" href="#5b">5b</a>. <a class="dv-oid" href="#7a">7a</a> is the picker: tag groups run across the top on LB/RB, and the focused tag previews on the right with how much of it actually runs on Bazzite. <a class="dv-oid" href="#7b">7b</a> is what A opens — the tag's results, stackable with more tags. Focus is drawn as a fixed state so it doesn't fight <a class="dv-oid" href="#5a">5a</a>'s live keyboard nav.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="7a"><div class="dv-olabel"><a class="dv-oid" href="#7a">7a</a>Tag picker — groups across the top, 16 tags to a group, focused tag previews with its Proton split</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="{{ tagAmbient }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5;filter:blur(22px) saturate(1.2);transform:scale(1.14)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 20% 12%,rgba(30,82,160,.42),rgba(9,15,26,.9) 62%,#080d16 88%)"></div>
+
+  <div style="position:absolute;top:30px;left:56px;right:56px;display:flex;align-items:center;gap:20px">
+    <span style="font:800 17px/1 Archivo;letter-spacing:.26em;text-transform:uppercase;color:#f4f7f9">Store</span>
+    <span style="width:1px;height:18px;background:rgba(244,247,249,.18)"></span>
+    <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.45)">Press Up for menu</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
+      <span style="display:flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:rgba(158,201,127,.16);font:600 15px/1 Archivo;color:#b9d99c"><span style="width:9px;height:9px;border-radius:50%;background:#9ec97f"></span>Controller</span>
+      <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.5);font-variant-numeric:tabular-nums">4:41 PM</span>
+    </span>
+  </div>
+
+  <div style="position:absolute;top:82px;left:56px;right:56px;display:flex;align-items:baseline;gap:20px">
+    <span style="font:800 42px/1 Archivo;letter-spacing:-.01em;color:#f4f7f9">Browse by Tag</span>
+    <span style="font:500 20px/1 Archivo;color:rgba(223,230,234,.55)">412 tags · 41 pulled from your library</span>
+  </div>
+
+  <div style="position:absolute;top:148px;left:56px;right:56px;display:flex;align-items:center;gap:12px">
+    <span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LB</span>
+    <sc-for list="{{ tagGroups }}" as="g" hint-placeholder-count="6">
+      <span style="padding:11px 20px;border-radius:999px;background:{{ g.bg }};font:600 18px/1 Archivo;color:{{ g.color }}">{{ g.label }}</span>
+    </sc-for>
+    <span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RB</span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:56px;top:222px;width:1216px;bottom:98px;display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:20px">
+    <sc-for list="{{ tagTiles }}" as="t" hint-placeholder-count="16">
+      <div style="position:relative;min-width:0;border-radius:10px;overflow:hidden;background:#16202c;outline:{{ t.ring }};outline-offset:4px;box-shadow:{{ t.shadow }}">
+        <img src="{{ t.img }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:{{ t.artOpacity }}"/>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,13,22,.2),rgba(8,13,22,.92))"></div>
+        <div style="position:absolute;left:16px;right:16px;bottom:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font:700 24px/1.1 Archivo;color:{{ t.nameColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span>
+          <span style="font:600 18px/1 Archivo;color:rgba(223,230,234,.62);font-variant-numeric:tabular-nums">{{ t.games }} games</span>
+        </div>
+        <span style="display:{{ t.pinDisplay }};position:absolute;right:12px;top:12px;padding:4px 10px;border-radius:5px;background:rgba(77,155,230,.92);font:800 13px/1 Archivo;letter-spacing:.08em;color:#04121f">PINNED</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:1304px;top:222px;width:560px;bottom:98px;display:flex;flex-direction:column;gap:18px;padding:22px;border-radius:12px;background:rgba(8,13,22,.6);border:1px solid rgba(244,247,249,.1)">
+    <img src="{{ tagAmbient }}" alt="" style="display:block;width:100%;aspect-ratio:460/215;object-fit:cover;border-radius:8px"/>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font:800 34px/1 Archivo;color:#f4f7f9">Roguelike</span>
+      <span style="font:500 19px/1 Archivo;color:rgba(223,230,234,.6)">3,412 games · 18 on your wishlist</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <span style="font:700 14px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.45)">Runs on Bazzite</span>
+      <div style="display:flex;height:14px;border-radius:7px;overflow:hidden">
+        <sc-for list="{{ tagProton }}" as="p" hint-placeholder-count="4">
+          <span style="width:{{ p.w }};background:{{ p.color }}"></span>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px">
+        <sc-for list="{{ tagProton }}" as="p" hint-placeholder-count="4">
+          <span style="display:flex;align-items:center;gap:8px;font:600 18px/1 Archivo;color:rgba(232,238,241,.8)"><span style="width:11px;height:11px;border-radius:50%;background:{{ p.color }}"></span>{{ p.label }} {{ p.w }}</span>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:12px">
+      <span style="font:700 14px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.45)">Top sellers in this tag</span>
+      <sc-for list="{{ tagTop }}" as="g" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:14px">
+          <img src="{{ g.img }}" alt="" style="width:150px;height:70px;object-fit:cover;border-radius:5px"/>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <span style="font:600 19px/1.15 Archivo;color:#e8eef1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</span>
+            <span style="display:flex;align-items:center;gap:8px;font:600 18px/1 Archivo;color:rgba(232,238,241,.72)"><span style="width:10px;height:10px;border-radius:50%;background:{{ g.tierColor }}"></span>{{ g.tierShort }}</span>
+          </div>
+          <span style="font:800 19px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">{{ g.price }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <span style="display:flex;align-items:center;justify-content:center;gap:12px;padding:15px 24px;border-radius:999px;background:linear-gradient(135deg,#5aa9f0,#2f6fd0);color:#04121f;font:700 20px/1 Archivo;box-shadow:0 0 40px rgba(77,155,230,.45)"><span style="width:26px;height:26px;border-radius:50%;background:rgba(4,18,31,.85);color:#f4f7f9;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>Browse 3,412 games</span>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="display:flex;align-items:center;gap:22px;font:600 15px/1 Archivo;color:rgba(223,230,234,.75)"><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LB</span>Prev group</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RB</span>Next group</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>More tags</span></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:22px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>BROWSE TAG</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>PIN TAG</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="7b"><div class="dv-olabel"><a class="dv-oid" href="#7b">7b</a>Inside a tag — featured spotlight as a 70/30 split: the microtrailer keeps a true 16:9 frame, the game's facts sit in the 30% panel beside it, next spotlight peeks in from the right edge</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="{{ resultAmbient }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.3;filter:blur(26px) saturate(1.2);transform:scale(1.14)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 22% 10%,rgba(30,82,160,.4),rgba(9,15,26,.92) 62%,#080d16 88%)"></div>
+
+  <div style="position:absolute;top:30px;left:56px;right:56px;display:flex;align-items:center;gap:20px">
+    <span style="font:800 17px/1 Archivo;letter-spacing:.26em;text-transform:uppercase;color:#f4f7f9">Store</span>
+    <span style="width:1px;height:18px;background:rgba(244,247,249,.18)"></span>
+    <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.45)">Browse by Tag</span>
+    <span style="margin-left:auto;font:600 16px/1 Archivo;color:rgba(223,230,234,.5);font-variant-numeric:tabular-nums">Page 1 / 81</span>
+  </div>
+
+  <div style="position:absolute;top:78px;left:56px;right:56px;display:flex;align-items:baseline;gap:18px">
+    <span style="font:800 40px/1 Archivo;letter-spacing:-.01em;color:#f4f7f9">Roguelike + Deckbuilder</span>
+    <span style="margin-left:auto;font:500 20px/1 Archivo;color:rgba(223,230,234,.55);font-variant-numeric:tabular-nums">1,204 games</span>
+  </div>
+
+  <div style="position:absolute;top:142px;left:56px;right:56px;display:flex;align-items:center;gap:12px">
+    <sc-for list="{{ tagFilters }}" as="f" hint-placeholder-count="5">
+      <span style="display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:999px;background:{{ f.bg }};border:{{ f.border }};font:600 18px/1 Archivo;color:{{ f.color }}"><span style="display:{{ f.dotDisplay }};width:11px;height:11px;border-radius:50%;background:{{ f.dot }}"></span>{{ f.label }}<span style="display:{{ f.glyphDisplay }};width:24px;height:24px;border-radius:50%;background:rgba(244,247,249,.9);color:#0b1114;display:grid;place-items:center;font:800 12px/1 Archivo">{{ f.glyph }}</span></span>
+    </sc-for>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:12px">
+      <span style="font:500 18px/1 Archivo;color:rgba(223,230,234,.5)">Sort</span>
+      <span style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-radius:999px;background:rgba(244,247,249,.12);font:600 18px/1 Archivo;color:#e8eef1"><span style="color:rgba(223,230,234,.5)">◀</span>Top sellers<span style="color:rgba(223,230,234,.5)">▶</span></span>
+    </span>
+  </div>
+
+  <div style="position:absolute;top:202px;left:56px;display:flex;align-items:center;gap:14px">
+    <span style="font:700 14px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.5)">Featured in this tag</span>
+    <span style="font:500 18px/1 Archivo;color:rgba(223,230,234,.38)">9 spotlights this week</span>
+  </div>
+
+  <div style="position:absolute;left:56px;top:234px;width:1080px;height:425px;display:flex;border-radius:10px;overflow:hidden;background:#16202c;outline:3px solid #4d9be6;outline-offset:4px;box-shadow:0 26px 60px rgba(0,0,0,.72), 0 0 56px rgba(77,155,230,.5)">
+  <div style="position:relative;flex:none;width:756px;height:425px;overflow:hidden">
+    <img src="{{ tagFeatured.img }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,13,22,0) 55%,rgba(8,13,22,.85))"></div>
+    <span style="display:{{ tagFeatured.flagDisplay }};position:absolute;left:0;top:0;padding:7px 14px;background:{{ tagFeatured.flagBg }};box-shadow:2px 1px 6px rgba(0,0,0,.4);font:500 17px/1.4 Archivo;letter-spacing:.02em;text-transform:uppercase;color:#fff">{{ tagFeatured.flagLabel }}</span>
+    <div style="position:absolute;right:16px;top:16px;display:flex;align-items:center;gap:10px">
+      <span style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:999px;background:rgba(8,13,22,.72);border:1px solid rgba(244,247,249,.14);font:600 16px/1 Archivo;color:rgba(232,238,241,.9)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" stroke="none"></path><path d="m16 9 5 6M21 9l-5 6"></path></svg>
+        Muted
+      </span>
+      <span style="display:flex;align-items:center;gap:9px;padding:8px 14px 8px 8px;border-radius:999px;background:rgba(8,13,22,.72);border:1px solid rgba(244,247,249,.14);font:600 16px/1 Archivo;color:rgba(232,238,241,.9)"><span style="width:26px;height:26px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 13px/1 Archivo">X</span>Pause</span>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(8,13,22,.6)">
+      <span style="display:block;width:38%;height:100%;background:#4d9be6;box-shadow:0 0 14px rgba(77,155,230,.8)"></span>
+    </div>
+    <span style="position:absolute;left:20px;bottom:22px;padding:5px 11px;border-radius:5px;background:rgba(8,13,22,.72);font:700 14px/1 Archivo;letter-spacing:.12em;text-transform:uppercase;color:rgba(232,238,241,.8)">Microtrailer</span>
+  </div>
+
+  <div style="box-sizing:border-box;flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;padding:22px;border-left:1px solid rgba(244,247,249,.1)">
+    <span style="font:500 18px/1.3 Archivo;color:rgba(223,230,234,.6)">{{ tagFeatured.headline }}</span>
+    <span style="font:800 30px/1.08 Archivo;letter-spacing:-.01em;color:#f4f7f9;text-wrap:pretty">{{ tagFeatured.name }}</span>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <sc-for list="{{ tagFeatured.chips }}" as="c" hint-placeholder-count="4">
+        <span style="padding:5px 10px;border-radius:5px;background:rgba(244,247,249,.12);font:600 16px/1 Archivo;color:rgba(232,238,241,.82)">{{ c }}</span>
+      </sc-for>
+    </div>
+    <span style="display:flex;align-items:center;gap:9px;font:600 18px/1 Archivo;color:rgba(232,238,241,.82)"><span style="flex:none;width:12px;height:12px;border-radius:50%;background:{{ tagFeatured.tierColor }}"></span>{{ tagFeatured.tier }}</span>
+    <span style="font:600 18px/1 Archivo;color:#a1cd44">{{ tagFeatured.review }}</span>
+    <span style="margin-top:auto;display:{{ tagFeatured.saleDisplay }};align-items:center;gap:10px">
+      <span style="padding:6px 9px;border-radius:3px;background:rgb(161,205,68);font:800 20px/1 Archivo;color:#0b1114;font-variant-numeric:tabular-nums">{{ tagFeatured.salePct }}</span>
+      <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.5);text-decoration:line-through;font-variant-numeric:tabular-nums">{{ tagFeatured.saleWas }}</span>
+      <span style="font:800 26px/1 Archivo;color:#fff;font-variant-numeric:tabular-nums">{{ tagFeatured.price }}</span>
+    </span>
+    <span style="display:flex;align-items:center;justify-content:center;gap:11px;padding:13px 18px;border-radius:999px;background:linear-gradient(135deg,#5aa9f0,#2f6fd0);color:#04121f;font:700 19px/1 Archivo;box-shadow:0 0 36px rgba(77,155,230,.45)"><span style="width:26px;height:26px;border-radius:50%;background:rgba(4,18,31,.85);color:#f4f7f9;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>Open store page</span>
+  </div>
+  </div>
+
+  <div style="position:absolute;left:1160px;top:234px;width:760px;height:425px;border-radius:10px 0 0 10px;overflow:hidden;opacity:.45">
+    <img src="{{ tagFeaturedNext.img }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,13,22,.55),rgba(8,13,22,.9))"></div>
+    <div style="position:absolute;left:26px;bottom:26px;display:flex;flex-direction:column;gap:8px">
+      <span style="font:700 26px/1.1 Archivo;color:#f4f7f9">{{ tagFeaturedNext.name }}</span>
+      <span style="font:800 20px/1 Archivo;color:rgba(232,238,241,.8);font-variant-numeric:tabular-nums">{{ tagFeaturedNext.price }}</span>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:56px;top:673px;width:1080px;display:flex;justify-content:center;align-items:center;gap:9px">
+    <sc-for list="{{ tagFeaturedDots }}" as="d" hint-placeholder-count="9">
+      <span style="width:{{ d.w }};height:9px;border-radius:999px;background:{{ d.bg }}"></span>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;top:710px;left:56px;right:56px;display:flex;align-items:baseline;gap:16px">
+    <span style="font:700 14px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.5)">Top sellers</span>
+    <span style="font:500 18px/1 Archivo;color:rgba(223,230,234,.38)">showing 1–5 of 1,204</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:10px;font:600 17px/1 Archivo;color:rgba(223,230,234,.5)"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>Next page</span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:56px;right:56px;top:746px;bottom:98px;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:max-content;gap:28px 20px">
+    <sc-for list="{{ tagResults }}" as="t" hint-placeholder-count="15">
+      <div style="min-width:0;display:flex;flex-direction:column;gap:10px">
+        <div style="position:relative;border-radius:8px;overflow:hidden;outline:{{ t.ring }};outline-offset:4px;box-shadow:{{ t.shadow }};opacity:{{ t.dim }}">
+          <img src="{{ t.img }}" alt="" style="display:block;width:100%;height:161px;object-fit:cover"/>
+          <span style="display:{{ t.flagDisplay }};position:absolute;left:0;top:0;padding:5px 10px;background:{{ t.flagBg }};box-shadow:2px 1px 5px rgba(0,0,0,.35);font:500 15px/1.4 Archivo;letter-spacing:.02em;text-transform:uppercase;color:#fff">{{ t.flagLabel }}</span>
+          <span style="position:absolute;right:9px;top:9px;display:{{ t.ownedBadge }};align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#4d9be6;color:#04121f;font:800 13px/1 Archivo;box-shadow:0 0 0 3px rgba(8,13,22,.7)">✓</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font:700 19px/22px Archivo;color:{{ t.nameColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span>
+          <div style="display:flex;align-items:center;gap:10px;height:38px;white-space:nowrap">
+            <span style="flex:none;display:{{ t.saleDisplay }};align-items:center;gap:8px">
+              <span style="padding:4px 7px;border-radius:3px;background:rgb(161,205,68);font:800 16px/1 Archivo;color:#0b1114;font-variant-numeric:tabular-nums">{{ t.salePct }}</span>
+              <span style="display:flex;flex-direction:column;gap:2px">
+                <span style="font:600 15px/1 Archivo;color:rgba(223,230,234,.5);text-decoration:line-through;font-variant-numeric:tabular-nums">{{ t.saleWas }}</span>
+                <span style="font:800 20px/1 Archivo;color:#fff;font-variant-numeric:tabular-nums">{{ t.price }}</span>
+              </span>
+            </span>
+            <span style="flex:none;display:{{ t.plainPriceDisplay }};font:800 20px/1 Archivo;color:{{ t.priceColor }};font-variant-numeric:tabular-nums">{{ t.price }}</span>
+            <span style="flex:none;width:1px;height:22px;background:rgba(244,247,249,.18)"></span>
+            <span style="flex:none;display:flex;align-items:center;gap:7px;font:700 18px/1 Archivo;color:{{ t.reviewColor }};font-variant-numeric:tabular-nums">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none;display:{{ t.thumbDisplay }};transform:{{ t.thumbFlip }}" aria-hidden="true"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+              {{ t.review }}
+            </span>
+            <span style="flex:none;display:flex;align-items:center;gap:7px;font:600 18px/1 Archivo;color:rgba(232,238,241,.78)"><span style="width:11px;height:11px;border-radius:50%;background:{{ t.tierDot }}"></span>{{ t.tierShort }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="display:flex;align-items:center;gap:22px;font:600 15px/1 Archivo;color:rgba(223,230,234,.75)"><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LB</span>Sort ◀</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RB</span>Sort ▶</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LT</span>Page ◀</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>Page ▶</span></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:22px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>OPEN</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">X</span>PLAY / PAUSE</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>WISHLIST</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "make <a class="dv-oid" href="#7a">7a</a> dpad-navigable like <a class="dv-oid" href="#5a">5a</a>" · "put the Proton floor filter on <a class="dv-oid" href="#7b">7b</a>'s left as a rail" · "show tag combinations you can add from here"</p>
+</section>
+
+<section class="dv-turn" id="t6">
+<div class="dv-thd"><a class="dv-tid" href="#t6">6</a><span class="dv-tname">Details page carried into <a class="dv-oid" href="#5a">5a</a>'s immersive treatment: art washes the whole frame, the trailer is the object on screen rather than a widget in a column, and the listing's facts sit on top of it. Same sections as <a class="dv-oid" href="#4a">4a</a>–<a class="dv-oid" href="#4d">4d</a> plus the parts that were missing — reviews with filters, demo and playtest, DLC, achievements, curators. LB/RB page between the three screens.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="6a"><div class="dv-olabel"><a class="dv-oid" href="#6a">6a</a>Details page in the immersive treatment — trailer fills the frame, facts sit on the art, no page chrome</div>
+<div class="dv-card" style="background:#080d16">
+  
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/36ab866a12c6717196935cf725abfe374abb7ce9/ss_36ab866a12c6717196935cf725abfe374abb7ce9.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6;filter:blur(16px) saturate(1.2);transform:scale(1.12)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 22% 12%,rgba(30,82,160,.4),rgba(9,15,26,.86) 60%,#080d16 88%)"></div>
+  <div style="position:absolute;top:40px;left:56px;display:flex;align-items:center;gap:14px;font:600 16px/1 Archivo;color:rgba(223,230,234,.55)"><span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(223,230,234,.4);display:grid;place-items:center;font:700 13px/1 Archivo;color:#e8eef1">B</span>Action Games · Team17</div>
+
+  <div style="position:absolute;top:96px;left:56px;width:820px;display:flex;flex-direction:column;gap:14px">
+    <span style="font:800 62px/.96 Archivo;letter-spacing:-.015em;color:#f4f7f9;text-shadow:0 6px 40px rgba(0,0,0,.7)">WARDOGS</span>
+    <span style="font:400 20px/1.45 Archivo;color:rgba(232,238,241,.8);max-width:700px;text-wrap:pretty">A tactical all-out warfare FPS where one hundred players split across three teams fight over the control zone, on a destructible battlefield where teamwork pays and cash is king.</span>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:6px;background:rgba(192,132,87,.22);border:1px solid rgba(192,132,87,.5)"><span style="width:11px;height:11px;border-radius:50%;background:#c08457"></span><span style="font:700 16px/1 Archivo;color:#e0ab84">ProtonDB Bronze · 212 reports</span></span>
+      <span style="padding:9px 14px;border-radius:6px;background:rgba(244,247,249,.12);font:700 16px/1 Archivo;color:rgba(232,238,241,.85)">Deck: Unknown</span>
+      <span style="padding:9px 14px;border-radius:6px;background:rgba(158,201,127,.18);font:700 16px/1 Archivo;color:#b9d99c">Full controller support</span>
+    </div>
+    <div style="display:flex;gap:26px;font:500 16px/1.6 Archivo;margin-top:2px">
+      <div style="display:flex;flex-direction:column;color:rgba(223,230,234,.45)"><span>RELEASE</span><span>DEVELOPER</span><span>REVIEWS</span></div>
+      <div style="display:flex;flex-direction:column;color:#e8eef1"><span>Sep 10, 2026 · Early Access</span><span>BULKHEAD</span><span>No user reviews yet</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:8px">
+      <span style="display:flex;align-items:center;gap:12px;padding:15px 28px;border-radius:999px;background:linear-gradient(135deg,#5aa9f0,#2f6fd0);color:#04121f;font:700 21px/1 Archivo;box-shadow:0 0 44px rgba(77,155,230,.5)"><span style="width:26px;height:26px;border-radius:50%;background:rgba(4,18,31,.85);color:#f4f7f9;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>Open in Steam · $39.99</span>
+      <span style="display:flex;align-items:center;gap:11px;padding:15px 24px;border-radius:999px;background:rgba(244,247,249,.16);font:600 19px/1 Archivo;color:#e8eef1"><span style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(244,247,249,.55);display:grid;place-items:center;font:700 12px/1 Archivo">Y</span>Wishlist</span>
+      <span style="font:500 16px/1 Archivo;color:rgba(223,230,234,.5)">Supporter Edition $49.99</span>
+    </div>
+  </div>
+
+  <div style="position:absolute;top:96px;right:56px;width:820px;height:462px;border-radius:10px;overflow:hidden;outline:3px solid #4d9be6;outline-offset:5px;box-shadow:0 26px 70px rgba(0,0,0,.7),0 0 60px rgba(77,155,230,.35)">
+    <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/36ab866a12c6717196935cf725abfe374abb7ce9/ss_36ab866a12c6717196935cf725abfe374abb7ce9.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>
+    <div style="position:absolute;left:16px;top:14px;display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:5px;background:rgba(8,13,22,.8)"><span style="width:0;height:0;border-left:9px solid #f4f7f9;border-top:6px solid transparent;border-bottom:6px solid transparent"></span><span style="font:700 15px/1 Archivo;color:#f4f7f9">Trailer playing</span></div>
+    <div style="position:absolute;right:16px;top:14px;display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:5px;background:rgba(8,13,22,.8);font:700 15px/1 Archivo;color:#e8eef1"><span style="width:24px;height:24px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 13px/1 Archivo">X</span>Unmute</div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(244,247,249,.25)"><div style="width:31%;height:4px;background:#5aa9f0"></div></div>
+  </div>
+
+  <div style="position:absolute;right:56px;top:590px;width:820px;display:flex;gap:12px">
+    <sc-for list="{{ wdMedia }}" as="m" hint-placeholder-count="5">
+      <img src="{{ m }}" alt="" style="flex:1;min-width:0;height:88px;object-fit:cover;border-radius:5px;opacity:.62"/>
+    </sc-for>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:56px;top:508px;width:820px;bottom:96px;display:flex;flex-direction:column;gap:14px;justify-content:space-between">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <sc-for list="{{ wdTags }}" as="t" hint-placeholder-count="7">
+        <span style="padding:8px 13px;border-radius:5px;background:rgba(244,247,249,.1);font:600 15px/1 Archivo;color:rgba(232,238,241,.8)">{{ t }}</span>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:14px">
+      <sc-for list="{{ wdFeatures }}" as="f" hint-placeholder-count="4">
+        <div style="flex:1;padding:13px 15px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:5px">
+          <span style="font:600 16px/1.2 Archivo;color:#e8eef1">{{ f.label }}</span>
+          <span style="font:500 14px/1.2 Archivo;color:rgba(223,230,234,.5)">{{ f.note }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 19px/1 Archivo;color:#e8eef1">Recent Events &amp; Announcements</span>
+      <sc-for list="{{ wdEvents }}" as="e" hint-placeholder-count="2">
+        <div style="flex:1;min-height:0;display:flex;align-items:center;gap:14px;padding:10px;border-radius:8px;background:rgba(244,247,249,.07)">
+          <img src="{{ e.img }}" alt="" style="height:100%;aspect-ratio:460/215;object-fit:cover;border-radius:5px"/>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+            <span style="font:600 17px/1.2 Archivo;color:#e8eef1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.title }}</span>
+            <span style="font:500 14px/1 Archivo;color:rgba(223,230,234,.5)">{{ e.date }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;right:56px;top:700px;width:820px;bottom:96px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:8px;background:rgba(244,247,249,.07)">
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:700 19px/1 Archivo;color:#e8eef1">Pre-Purchase WARDOGS</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">Standard edition</span></div>
+      <span style="font:800 22px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">$39.99</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:8px;background:rgba(244,247,249,.07)">
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:700 19px/1 Archivo;color:#e8eef1">Supporter Edition</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">Includes WARDOGS + Supporter Pack</span></div>
+      <span style="font:800 22px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">$49.99</span>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:8px;background:rgba(244,247,249,.07)">
+      <span style="font:700 18px/1 Archivo;color:#e8eef1">Content For This Game</span>
+      <span style="font:500 16px/1 Archivo;color:rgba(223,230,234,.55)">WARDOGS — Supporter Pack</span>
+      <span style="margin-left:auto;font:600 15px/1 Archivo;color:#9fc2e8">Browse all (1)</span>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:26px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>OPEN IN STEAM</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">X</span>UNMUTE</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>WISHLIST</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="6b"><div class="dv-olabel"><a class="dv-oid" href="#6b">6b</a>Second screen — About, requirements, ProtonDB detail and More Like This, same art wash</div>
+<div class="dv-card" style="background:#080d16">
+  
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/36ab866a12c6717196935cf725abfe374abb7ce9/ss_36ab866a12c6717196935cf725abfe374abb7ce9.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.22;filter:blur(14px) saturate(1.2);transform:scale(1.12)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 22% 12%,rgba(30,82,160,.4),rgba(9,15,26,.86) 60%,#080d16 88%)"></div>
+  <div style="position:absolute;top:40px;left:56px;display:flex;align-items:center;gap:16px">
+    <span style="font:800 30px/1 Archivo;color:#f4f7f9">WARDOGS</span>
+    <span style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:5px;background:rgba(192,132,87,.22);border:1px solid rgba(192,132,87,.5);font:700 15px/1 Archivo;color:#e0ab84"><span style="width:10px;height:10px;border-radius:50%;background:#c08457"></span>ProtonDB Bronze</span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;top:104px;left:56px;right:56px;bottom:92px;display:flex;gap:26px;overflow:hidden;align-items:stretch">
+    <div style="flex:1.4;display:flex;flex-direction:column;gap:16px;min-width:0;justify-content:space-between">
+      <span style="font:800 30px/1 Archivo;letter-spacing:.03em;color:#f4f7f9">3 Team Tactical Warfare</span>
+      <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/acfacde1c2a9dfd7f892f2cbe6e03814136f639e/ss_acfacde1c2a9dfd7f892f2cbe6e03814136f639e.jpg" alt="" style="flex:1;min-height:0;width:100%;object-fit:cover;border-radius:8px"/>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span style="font:400 19px/1.5 Archivo;color:rgba(232,238,241,.82);text-wrap:pretty">An All-Out Warfare FPS combining tactical gunplay and combined arms combat with building and destruction, in a large-scale sandbox of up to 100 players.</span>
+        <span style="font:400 19px/1.5 Archivo;color:rgba(232,238,241,.7);text-wrap:pretty">Three teams fight for control of randomized 2×2km Control Zones. The team holding the zone earns points; first to 100 wins the match.</span>
+      </div>
+      <span style="font:500 16px/1.4 Archivo;color:rgba(223,230,234,.5)">Mature content: killing with weapons and melee combat.</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:16px;min-width:0;justify-content:space-between">
+      <div style="padding:18px;border-radius:8px;background:rgba(192,132,87,.12);border:1px solid rgba(192,132,87,.3);display:flex;flex-direction:column;gap:7px">
+        <span style="font:700 19px/1 Archivo;color:#e0ab84">Runs with significant issues</span>
+        <span style="font:500 16px/1.45 Archivo;color:rgba(232,238,241,.78)">Bronze across 212 reports. Anti-cheat is the most common blocker; 18 reports match your GPU.</span>
+      </div>
+      <div style="display:flex;gap:14px">
+        <div style="flex:1;padding:16px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:7px">
+          <span style="font:700 13px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.45)">Minimum</span>
+          <sc-for list="{{ wdSysMin }}" as="r" hint-placeholder-count="6">
+            <span style="font:500 15px/1.35 Archivo;color:rgba(232,238,241,.8)">{{ r }}</span>
+          </sc-for>
+        </div>
+        <div style="flex:1;padding:16px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:7px">
+          <span style="font:700 13px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.45)">Recommended</span>
+          <sc-for list="{{ wdSysRec }}" as="r" hint-placeholder-count="6">
+            <span style="font:500 15px/1.35 Archivo;color:rgba(232,238,241,.8)">{{ r }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:0">
+        <span style="font:700 20px/1 Archivo;color:#e8eef1">More Like This</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <sc-for list="{{ moreLike }}" as="g" hint-placeholder-count="4">
+          <div style="min-width:0;border-radius:6px;overflow:hidden;background:rgba(244,247,249,.07)">
+            <div style="position:relative">
+              <img src="{{ g.img }}" alt="" style="display:block;width:100%;height:auto;aspect-ratio:460/215;object-fit:cover"/>
+              <span style="position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;background:rgba(8,13,22,.85)"><span style="width:8px;height:8px;border-radius:50%;background:{{ g.tierColor }}"></span><span style="font:700 14px/1 Archivo;color:#e8eef1">{{ g.tier }}</span></span>
+            </div>
+            <div style="padding:10px 12px;display:flex;align-items:center;gap:10px">
+              <span style="flex:1;min-width:0;font:600 15px/1.2 Archivo;color:#e8eef1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</span>
+              <span style="font:700 16px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">{{ g.price }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font:700 14px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:rgba(223,230,234,.45)">Popular user-defined tags</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ wdTags }}" as="t" hint-placeholder-count="7">
+            <span style="padding:8px 13px;border-radius:5px;background:rgba(244,247,249,.1);font:600 15px/1 Archivo;color:rgba(232,238,241,.8)">{{ t }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:26px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>OPEN IN STEAM</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>READ MORE</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="6c"><div class="dv-olabel"><a class="dv-oid" href="#6c">6c</a>Third screen — reviews with the store's own filters, demo and playtest, DLC and bundles, achievements, curators</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/36ab866a12c6717196935cf725abfe374abb7ce9/ss_36ab866a12c6717196935cf725abfe374abb7ce9.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.2;filter:blur(18px) saturate(1.2);transform:scale(1.12)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 22% 12%,rgba(30,82,160,.36),rgba(9,15,26,.9) 60%,#080d16 88%)"></div>
+
+  <div style="position:absolute;top:40px;left:56px;display:flex;align-items:center;gap:16px">
+    <span style="font:800 30px/1 Archivo;color:#f4f7f9">WARDOGS</span>
+    <span style="font:600 17px/1 Archivo;color:rgba(223,230,234,.55)">Reviews &amp; extras</span>
+  </div>
+  <div style="position:absolute;top:40px;right:56px;display:flex;align-items:center;gap:12px">
+    <span style="display:flex;align-items:center;gap:11px;padding:12px 20px;border-radius:999px;background:linear-gradient(135deg,#5aa9f0,#2f6fd0);color:#04121f;font:700 17px/1 Archivo;box-shadow:0 0 36px rgba(77,155,230,.45)"><span style="width:24px;height:24px;border-radius:50%;background:rgba(4,18,31,.85);color:#f4f7f9;display:grid;place-items:center;font:800 13px/1 Archivo">A</span>Download Demo</span>
+    <span style="padding:12px 20px;border-radius:999px;background:rgba(244,247,249,.14);font:600 17px/1 Archivo;color:#e8eef1">Request Playtest Access</span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;top:110px;left:56px;right:56px;bottom:92px;display:flex;gap:24px;overflow:hidden;align-items:stretch">
+    <div style="flex:1.45;display:flex;flex-direction:column;gap:16px;min-width:0;justify-content:space-between">
+      <div style="display:flex;align-items:baseline;gap:14px">
+        <span style="font:700 24px/1 Archivo;color:#e8eef1">Customer Reviews</span>
+        <span style="font:600 18px/1 Archivo;color:#9ec97f">Very Positive · 84% of 12,904</span>
+        <span style="margin-left:auto;font:500 16px/1 Archivo;color:rgba(223,230,234,.5)">Showing 54 that match the filters</span>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <sc-for list="{{ wdReviewFilters }}" as="f" hint-placeholder-count="6">
+          <span style="padding:10px 16px;border-radius:999px;background:{{ f.bg }};color:{{ f.color }};font:600 16px/1 Archivo">{{ f.label }}</span>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5);width:74px">Positive</span>
+        <div style="flex:1;height:14px;border-radius:7px;background:rgba(244,247,249,.12);overflow:hidden"><div style="width:84%;height:14px;background:#6f9e51"></div></div>
+        <span style="font:600 15px/1 Archivo;color:rgba(232,238,241,.8);width:64px;text-align:right">10,839</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:14px">
+        <sc-for list="{{ wdReviews }}" as="r" hint-placeholder-count="3">
+          <div style="padding:16px 18px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="font:700 18px/1 Archivo;color:{{ r.color }}">{{ r.verdict }}</span>
+              <span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">{{ r.hours }}</span>
+              <span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.4)">{{ r.posted }}</span>
+              <span style="margin-left:auto;padding:5px 10px;border-radius:4px;background:rgba(244,247,249,.1);font:600 14px/1 Archivo;color:rgba(232,238,241,.75)">{{ r.deck }}</span>
+            </div>
+            <span style="font:400 17px/1.45 Archivo;color:rgba(232,238,241,.82)">{{ r.text }}</span>
+            <span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.45)">{{ r.helpful }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <span style="align-self:center;padding:11px 22px;border-radius:999px;background:rgba(244,247,249,.1);font:600 16px/1 Archivo;color:#e8eef1">Browse all 12,904 reviews</span>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:16px;min-width:0;justify-content:space-between">
+      <div style="padding:18px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:11px">
+        <span style="font:700 20px/1 Archivo;color:#e8eef1">Demo &amp; Playtest</span>
+        <div style="display:flex;align-items:center;gap:12px;font:500 16px/1.4 Archivo;color:rgba(232,238,241,.78)"><span style="width:10px;height:10px;border-radius:50%;background:#9ec97f"></span>Free demo available · 4.2 GB</div>
+        <div style="display:flex;align-items:center;gap:12px;font:500 16px/1.4 Archivo;color:rgba(232,238,241,.78)"><span style="width:10px;height:10px;border-radius:50%;background:#e0d08a"></span>Closed beta playtest runs Aug 21–23</div>
+      </div>
+      <div style="padding:18px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:11px">
+        <span style="font:700 20px/1 Archivo;color:#e8eef1">DLC &amp; Bundles</span>
+        <sc-for list="{{ wdDlc }}" as="d" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font:600 17px/1.2 Archivo;color:#e8eef1">{{ d.name }}</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">{{ d.note }}</span></div>
+            <span style="font:700 18px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">{{ d.price }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:18px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;align-items:center;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:800 26px/1 Archivo;color:#f4f7f9">39</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">Achievements</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:800 26px/1 Archivo;color:#f4f7f9">14</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">Languages</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:800 26px/1 Archivo;color:#f4f7f9">100</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">Players online</span></div>
+      </div>
+      <div style="flex:1;padding:18px;border-radius:8px;background:rgba(244,247,249,.07);display:flex;flex-direction:column;gap:12px;min-height:0">
+        <div style="display:flex;align-items:baseline;gap:12px"><span style="font:700 20px/1 Archivo;color:#e8eef1">What Curators Say</span><span style="font:500 15px/1 Archivo;color:rgba(223,230,234,.5)">25 curators</span></div>
+        <sc-for list="{{ wdCurators }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;align-items:center;gap:12px"><span style="font:600 17px/1 Archivo;color:#9fc2e8">{{ c.name }}</span><span style="font:600 15px/1 Archivo;color:#9ec97f">{{ c.verdict }}</span></div>
+            <span style="font:400 16px/1.4 Archivo;color:rgba(232,238,241,.72)">{{ c.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="display:flex;align-items:center;gap:20px;font:600 15px/1 Archivo;color:rgba(223,230,234,.75)"><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LB</span>Media</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RB</span>About</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>Filter reviews</span></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:24px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>DOWNLOAD DEMO</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>WISHLIST</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<p class="dv-next">Try next: "swap the hero and trailer sides in <a class="dv-oid" href="#6a">6a</a>" · "put the announcements row back on <a class="dv-oid" href="#6b">6b</a>" · "make <a class="dv-oid" href="#6a">6a</a> dpad-navigable like <a class="dv-oid" href="#5a">5a</a>"</p>
+</section>
+
+<section class="dv-turn" id="t5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">More immersive, in the Xbox/Netflix idiom: art goes edge to edge, the whole screen tints to the focused game, the row you're in comes forward and the rest recede — a Steam-blue accent, on a near-black console surface rather than a page. <a class="dv-oid" href="#5a">5a</a> is live — dpad/arrows move tile to tile, LB/RB jump shelf to shelf, LT/RT page across a long shelf. On a keyboard: arrows, Q/E for shoulders, 1/3 for triggers. <a class="dv-oid" href="#5b">5b</a> is search with the on-screen keyboard.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>Live immersive home — name, price and compatibility read directly under each tile; dpad/arrows, LB/RB (Q/E) for shelves, LT/RT (1/3) to page</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="{{ ambient }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62;filter:blur(18px) saturate(1.25);transform:scale(1.14);transition:opacity .4s ease"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 20% 14%,rgba(30,82,160,.44),rgba(9,15,26,.9) 62%,#080d16 88%)"></div>
+
+  <div style="position:absolute;top:30px;left:56px;right:56px;display:flex;align-items:center;gap:20px">
+    <span style="font:800 17px/1 Archivo;letter-spacing:.26em;text-transform:uppercase;color:#f4f7f9">Store</span>
+    <span style="width:1px;height:18px;background:rgba(244,247,249,.18)"></span>
+    <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.45)">Press Up for menu</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
+      <span style="display:flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:rgba(158,201,127,.16);font:600 15px/1 Archivo;color:#b9d99c"><span style="width:9px;height:9px;border-radius:50%;background:#9ec97f"></span>{{ inputLabel }}</span>
+      <span style="font:600 16px/1 Archivo;color:rgba(223,230,234,.5);font-variant-numeric:tabular-nums">4:38 PM</span>
+    </span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:0;right:0;top:96px;bottom:74px;padding:0 56px 10px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+    <sc-for list="{{ navRows }}" as="row" hint-placeholder-count="3">
+      <div style="display:flex;flex-direction:column;gap:12px;transition:opacity .25s ease">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:700 24px/1 Archivo;letter-spacing:-.01em;color:#f4f7f9">{{ row.label }}</span>
+          <span style="display:{{ row.moreDisplay }};align-items:center;gap:9px;font:600 15px/1 Archivo;color:rgba(223,230,234,.5)"><span style="min-width:30px;height:24px;padding:0 8px;border-radius:6px;background:rgba(244,247,249,.14);display:grid;place-items:center;font:800 12px/1 Archivo;color:#f4f7f9">RT</span>See more</span>
+        </div>
+        <div style="display:flex;gap:20px;align-items:flex-start">
+          <sc-for list="{{ row.items }}" as="t" hint-placeholder-count="5">
+            <div style="width:336px;flex:none;display:flex;flex-direction:column;gap:10px">
+              <div style="position:relative;border-radius:8px;overflow:hidden;outline:{{ t.ring }};outline-offset:4px;box-shadow:{{ t.shadow }};opacity:{{ t.dim }};transition:opacity .2s ease">
+                <img src="{{ t.img }}" alt="" style="display:block;width:336px;height:157px;object-fit:cover"/>
+                <span style="display:{{ t.flagDisplay }};position:absolute;left:0;top:0;padding:5px 10px;background:{{ t.flagBg }};box-shadow:2px 1px 5px rgba(0,0,0,.35);font:500 15px/1.4 Archivo;letter-spacing:.02em;text-transform:uppercase;color:#fff">{{ t.flagLabel }}</span>
+                <span style="display:{{ t.padBadge }};position:absolute;left:10px;bottom:10px;align-items:center;gap:7px;padding:7px 11px;border-radius:6px;background:rgba(8,13,22,.82);font:700 14px/1 Archivo;color:#b9d99c">Full controller support</span>
+                <span style="position:absolute;right:9px;top:9px;display:{{ t.ownedBadge }};align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#4d9be6;color:#04121f;font:800 13px/1 Archivo;box-shadow:0 0 0 3px rgba(8,13,22,.7)">✓</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;opacity:{{ t.captionDim }}">
+                <span style="font:700 19px/22px Archivo;color:{{ t.nameColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span>
+                <div style="display:flex;align-items:center;gap:12px;height:40px;white-space:nowrap">
+                  <span style="flex:none;display:{{ t.saleDisplay }};align-items:center;gap:9px">
+                    <span style="padding:4px 7px;border-radius:3px;background:rgb(161,205,68);font:800 16px/1 Archivo;color:#0b1114;font-variant-numeric:tabular-nums">{{ t.salePct }}</span>
+                    <span style="display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 15px/1 Archivo;color:rgba(223,230,234,.5);text-decoration:line-through;font-variant-numeric:tabular-nums">{{ t.saleWas }}</span>
+                      <span style="font:800 21px/1 Archivo;color:#fff;font-variant-numeric:tabular-nums">{{ t.price }}</span>
+                    </span>
+                  </span>
+                  <span style="flex:none;display:{{ t.plainPriceDisplay }};font:800 21px/1 Archivo;color:{{ t.priceColor }};font-variant-numeric:tabular-nums">{{ t.price }}</span>
+                  <span style="flex:none;width:1px;height:22px;background:rgba(244,247,249,.18)"></span>
+                  <span style="flex:none;display:flex;align-items:center;gap:7px;font:700 19px/1 Archivo;color:{{ t.reviewColor }};font-variant-numeric:tabular-nums">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none;display:{{ t.thumbDisplay }};transform:{{ t.thumbFlip }}" aria-hidden="true"><path d="M2 10h4v11H2zM21.6 10.2c-.4-.5-1-.8-1.7-.8h-4.3l.7-3.4c.2-.9-.1-1.8-.7-2.4-.5-.5-1.4-.4-1.8.2L9.4 9.4c-.3.4-.4.8-.4 1.2V19c0 1.1.9 2 2 2h6.5c.9 0 1.7-.6 1.9-1.5l1.8-7.3c.2-.7 0-1.4-.4-2z"></path></svg>
+                    {{ t.review }}
+                  </span>
+                  <span style="flex:none;width:1px;height:22px;background:rgba(244,247,249,.18)"></span>
+                  <span style="flex:none;display:flex;align-items:center;gap:8px;font:600 19px/1 Archivo;color:rgba(232,238,241,.8)"><span style="width:11px;height:11px;border-radius:50%;background:{{ t.tierDot }}"></span>{{ t.tierShort }}</span>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="display:flex;align-items:center;gap:22px;font:600 15px/1 Archivo;color:rgba(223,230,234,.75)"><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LB</span>Prev shelf</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RB</span>Next shelf</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LT</span>Page ◀</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>Page ▶</span></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:22px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>SELECT</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>WISHLIST</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="5b"><div class="dv-olabel"><a class="dv-oid" href="#5b">5b</a>Search with the on-screen keyboard — art stays behind, results update under the query</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2764460/985a3a20945ec9c8e3e898e16cdaffe99d00e884/header.jpg?t=1786703049" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35;filter:blur(30px) saturate(1.15);transform:scale(1.12)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1300px 900px at 28% 8%,rgba(30,82,160,.42),rgba(9,15,26,.92) 62%,#080d16 88%)"></div>
+
+  <div style="box-sizing:border-box;position:absolute;top:0;left:0;right:0;bottom:74px;padding:44px 56px;display:flex;gap:34px">
+    <div style="width:760px;display:flex;flex-direction:column;gap:22px;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:16px;height:90px;padding:0 26px;border-radius:10px;background:rgba(244,247,249,.1);outline:3px solid #4d9be6;outline-offset:4px;box-shadow:0 0 46px rgba(77,155,230,.5)">
+        <span style="font:600 32px/1 Archivo;color:#f4f7f9">base build</span>
+        <span style="width:3px;height:36px;background:#f4f7f9;border-radius:2px;animation:caret 1s steps(1) infinite alternate"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <sc-for list="{{ osk }}" as="row" hint-placeholder-count="4">
+          <div style="display:flex;gap:11px">
+            <sc-for list="{{ row.keys }}" as="k" hint-placeholder-count="10">
+              <div style="flex:1;height:92px;border-radius:8px;background:rgba(244,247,249,.1);display:grid;place-items:center;font:600 30px/1 Archivo;color:#e8eef1;outline:{{ k.ring }};outline-offset:3px">{{ k.c }}</div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div style="display:flex;gap:11px">
+          <div style="flex:2;height:92px;border-radius:8px;background:rgba(244,247,249,.1);display:grid;place-items:center;font:600 20px/1 Archivo;color:rgba(232,238,241,.8)">SPACE</div>
+          <div style="flex:1;height:92px;border-radius:8px;background:rgba(244,247,249,.1);display:grid;place-items:center;font:600 24px/1 Archivo;color:rgba(232,238,241,.8)">⌫</div>
+          <div style="flex:1;height:92px;border-radius:8px;background:linear-gradient(135deg,#5aa9f0,#2f6fd0);display:grid;place-items:center;font:700 20px/1 Archivo;color:#04121f">Search</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;font:600 16px/1 Archivo;color:rgba(223,230,234,.6)">
+        <span style="padding:10px 16px;border-radius:999px;background:rgba(244,247,249,.1)">LB / RB jump rows</span>
+        <span style="padding:10px 16px;border-radius:999px;background:rgba(244,247,249,.1)">X deletes</span>
+        <span style="padding:10px 16px;border-radius:999px;background:rgba(244,247,249,.1)">Start searches</span>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0;justify-content:space-between">
+      <div style="display:flex;align-items:baseline;gap:14px"><span style="font:700 22px/1 Archivo;color:#e8eef1">148 results</span><span style="font:500 16px/1 Archivo;color:rgba(223,230,234,.5)">updating as you type</span></div>
+      <sc-for list="{{ results }}" as="g" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;gap:18px;padding:12px;border-radius:8px;background:rgba(244,247,249,.07)">
+          <img src="{{ g.img }}" alt="" style="width:260px;height:122px;object-fit:cover;border-radius:5px"/>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+            <span style="font:700 22px/1.1 Archivo;color:#f4f7f9">{{ g.name }}</span>
+            <span style="font:500 16px/1.3 Archivo;color:rgba(223,230,234,.55)">{{ g.meta }}</span>
+            <span style="font:600 15px/1 Archivo;color:#9ec97f">{{ g.score }}</span>
+          </div>
+          <span style="font:800 24px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">{{ g.price }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:rgba(8,13,22,.92);font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:26px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>TYPE</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">X</span>DELETE</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+</div>
+
+<div class="dv-opt" id="5c"><div class="dv-olabel"><a class="dv-oid" href="#5c">5c</a>Your Personal Calendar — the store's day-column band, one screen deep, TODAY carrying the accent</div>
+<div class="dv-card" style="background:#080d16">
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2584270/a38e76ebe240fb97b0d81e5a38569c0991d3ca63/ss_a38e76ebe240fb97b0d81e5a38569c0991d3ca63.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28;filter:blur(24px) saturate(1.2);transform:scale(1.14)"/>
+  <div style="position:absolute;inset:0;background:radial-gradient(1500px 950px at 22% 10%,rgba(30,82,160,.4),rgba(9,15,26,.92) 62%,#080d16 88%)"></div>
+
+  <div style="position:absolute;top:34px;left:56px;right:56px;display:flex;align-items:center;gap:16px">
+    <span style="font:800 15px/1 Archivo;letter-spacing:.22em;text-transform:uppercase;color:rgba(244,247,249,.75)">Store</span>
+    <span style="font:600 15px/1 Archivo;color:rgba(223,230,234,.4)">Press Up for menu</span>
+    <span style="margin-left:auto;font:600 14px/1 Archivo;color:rgba(223,230,234,.5)">Shelf 5 / 5 · Day 4 / 7</span>
+  </div>
+
+  <div style="position:absolute;top:92px;left:56px;right:56px;display:flex;align-items:flex-end;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="padding:6px 12px;border-radius:5px;background:#2f6fd0;font:800 15px/1 Archivo;letter-spacing:.08em;color:#f4f7f9">NEW</span>
+        <span style="font:800 40px/1 Archivo;color:#f4f7f9">Your Personal Calendar</span>
+      </div>
+      <span style="font:400 20px/1 Archivo;color:rgba(232,238,241,.72)">A personalized-for-you list of new and upcoming games</span>
+    </div>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:11px;padding:13px 22px;border-radius:999px;background:rgba(244,247,249,.16);font:600 18px/1 Archivo;color:#e8eef1"><span style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(244,247,249,.55);display:grid;place-items:center;font:700 12px/1 Archivo">Y</span>Explore your full Personal Calendar</span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;top:214px;left:56px;right:56px;display:flex;align-items:flex-start;gap:16px">
+    <span style="width:38px;flex:none;align-self:center;display:grid;place-items:center;font:700 34px/1 Archivo;color:rgba(232,238,241,.45)">‹</span>
+    <sc-for list="{{ calDays }}" as="d" hint-placeholder-count="5">
+      <div style="flex:1;min-width:0;border-radius:10px;background:{{ d.bg }};padding:18px;display:flex;flex-direction:column;justify-content:flex-start;gap:14px">
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:8px;font:700 18px/1 Archivo;letter-spacing:.1em;color:{{ d.label }}"><span>{{ d.day }}</span><span style="font:800 20px/1 Archivo">{{ d.date }}</span></div>
+        <img src="{{ d.top.img }}" alt="" style="width:100%;height:auto;aspect-ratio:460/215;object-fit:cover;border-radius:5px"/>
+        <img src="{{ d.bottom.img }}" alt="" style="display:block;width:100%;height:auto;aspect-ratio:460/215;object-fit:cover;border-radius:5px"/>
+        <div style="position:relative;width:100%">
+          <img src="{{ d.third.img }}" alt="" style="display:block;width:100%;height:auto;aspect-ratio:460/215;object-fit:cover;border-radius:5px;opacity:{{ d.thirdOpacity }}"/>
+          <span style="display:{{ d.moreDisplay }};position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:7px 14px;border-radius:5px;background:rgba(8,13,22,.85);font:600 16px/1 Archivo;color:#e8eef1">{{ d.more }}</span>
+        </div>
+      </div>
+    </sc-for>
+    <span style="width:38px;flex:none;align-self:center;display:grid;place-items:center;font:700 34px/1 Archivo;color:rgba(232,238,241,.45)">›</span>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;top:716px;display:flex;justify-content:center;gap:8px">
+    <span style="width:30px;height:7px;border-radius:4px;background:#f4f7f9"></span>
+    <span style="width:9px;height:7px;border-radius:4px;background:rgba(244,247,249,.3)"></span>
+    <span style="width:9px;height:7px;border-radius:4px;background:rgba(244,247,249,.3)"></span>
+    <span style="width:9px;height:7px;border-radius:4px;background:rgba(244,247,249,.3)"></span>
+  </div>
+
+  <div style="box-sizing:border-box;position:absolute;left:56px;right:56px;top:750px;bottom:90px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+    <span style="font:700 20px/1 Archivo;color:#e8eef1">Recommended Based on the Games You Play</span>
+    <div style="display:flex;gap:18px">
+      <sc-for list="{{ results }}" as="g" hint-placeholder-count="5">
+        <div style="flex:1;min-width:0;border-radius:8px;overflow:hidden;background:rgba(244,247,249,.07)">
+          <img src="{{ g.img }}" alt="" style="display:block;width:100%;height:auto;aspect-ratio:460/215;object-fit:cover"/>
+          <div style="padding:10px 13px;display:flex;align-items:center;gap:10px">
+            <span style="flex:1;min-width:0;font:600 16px/1.2 Archivo;color:#e8eef1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</span>
+            <span style="font:700 17px/1 Archivo;color:#f4f7f9;font-variant-numeric:tabular-nums">{{ g.price }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;gap:30px;padding:0 56px;background:linear-gradient(180deg,rgba(8,13,22,0),rgba(8,13,22,.95));font:700 16px/1 Archivo;color:#dfe6ea">
+    <span style="padding:8px 17px;border-radius:999px;background:#f4f7f9;color:#0b1114;font:800 14px/1 Archivo;letter-spacing:.1em">STORE</span>
+    <span style="display:flex;align-items:center;gap:20px;font:600 15px/1 Archivo;color:rgba(223,230,234,.75)"><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">LT</span>Earlier days</span><span style="display:flex;align-items:center;gap:9px"><span style="min-width:34px;height:28px;padding:0 9px;border-radius:7px;background:rgba(244,247,249,.16);display:grid;place-items:center;font:800 13px/1 Archivo;color:#f4f7f9">RT</span>Later days</span></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:24px"><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">A</span>SELECT</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">Y</span>FULL CALENDAR</span><span style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:#f4f7f9;color:#0b1114;display:grid;place-items:center;font:800 14px/1 Archivo">B</span>BACK</span></span>
+  </div>
+</div></div>
+
+<p class="dv-next">Try next: "more tint from the art in <a class="dv-oid" href="#5a">5a</a>" · "carry <a class="dv-oid" href="#5a">5a</a>'s treatment into the game page" · "results should preview on focus in <a class="dv-oid" href="#5b">5b</a>"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:2100,&quot;height&quot;:1400}}">
+const B = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/";
+const G = {
+  stalker: {name:"S.T.A.L.K.E.R. 2", img:B+"1643320/6ab07c3115a9b933530a526b7c8741ce810d7b2f/header_alt_assets_7.jpg?t=1787263142", price:"$41.99", orig:"$59.99", disc:"-30%"},
+  nmrih:   {name:"No More Room in Hell 2", img:B+"292000/ba33a8aef67d6a1e3b17b0f1689731334c1ec541/header.jpg?t=1786638024", price:"$19.49", orig:"$29.99", disc:"-35%"},
+  yazs:    {name:"Yet Another Zombie Survivors", img:B+"2163330/0e8f4329e3311f9a8a2ca28130e38afa5f391653/header_alt_assets_2.jpg?t=1787234279", price:"$9.74", orig:"$14.99", disc:"-35%"},
+  sand:    {name:"Sandustry", img:B+"2764460/985a3a20945ec9c8e3e898e16cdaffe99d00e884/header.jpg?t=1786703049", price:"$9.74", orig:"$14.99", disc:"-35%"},
+  tower:   {name:"Twisted Tower", img:B+"1575990/0270dc9ee7ddd3b31d2c9f0d5f1fb76cb4879eb8/header.jpg?t=1787251359", price:"$13.49", orig:"$14.99", disc:"-10%"},
+  crown:   {name:"Crownhold", img:B+"4579940/2ec6116d551e53f917014451785271d860dbc665/header.jpg?t=1786950114", price:"$5.94", orig:"$6.99", disc:"-15%"},
+  pax:     {name:"Pax Autocratica", img:B+"1067360/d492e901f3aec578ea3b3fc45c25f09784313d8c/header.jpg?t=1786694191", price:"$24.89", orig:"$29.99", disc:"-17%"},
+  bigwalk: {name:"Big Walk", img:B+"1478500/62eeee1507dbac905e128a62f2ce690550238db0/header.jpg?t=1785911674", price:"$19.99"},
+  stardew: {name:"Stardew Valley", img:B+"413150/header.jpg?t=1786554168", price:"$14.99"},
+  moon:    {name:"Moonlight Peaks", img:B+"2209900/9a9b199531ec49be95ea2d34e67dfab47106584b/header.jpg?t=1783444081", price:"$34.99"},
+  mortal:  {name:"Mortal Shell II", img:B+"2584270/0a4c23b70ced29fac344186ea564dae67c80cfd6/header.jpg?t=1787231571", price:"$49.99"},
+  sinking: {name:"The Sinking City 2", img:B+"2825860/05f1db0ecea4914621f13ebaa81710e505de2c6b/header.jpg?t=1787235451", price:"$49.99"},
+  shift:   {name:"Shift At Midnight", img:B+"3722330/759ecea2ffe1ad3819aefdda79e265b8b332bf8f/header.jpg?t=1787088182", price:"$9.99"},
+  enda:    {name:"Endacopia", img:B+"2684630/8b5af90a03ce4cc33653c50a998387e3e9082103/header.jpg?t=1786381683", price:"$16.50"},
+  tarkov:  {name:"Escape from Tarkov", img:B+"3932890/4dd12ea3b00a4f8b67bfd629f3b9abbf8d5cab05/header_alt_assets_2.jpg?t=1785782094", price:"$49.99"},
+  ds2:     {name:"DEATH STRANDING 2", img:B+"3280350/6270c77b0729e2df0a17d660286eeddfd9169386/header.jpg?t=1774022345", price:"$69.99"},
+  funnel:  {name:"Funnel Runners", img:B+"3712080/5e03554f7fd68edf54813a8d5a576a8791672227/header.jpg?t=1784567934", price:"$14.99"},
+  gunz:    {name:"GunZ: The Duel", img:B+"3139440/57a7afbd7bb43122438abdc380455d4302c19458/header.jpg?t=1786696577", price:"Free To Play"},
+  path:    {name:"Pathogenic", img:B+"3808690/61607b65d95681ef02bae9bf79099bc6fe511b56/header.jpg?t=1787243085", price:"$9.99"},
+  densha:  {name:"Denshattack!", img:B+"2524850/9e82089d034705eaa84ecb130d04ed1084ce574c/header.jpg?t=1786625763", price:"$19.99"},
+  horse:   {name:"Horse Magnifier", img:B+"4585340/51add09e1efe9ada76b19a7350ce2a8c11252373/header.jpg?t=1786744297", price:"$2.99"},
+  wd2:     {name:"Watch_Dogs 2", img:B+"447040/header.jpg?t=1751986887", price:"$49.99"}
+};
+
+const META = {
+  "Mortal Shell II":       {review:"No user reviews yet", pct:"", count:"", rank:"Ranked #12 in your region", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Big Walk":              {review:"Overwhelmingly Positive", pct:"96%", count:"14,466 Reviews", rank:"Ranked #15 in your region", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:false},
+  "Escape from Tarkov":    {review:"Mixed", pct:"58%", count:"12,638 Reviews", rank:"Ranked #24 in your region", tier:"ProtonDB Bronze", tierColor:"#c08457", owned:false},
+  "No More Room in Hell 2":{review:"Mixed", pct:"61%", count:"7,127 Reviews", rank:"Ranked #8 in your region", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Denshattack!":          {review:"Very Positive", pct:"89%", count:"1,204 Reviews", rank:"", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "S.T.A.L.K.E.R. 2":      {review:"Very Positive", pct:"84%", count:"121,904 Reviews", rank:"Ranked #2 in your region", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:true},
+  "Yet Another Zombie Survivors":{review:"Very Positive", pct:"92%", count:"18,330 Reviews", rank:"", tier:"ProtonDB Platinum", tierColor:"#b5eaff", owned:false},
+  "Sandustry":             {review:"Very Positive", pct:"91%", count:"3,417 Reviews", rank:"Ranked #9 in your region", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:false},
+  "Twisted Tower":         {review:"Mostly Positive", pct:"78%", count:"2,096 Reviews", rank:"", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Crownhold":             {review:"Positive", pct:"88%", count:"412 Reviews", rank:"", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:false},
+  "Moonlight Peaks":       {review:"Mostly Positive", pct:"76%", count:"884 Reviews", rank:"", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Endacopia":             {review:"Very Positive", pct:"93%", count:"1,551 Reviews", rank:"", tier:"ProtonDB Platinum", tierColor:"#b5eaff", owned:false},
+  "Funnel Runners":        {review:"Mostly Positive", pct:"74%", count:"233 Reviews", rank:"", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Pathogenic":            {review:"Positive", pct:"85%", count:"640 Reviews", rank:"", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:false},
+  "Shift At Midnight":     {review:"Mostly Positive", pct:"79%", count:"1,018 Reviews", rank:"Ranked #18 in your region", tier:"ProtonDB Gold", tierColor:"#cfb53b", owned:false},
+  "Horse Magnifier":       {review:"Very Positive", pct:"94%", count:"307 Reviews", rank:"", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:false},
+  "GunZ: The Duel":        {review:"Mostly Positive", pct:"72%", count:"9,884 Reviews", rank:"Ranked #31 in your region", tier:"ProtonDB Silver", tierColor:"#c3ccd4", owned:false},
+  "Stardew Valley":        {review:"Overwhelmingly Positive", pct:"98%", count:"812,455 Reviews", rank:"Ranked #5 in your region", tier:"ProtonDB Native", tierColor:"#9ec97f", owned:true}
+};
+const DEAL_FLAGS = {
+  "WEEKEND DEAL":  "linear-gradient(315deg, rgb(183, 37, 90) 5%, rgb(140, 28, 95) 50%, rgb(97, 14, 93) 95%)",
+  "TODAY'S DEAL":  "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)",
+  "FREE WEEKEND":  "linear-gradient(315deg, rgb(150, 40, 165) 5%, rgb(110, 32, 150) 50%, rgb(74, 24, 130) 95%)",
+  "MIDWEEK DEAL":  "linear-gradient(315deg, rgb(16, 124, 101) 5%, rgb(46, 121, 159) 50%, rgb(55, 73, 132) 95%)"
+};
+const SALES = {
+  "S.T.A.L.K.E.R. 2":             {pct:"-30%", was:"$59.99", now:"$41.99", flag:"WEEKEND DEAL"},
+  "Yet Another Zombie Survivors": {pct:"-45%", was:"$16.99", now:"$9.34",  flag:"WEEKEND DEAL"},
+  "Sandustry":                    {pct:"-20%", was:"$29.99", now:"$23.99", flag:"TODAY'S DEAL"},
+  "Twisted Tower":                {pct:"-60%", was:"$9.99",  now:"$3.99",  flag:"TODAY'S DEAL"},
+  "Crownhold":                    {pct:"-75%", was:"$39.99", now:"$9.99",  flag:"MIDWEEK DEAL"},
+  "Denshattack!":                 {pct:"-25%", was:"$34.99", now:"$26.24", flag:"FREE WEEKEND"}
+};
+const DEFAULT_META = {review:"No user reviews yet", pct:"", count:"", rank:"", tier:"ProtonDB Unknown", tierColor:"#7d8b95", owned:false};
+
+const NAV_ROWS = [
+  {label:"Featured & Recommended", items:[G.mortal, G.bigwalk, G.tarkov, G.nmrih, G.densha]},
+  {label:"Discounts & Events", items:[G.stalker, G.yazs, G.sand, G.tower, G.crown]},
+  {label:"Popular New Releases", items:[G.moon, G.enda, G.funnel, G.path, G.shift]},
+  {label:"Under $10", items:[G.horse, G.gunz, G.stardew, G.crown, G.yazs]}
+];
+
+const TAG_GROUPS = ["Genres", "Themes", "Features", "Players", "Mood", "From your library"];
+const TAGS = [
+  {name:"Roguelike", games:"3,412", img:G.yazs.img, pinned:true},
+  {name:"Deckbuilder", games:"1,208", img:G.crown.img},
+  {name:"Metroidvania", games:"942", img:G.enda.img},
+  {name:"Soulslike", games:"617", img:G.mortal.img},
+  {name:"City Builder", games:"1,884", img:G.pax.img},
+  {name:"Automation", games:"706", img:G.sand.img},
+  {name:"Survival", games:"4,930", img:G.stalker.img},
+  {name:"Farming Sim", games:"1,142", img:G.stardew.img},
+  {name:"Extraction Shooter", games:"288", img:G.tarkov.img},
+  {name:"Co-op", games:"6,204", img:G.bigwalk.img},
+  {name:"Cozy", games:"2,318", img:G.moon.img, pinned:true},
+  {name:"Horror", games:"5,776", img:G.shift.img},
+  {name:"Turn-Based Tactics", games:"1,013", img:G.tower.img},
+  {name:"Immersive Sim", games:"214", img:G.path.img},
+  {name:"Arcade Racing", games:"832", img:G.densha.img},
+  {name:"Free To Play", games:"9,461", img:G.gunz.img}
+];
+const RESULT_ORDER = ["yazs","crown","tower","enda","path","sand","horse","moon","funnel","stardew","densha","shift","pax","bigwalk","gunz"];
+
+class Component extends DCLogic {
+  state = {r:0, c:0, pad:false};
+
+  componentDidMount() {
+    this._onKey = (e) => {
+      const k = e.key;
+      const shoulder = {q:"LB", e:"RB", "1":"LT", "3":"RT"}[k.toLowerCase()];
+      if (shoulder) { e.preventDefault(); return this.shoulder(shoulder, false); }
+      if (!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(k)) return;
+      e.preventDefault();
+      this.move(k === "ArrowLeft" ? -1 : k === "ArrowRight" ? 1 : 0,
+                k === "ArrowUp" ? -1 : k === "ArrowDown" ? 1 : 0, false);
+    };
+    window.addEventListener("keydown", this._onKey);
+    this._last = 0;
+    const poll = () => {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const p = [...pads].find(Boolean);
+      if (p) {
+        if (!this.state.pad) this.setState({pad:true});
+        const now = performance.now();
+        if (now - this._last > 180) {
+          const b = p.buttons, ax = p.axes;
+          const dx = (b[15] && b[15].pressed ? 1 : 0) - (b[14] && b[14].pressed ? 1 : 0) + (Math.abs(ax[0]) > .5 ? Math.sign(ax[0]) : 0);
+          const dy = (b[13] && b[13].pressed ? 1 : 0) - (b[12] && b[12].pressed ? 1 : 0) + (Math.abs(ax[1]) > .5 ? Math.sign(ax[1]) : 0);
+          if (dx || dy) { this.move(Math.sign(dx), Math.sign(dy), true); this._last = now; }
+          else {
+            const held = b[4] && b[4].pressed ? "LB" : b[5] && b[5].pressed ? "RB"
+              : (b[6] && (b[6].pressed || b[6].value > .5)) ? "LT"
+              : (b[7] && (b[7].pressed || b[7].value > .5)) ? "RT" : null;
+            if (held) { this.shoulder(held, true); this._last = now; }
+          }
+        }
+      }
+      this._raf = requestAnimationFrame(poll);
+    };
+    this._raf = requestAnimationFrame(poll);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this._onKey);
+    cancelAnimationFrame(this._raf);
+  }
+
+  shoulder(btn, pad) {
+    this.setState(s => {
+      const rows = NAV_ROWS.length, cols = NAV_ROWS[s.r].items.length;
+      if (btn === "LB") return {r: Math.max(0, s.r - 1), c: 0, hint: "LB · previous shelf", pad: pad || s.pad};
+      if (btn === "RB") return {r: Math.min(rows - 1, s.r + 1), c: 0, hint: "RB · next shelf", pad: pad || s.pad};
+      if (btn === "LT") return {c: Math.max(0, s.c - 3), hint: "LT · page left", pad: pad || s.pad};
+      return {c: Math.min(cols - 1, s.c + 3), hint: "RT · page right", pad: pad || s.pad};
+    });
+  }
+
+  move(dx, dy, pad) {
+    this.setState(s => {
+      const r = Math.max(0, Math.min(NAV_ROWS.length - 1, s.r + dy));
+      const c = Math.max(0, Math.min(NAV_ROWS[r].items.length - 1, s.c + dx));
+      return {r, c, hint: dy ? "Dpad · shelf" : "Dpad · tile", pad: pad || s.pad};
+    });
+  }
+
+  renderVals() {
+    const RING = "3px solid #f4f7f9";
+    const {r, c} = this.state;
+    const focused = NAV_ROWS[r].items[c];
+    const fm = META[focused.name] || DEFAULT_META;
+    const tileVals = (g, isFocused) => {
+      const m = META[g.name] || DEFAULT_META;
+      const s = SALES[g.name];
+      const pct = parseInt(m.pct, 10);
+      return {
+        name: g.name,
+        img: g.img,
+        price: s ? s.now : g.price,
+        salePct: s ? s.pct : "",
+        saleWas: s ? s.was : "",
+        saleDisplay: s ? "flex" : "none",
+        plainPriceDisplay: s ? "none" : "block",
+        flagLabel: s ? s.flag : "",
+        flagBg: s ? DEAL_FLAGS[s.flag] : "transparent",
+        flagDisplay: s ? "block" : "none",
+        review: m.pct || "No reviews",
+        reviewColor: m.pct ? (pct >= 80 ? "#a1cd44" : "#e0ab84") : "rgba(223,230,234,.45)",
+        thumbDisplay: m.pct ? "block" : "none",
+        thumbFlip: pct < 70 ? "rotate(180deg)" : "none",
+        tierDot: m.tierColor,
+        tierShort: m.tier.replace("ProtonDB ", ""),
+        ownedBadge: m.owned ? "flex" : "none",
+        nameColor: isFocused ? "#f4f7f9" : "rgba(232,238,241,.86)",
+        priceColor: isFocused ? "#f4f7f9" : "rgba(232,238,241,.7)",
+        ring: isFocused ? "3px solid #4d9be6" : "3px solid transparent",
+        shadow: isFocused ? "0 24px 54px rgba(0,0,0,.7), 0 0 48px rgba(77,155,230,.55)" : "none",
+        dim: isFocused ? "1" : ".78"
+      };
+    };
+    const tagTop = ["yazs", "crown", "enda"].map(k => {
+      const g = G[k], m = META[g.name] || DEFAULT_META;
+      return {name:g.name, img:g.img, price:(SALES[g.name] || {}).now || g.price,
+              tierColor:m.tierColor, tierShort:m.tier.replace("ProtonDB ", "")};
+    });
+
+    return {
+      tagAmbient: G.yazs.img,
+      resultAmbient: G.crown.img,
+      tagGroups: TAG_GROUPS.map((label, i) => ({
+        label,
+        bg: i === 0 ? "#f4f7f9" : "rgba(244,247,249,.1)",
+        color: i === 0 ? "#0b1114" : "rgba(232,238,241,.8)"
+      })),
+      tagTiles: TAGS.map((t, i) => ({
+        ...t,
+        artOpacity: i === 0 ? ".72" : ".34",
+        nameColor: i === 0 ? "#f4f7f9" : "rgba(232,238,241,.9)",
+        ring: i === 0 ? "3px solid #4d9be6" : "3px solid transparent",
+        shadow: i === 0 ? "0 20px 48px rgba(0,0,0,.65), 0 0 44px rgba(77,155,230,.5)" : "none",
+        pinDisplay: t.pinned ? "block" : "none"
+      })),
+      tagProton: [
+        {label:"Native", w:"18%", color:"#9ec97f"},
+        {label:"Platinum", w:"31%", color:"#b5eaff"},
+        {label:"Gold", w:"36%", color:"#cfb53b"},
+        {label:"Silver or below", w:"15%", color:"#7d8b95"}
+      ],
+      tagTop,
+      tagFilters: [
+        {label:"Roguelike", bg:"rgba(77,155,230,.22)", border:"1px solid rgba(77,155,230,.6)", color:"#bcdcfa", dot:"#4d9be6", dotDisplay:"none", glyph:"✕", glyphDisplay:"grid"},
+        {label:"Deckbuilder", bg:"rgba(77,155,230,.22)", border:"1px solid rgba(77,155,230,.6)", color:"#bcdcfa", dot:"#4d9be6", dotDisplay:"none", glyph:"✕", glyphDisplay:"grid"},
+        {label:"+ Add tag", bg:"rgba(244,247,249,.1)", border:"1px solid transparent", color:"rgba(232,238,241,.8)", dot:"#4d9be6", dotDisplay:"none", glyph:"", glyphDisplay:"none"},
+        {label:"Gold or better", bg:"rgba(207,181,59,.18)", border:"1px solid rgba(207,181,59,.45)", color:"#e6d489", dot:"#cfb53b", dotDisplay:"block", glyph:"", glyphDisplay:"none"},
+        {label:"Under $20", bg:"rgba(244,247,249,.1)", border:"1px solid transparent", color:"rgba(232,238,241,.8)", dot:"#4d9be6", dotDisplay:"none", glyph:"", glyphDisplay:"none"}
+      ],
+      tagFeatured: (() => {
+        const g = G.yazs, m = META[g.name] || DEFAULT_META, s = SALES[g.name];
+        return {
+          name: g.name, img: g.img,
+          headline: "New mutator run added this week",
+          price: s ? s.now : g.price, salePct: s ? s.pct : "", saleWas: s ? s.was : "",
+          saleDisplay: s ? "flex" : "none", plainPriceDisplay: s ? "block" : "none",
+          flagLabel: s ? s.flag : "", flagBg: s ? DEAL_FLAGS[s.flag] : "transparent",
+          flagDisplay: s ? "block" : "none",
+          tier: m.tier, tierColor: m.tierColor,
+          review: m.pct ? m.pct + " positive · " + m.count : m.review,
+          chips: ["Roguelike", "Deckbuilder", "Co-op", "Controller"]
+        };
+      })(),
+      tagFeaturedNext: (() => { const g = G.crown; return {name:g.name, img:g.img, price:(SALES[g.name]||{}).now || g.price}; })(),
+      tagFeaturedDots: Array.from({length:9}, (_, i) => ({
+        w: i === 3 ? "34px" : "14px",
+        bg: i === 3 ? "#f4f7f9" : "rgba(244,247,249,.28)"
+      })),
+      tagResults: RESULT_ORDER.slice(0, 5).map((k, i) => tileVals(G[k], i === 2)),
+      focusedReview: fm.review,
+      focusedCount: fm.count ? "(" + fm.count + ")" : "",
+      focusedRank: fm.rank,
+      rankDisplay: fm.rank ? "flex" : "none",
+      focusedTier: fm.tier,
+      focusedTierColor: fm.tierColor,
+      ownedDisplay: fm.owned ? "flex" : "none",
+      calDays: [
+        {day:"MON", date:"8/17", bg:"rgba(40,72,120,.5)", label:"rgba(223,230,234,.7)", top:G.enda, bottom:G.moon, third:G.horse, thirdOpacity:"1", more:"", moreDisplay:"none"},
+        {day:"TUE", date:"8/18", bg:"rgba(46,70,124,.5)", label:"rgba(223,230,234,.7)", top:G.funnel, bottom:G.sinking, third:G.densha, thirdOpacity:".45", more:"+1 More", moreDisplay:"block"},
+        {day:"WED", date:"8/19", bg:"rgba(54,68,128,.5)", label:"rgba(223,230,234,.7)", top:G.crown, bottom:G.bigwalk, third:G.stardew, thirdOpacity:"1", more:"", moreDisplay:"none"},
+        {day:"TODAY", date:"", bg:"linear-gradient(160deg,rgba(60,80,150,.7),rgba(128,52,128,.7))", label:"#f4f7f9", top:G.mortal, bottom:G.yazs, third:G.tower, thirdOpacity:".45", more:"+1 More", moreDisplay:"block"},
+        {day:"FRI", date:"8/21", bg:"rgba(104,52,124,.5)", label:"rgba(223,230,234,.7)", top:G.shift, bottom:G.path, third:G.gunz, thirdOpacity:"1", more:"", moreDisplay:"none"}
+      ],
+      osk: [
+        {keys:"QWERTYUIOP".split("").map(c => ({c, ring:"none"}))},
+        {keys:"ASDFGHJKL".split("").map(c => ({c, ring:"none"}))},
+        {keys:"ZXCVBNM".split("").map(c => ({c, ring: c === "B" ? "3px solid #4d9be6" : "none"}))},
+        {keys:"1234567890".split("").map(c => ({c, ring:"none"}))}
+      ],
+      ambient: focused.img,
+      focusedName: focused.name,
+      focusedPrice: focused.price,
+      inputLabel: this.state.pad ? "Controller" : "Keyboard",
+      lastInput: this.state.hint || "Dpad · tile",
+      rowPos: (r + 1) + " / " + NAV_ROWS.length,
+      tilePos: (c + 1) + " / " + NAV_ROWS[r].items.length,
+      navRows: NAV_ROWS.map((row, ri) => ({ row, ri }))
+        .slice(Math.min(Math.max(r - 1, 0), Math.max(NAV_ROWS.length - 3, 0)), Math.min(Math.max(r - 1, 0), Math.max(NAV_ROWS.length - 3, 0)) + 3)
+        .map(({row, ri}) => ({
+        label: row.label,
+        opacity: ri === r ? "1" : ".55",
+        moreDisplay: ri === r ? "flex" : "none",
+        items: row.items.map((it, ci) => ({
+          ...it,
+          ownedBadge: (META[it.name] || DEFAULT_META).owned ? "flex" : "none",
+          tierDot: (META[it.name] || DEFAULT_META).tierColor,
+          tierLabel: (META[it.name] || DEFAULT_META).tier,
+          tierShort: (META[it.name] || DEFAULT_META).tier.replace("ProtonDB ", ""),
+          thumbFlip: parseInt((META[it.name] || DEFAULT_META).pct, 10) < 70 ? "rotate(180deg)" : "none",
+          thumbDisplay: (META[it.name] || DEFAULT_META).pct ? "block" : "none",
+          review: (META[it.name] || DEFAULT_META).pct || "No reviews",
+          reviewColor: (META[it.name] || DEFAULT_META).pct
+            ? (parseInt((META[it.name] || DEFAULT_META).pct, 10) >= 80 ? "#a1cd44" : "#e0ab84")
+            : "rgba(223,230,234,.45)",
+          nameColor: (ri === r && ci === c) ? "#f4f7f9" : "rgba(232,238,241,.86)",
+          priceColor: (ri === r && ci === c) ? "#f4f7f9" : "rgba(232,238,241,.7)",
+          salePct: (SALES[it.name] || {}).pct || "",
+          saleWas: (SALES[it.name] || {}).was || "",
+          price: SALES[it.name] ? SALES[it.name].now : it.price,
+          saleDisplay: SALES[it.name] ? "flex" : "none",
+          plainPriceDisplay: SALES[it.name] ? "none" : "block",
+          flagLabel: (SALES[it.name] || {}).flag || "",
+          flagBg: DEAL_FLAGS[(SALES[it.name] || {}).flag] || "transparent",
+          flagDisplay: SALES[it.name] ? "block" : "none",
+          focusRow: (ri === r && ci === c) ? "visible" : "hidden",
+          padBadge: (this.state.pad && ri === r && ci === c) ? "flex" : "none",
+          ring: (ri === r && ci === c) ? "3px solid #4d9be6" : "3px solid transparent",
+          scale: (ri === r && ci === c) ? "scale(1.04)" : "scale(1)",
+          shadow: (ri === r && ci === c) ? "0 24px 54px rgba(0,0,0,.7), 0 0 48px rgba(77,155,230,.55)" : "none",
+          dim: (ri === r && ci === c) ? "1" : (ri === r ? ".72" : ".5"),
+          captionDim: (ri === r && ci === c) ? "1" : (ri === r ? ".92" : ".8")
+        }))
+      })),
+      wdReviewFilters: [
+        {label:"Most Helpful", bg:"#f4f7f9", color:"#0b1114"},
+        {label:"Recent", bg:"rgba(244,247,249,.1)", color:"rgba(232,238,241,.8)"},
+        {label:"Positive", bg:"rgba(244,247,249,.1)", color:"rgba(232,238,241,.8)"},
+        {label:"Negative", bg:"rgba(244,247,249,.1)", color:"rgba(232,238,241,.8)"},
+        {label:"English", bg:"rgba(244,247,249,.1)", color:"rgba(232,238,241,.8)"},
+        {label:"Steam Deck", bg:"rgba(244,247,249,.1)", color:"rgba(232,238,241,.8)"}
+      ],
+      wdReviews: [
+        {verdict:"Recommended", color:"#9ec97f", hours:"79.6 hrs on record", posted:"Posted August 18", text:"Best three-way objective shooter since Planetside. Zones force real rotations instead of one long deathmatch, and the destruction actually changes how a fight ends.", helpful:"11 of 12 people found this helpful", deck:"Played on Steam Deck"},
+        {verdict:"Not Recommended", color:"#e08a8a", hours:"6.4 hrs on record", posted:"Posted yesterday", text:"Concept is great but the anti-cheat kicked me twice under Proton. Waiting on a fix before I recommend it to Linux players.", helpful:"30 people found this helpful", deck:"Played on Linux · Proton 9"},
+        {verdict:"Recommended", color:"#9ec97f", hours:"31.2 hrs on record", posted:"Posted August 15", text:"Cash metagame gives losing rounds a point. Squad play with randoms works better than it has any right to.", helpful:"4 people found this helpful", deck:"Played on Windows"}
+      ],
+      wdDlc: [
+        {name:"WARDOGS — Supporter Pack", note:"Cosmetics + soundtrack", price:"$12.99"},
+        {name:"WARDOGS Deluxe Upgrade", note:"Includes Supporter Pack", price:"$19.99"}
+      ],
+      wdCurators: [
+        {name:"Linux Gaming Central", verdict:"Recommended", note:"Runs under Proton with anti-cheat caveats."},
+        {name:"Tactical Shooter Hub", verdict:"Recommended", note:"Closest thing to large-scale combined arms this year."}
+      ],
+      wdTags: ["Early Access","Action","Tactical","FPS","Multiplayer","Military","+"],
+      wdMedia: [G.tarkov.img, G.nmrih.img, G.stalker.img, G.pax.img, G.yazs.img],
+      wdFeatures: [
+        {label:"Online PvP", note:"Up to 100 players"},
+        {label:"Family Sharing", note:"Eligible"},
+        {label:"Accessibility Features", note:"4 listed"},
+        {label:"Anti-Cheat", note:"Easy Anti-Cheat, kernel level"}
+      ],
+      wdEvents: [
+        {title:"WARDOGS | Closed Beta Schedule", date:"Thu, August 20, 2026", img:G.tower.img},
+        {title:"1 Million Wishlists on Steam", date:"Fri, August 14, 2026", img:G.sinking.img}
+      ],
+      wdSysMin: ["OS: Windows 10","CPU: Core i5 9600 / Ryzen 5 3500","Memory: 16 GB RAM","GPU: GTX 1650 / RX 590","Storage: 50 GB","1080p Low @ 60fps (upscaled)"],
+      wdSysRec: ["OS: Windows 11","CPU: Core i7 12700k / Ryzen 7 5700x","Memory: 16 GB RAM","GPU: RTX 3070 / RX 6700 XT","Storage: 50 GB","1440p Medium @ 70fps"],
+      moreLike: [
+        {name:"Squad", img:G.tarkov.img, price:"$39.99", tier:"Gold", tierColor:"#cfb53b"},
+        {name:"Rainbow Six Siege", img:G.nmrih.img, price:"Free To Play", tier:"Silver", tierColor:"#c3ccd4"},
+        {name:"Battlefield 6", img:G.stalker.img, price:"$69.99", tier:"Bronze", tierColor:"#c08457"},
+        {name:"War Thunder", img:G.pax.img, price:"Free To Play", tier:"Platinum", tierColor:"#b5eaff"}
+      ],
+      results: [
+        {...G.sand, meta:"Early Access · Nov 2025 · Windows, macOS, Linux", tags:["Base Building","Automation","Physics"], score:"Very Positive"},
+        {...G.crown, meta:"Aug 2026 · Windows, Linux", tags:["City Builder","Medieval","Co-op"], score:"Positive"},
+        {...G.pax, meta:"Early Access · Windows", tags:["Grand Strategy","Management"], score:"Mostly Positive"},
+        {...G.bigwalk, meta:"Aug 2026 · Windows, macOS", tags:["Online Co-op","Exploration"], score:"Very Positive"},
+        {...G.stardew, meta:"Feb 2016 · Windows, macOS, Linux", tags:["Farming Sim","Co-op","Pixel Graphics"], score:"Overwhelmingly Positive"}
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
