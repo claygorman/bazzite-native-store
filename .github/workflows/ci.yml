@@ -20,16 +20,19 @@ jobs:
     name: Typecheck, tests, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ⚠️ No `version:` here on purpose — it is read from `packageManager` in
       # package.json, so CI and a laptop cannot drift. Without either, this action
       # fails with "No pnpm version is specified", which is how the first run died.
       # It must also come BEFORE setup-node, or `cache: pnpm` has no pnpm to ask.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
+          # ⚠️ `cache: pnpm` stays EXPLICIT. setup-node v5 added automatic caching from
+          # the `packageManager` field, then v6 narrowed that automation to npm only —
+          # so with `pnpm@…` in package.json nothing is cached unless we say so here.
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -59,12 +62,15 @@ jobs:
     # on anything older. The release job builds here for the same reason.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
+      # ⚠️ `@stable` is a moving ref that tracks the current Rust release, and is
+      # what this action documents. It is not a version tag to bump.
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
+      # v2 IS the latest major — not a stale pin.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
