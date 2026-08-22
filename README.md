@@ -38,7 +38,7 @@ That gives two viable shapes, and they are genuinely different projects:
 ### Path B — Standalone app, added as a non-Steam shortcut ✅ **recommended**
 
 - Own window, own render loop, full-screen in gamescope like any game.
-- ✅ **Total design freedom** — the Claude Design output ports over essentially 1:1.
+- ✅ **Total design freedom** — the design export ports over essentially 1:1.
 - ✅ Robust. Steam frontend updates cannot break it.
 - ✅ Testable on a desktop without Game Mode.
 - ❌ Appears as a **library tile**, not a sidebar entry.
@@ -56,7 +56,7 @@ launching.
 | Layer      | Choice                                   | Why                                                           |
 | ---------- | ---------------------------------------- | ------------------------------------------------------------- |
 | Shell      | **Tauri v2** (Rust)                      | ~10 MB vs Electron's ~150 MB; native HTTP; no bundled browser |
-| UI         | **React + TypeScript + Vite + Tailwind** | Claude Design output ports directly                           |
+| UI         | **React + TypeScript + Vite + Tailwind** | design export ports directly                                  |
 | Input      | **`gilrs` in Rust**, events → webview    | See the warning below                                         |
 | HTTP/cache | **Rust `reqwest`** in the Tauri backend  | No CORS, real caching, keeps keys off the frontend            |
 
@@ -169,7 +169,7 @@ week one, while switching to Electron is still cheap.
 src/                  React + Tailwind frontend
 src-tauri/            Rust: HTTP client, cache, gilrs input bridge
 docs/                 design-port notes, settings rationale, demo hosting
-design/               the Claude Design export the UI is ported from
+design/               the design export the UI is ported from
 server/               Fastify server for the web demo build
 private/              gitignored — personal notes and the endpoint catalogs
 ```
@@ -194,16 +194,7 @@ nothing here needs them to be readable.
 
 ---
 
-## 8. AI disclosure
-
-This project was built collaboratively with **Claude Code** (Anthropic). The design comes from
-Claude Design; the implementation, the endpoint verification, and the unusually dense comments were
-produced in that collaboration and reviewed by a human. Treat the comments as the reasoning record
-they are — where one says a thing was measured on a given date, it was.
-
----
-
-## 9. Licence
+## 8. Licence
 
 MIT — see [LICENSE](LICENSE).
 
@@ -213,7 +204,7 @@ to Steam itself.
 
 ---
 
-## 10. Releasing
+## 9. Releasing
 
 `semantic-release` on **`main`**, tags without a `v` prefix (`0.2.0`), triggered manually from the
 **Actions → Release** tab — cutting a release publishes an update that every installed client will

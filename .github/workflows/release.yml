@@ -107,12 +107,18 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # ⚠️ `libudev-dev` is not optional here and is easy to miss: `gilrs` — the whole
+      # gamepad layer — pulls `libudev-sys`, whose build script panics with
+      # "Package libudev was not found in the pkg-config search path". Nothing in the
+      # error names gilrs or the gamepad, so it reads like a toolchain problem.
+      # `libdbus-1-dev` is `libdbus-sys`, reached the same way through Tauri.
       - name: System dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
             libayatana-appindicator3-dev libxdo-dev libssl-dev \
+            libudev-dev libdbus-1-dev \
             build-essential curl wget file patchelf
 
       - run: pnpm install --frozen-lockfile
