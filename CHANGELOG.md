@@ -1,3 +1,11 @@
+# [0.3.0](https://github.com/claygorman/bazzite-native-store/compare/0.2.0...0.3.0) (2026-08-22)
+
+
+### Features
+
+* automatic updates actually download, and the installer is the CLI updater ([5650a0c](https://github.com/claygorman/bazzite-native-store/commit/5650a0c62887666fd32163b8d25968b84dfec6cd))
+* builds for macOS and Windows, and an installer that says what it takes ([1418028](https://github.com/claygorman/bazzite-native-store/commit/1418028217f3c9387d9ffc7b8f19b26397abcf95))
+
 # [0.2.0](https://github.com/claygorman/bazzite-native-store/compare/0.1.0...0.2.0) (2026-08-22)
 
 
