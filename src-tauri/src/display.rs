@@ -71,10 +71,32 @@ pub fn steam_ui_scale() -> Option<SteamUiScale> {
     })
 }
 
+/// Where Steam keeps `config.vdf`, per platform.
+///
+/// ⚠️ This used to hard-code the Linux path, which meant the UI-scale read silently
+/// returned nothing on macOS and Windows — the file was right there, just somewhere
+/// else. Bazzite is the target, but the app builds and runs on all three, and a
+/// enhancement that quietly never fires is worse than one that is absent.
 fn config_path() -> Option<PathBuf> {
-    // dirs-next would be a dependency for one path; $HOME is enough on this platform.
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join(".local/share/Steam/config/config.vdf"))
+    #[cfg(target_os = "windows")]
+    {
+        // Steam records its own install root; the 32-bit Program Files default is
+        // only the fallback when it does not.
+        let root = std::env::var_os("ProgramFiles(x86)")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Program Files (x86)"));
+        Some(root.join("Steam/config/config.vdf"))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // dirs-next would be a dependency for one path; $HOME is enough here.
+        let home = PathBuf::from(std::env::var_os("HOME")?);
+        #[cfg(target_os = "macos")]
+        return Some(home.join("Library/Application Support/Steam/config/config.vdf"));
+        #[cfg(not(target_os = "macos"))]
+        return Some(home.join(".local/share/Steam/config/config.vdf"));
+    }
 }
 
 /// Pull the quoted value following a quoted VDF key.

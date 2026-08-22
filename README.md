@@ -41,26 +41,60 @@ Everything is live Steam data. Nothing is mocked.
 
 ## Install
 
-Grab the `.AppImage` from [Releases](https://github.com/claygorman/bazzite-native-store/releases),
-then add it to Steam as a non-Steam game:
+**On Bazzite or any x86_64 Linux:**
 
 ```sh
-mkdir -p ~/.local/bin
-# download + extract the .AppImage into ~/.local/bin, then:
-chmod +x ~/.local/bin/bazzite-store.AppImage
-
-rm -f /tmp/addnonsteamgamefile && touch /tmp/addnonsteamgamefile   # one-shot marker
-XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=gamescope-0 \
-  steam "steam://addnonsteamgame/%2Fvar%2Fhome%2F<user>%2F.local%2Fbin%2Fbazzite-store.AppImage"
+curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh | bash
 ```
 
-> [!IMPORTANT]
-> Point the shortcut at the **`.AppImage` itself**, not an extracted binary. The updater replaces
-> the file at `$APPIMAGE`, which only the AppImage runtime sets — from an extracted binary, updates
-> silently do nothing.
+That fetches the latest AppImage, drops it in `~/.local/bin`, and offers to add it to
+Steam as a non-Steam game. No `sudo` — Bazzite is an immutable ostree image, so
+everything lands under `$HOME`. Re-run it any time to update.
 
-Bazzite is immutable (ostree), so there is no `rpm -i`; `~/.local/bin` is under `/var/home` and
-survives image rebases.
+Piping from `curl` means the script cannot ask you anything, so to add the Steam
+shortcut in one go:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install.sh \
+  | ADD_TO_STEAM=1 bash
+```
+
+Prefer to do it by hand? Grab the `.AppImage.tar.gz` from
+[Releases](https://github.com/claygorman/bazzite-native-store/releases), extract it into
+`~/.local/bin`, and `chmod +x`.
+
+> [!IMPORTANT]
+> Point the Steam shortcut at the **`.AppImage` itself**, not an extracted binary. The
+> updater replaces the file at `$APPIMAGE`, which only the AppImage runtime sets — from
+> an extracted binary, updates silently do nothing.
+
+Once installed, it updates itself: **Settings → Updates**.
+
+## Running it on macOS or Windows
+
+The app builds and runs on all three platforms — this is a Tauri app, and nothing in the
+UI is Linux-specific. There are no published macOS or Windows binaries yet, so build it
+yourself:
+
+```sh
+git clone https://github.com/claygorman/bazzite-native-store
+cd bazzite-native-store
+pnpm install
+pnpm tauri:dev      # or: pnpm tauri build
+```
+
+Everything works — shelves, search, tags, game pages, trailers, settings — because all of
+it is live Steam data over plain HTTPS. What degrades, and says so rather than pretending:
+
+|                                  |                                                                                                                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Owned badges and wishlist**    | Read from the local Steam client's logged-in session over its debug port. Works wherever Steam runs with that port open; otherwise the Wishlist entry dims and says why |
+| **Steam's UI scale**             | Read from Steam's own `config.vdf` — found on all three platforms, but the scale keys only exist on a Game Mode install                                                 |
+| **Host facts on the About page** | `/proc` and `/etc/os-release` are Linux-only, so CPU/GPU/kernel simply do not render elsewhere                                                                          |
+| **The updater**                  | AppImage-only for now, so a self-built app will not self-update                                                                                                         |
+
+You do not need Linux to work on it either — `pnpm dev` runs the whole thing in a browser
+against live Steam data.
 
 ## Development
 
