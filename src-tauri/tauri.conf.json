@@ -29,7 +29,7 @@
       "endpoints": [
         "https://github.com/claygorman/bazzite-native-store/releases/latest/download/latest.json"
       ],
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGQjkzN0Q1OEM3MDlGM0IKUldRN24zQ00xVGU1MzBJRFkvSnBuM1B1VHJ2R2VOYVhybVNGTGZvdTgrMjQ5NDFyNE8yZ0FLR3AK",
       "windows": {
         "installMode": "passive"
       }
@@ -38,7 +38,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["appimage"],
+    "targets": [
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
