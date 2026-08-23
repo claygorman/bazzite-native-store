@@ -55,6 +55,12 @@ async fn proton_index_status(app: tauri::AppHandle) -> Result<serde_json::Value,
     Ok(protondb::index_status(&dir))
 }
 
+/// Ask GitHub whether a newer dump exists, WITHOUT downloading it.
+#[tauri::command]
+async fn proton_check(app: tauri::AppHandle, timeout_ms: u64) -> Result<serde_json::Value, String> {
+    protondb::check(proton_dir(&app)?, timeout_ms).await
+}
+
 /// Download the newest snapshot and rebuild the index.
 ///
 /// ⚠️ Long — a ~66 MB download and roughly half a gigabyte of JSON to walk. The caller
@@ -146,7 +152,8 @@ pub fn run() {
             steamclient::steam_session_get,
             proton_reports,
             proton_index_status,
-            proton_refresh
+            proton_refresh,
+            proton_check
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
