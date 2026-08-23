@@ -25,6 +25,18 @@ export type ProtonRating = {
   /** Number of user reports behind the tier. Low counts deserve less prominence. */
   total: number
   confidence?: string
+  /**
+   * The best tier anyone has reported, and where the recent reports are heading.
+   *
+   * ⚠️ These are the whole argument for turn 11's ProtonDB tab. A flat Bronze and a
+   * Bronze-with-a-Gold-trend-on-the-newest-runtime are different purchases, and a
+   * single letter grade cannot say so. Verified present on the live endpoint
+   * 2026-08-22 (appids 620 and 1332010 both return all six fields).
+   */
+  bestReportedTier?: ProtonTier
+  trendingTier?: ProtonTier
+  /** 0–1. ProtonDB's own confidence-weighted figure, NOT a tier. */
+  score?: number
 }
 
 const TIERS: ReadonlySet<string> = new Set([
@@ -67,10 +79,20 @@ export const fetchProtonRating = async (appid: number): Promise<ProtonRating | u
     const tier = record.tier
     if (typeof tier !== 'string' || !TIERS.has(tier)) return undefined
 
+    // ⚠️ Each trend tier is validated against the same ladder rather than cast. They
+    // are the same vocabulary as `tier` but they are not guaranteed present, and an
+    // unrecognised string reaching `TIER_STYLE` indexes to `undefined` and throws on
+    // `.dot` — a crash on the tab, from a field that is merely decorative.
+    const asTier = (value: unknown): ProtonTier | undefined =>
+      typeof value === 'string' && TIERS.has(value) ? (value as ProtonTier) : undefined
+
     return {
       tier: tier as ProtonTier,
       total: typeof record.total === 'number' ? record.total : 0,
       confidence: typeof record.confidence === 'string' ? record.confidence : undefined,
+      bestReportedTier: asTier(record.bestReportedTier),
+      trendingTier: asTier(record.trendingTier),
+      score: typeof record.score === 'number' ? record.score : undefined,
     }
   } catch {
     // Unrated games 404 with an HTML body. That is a normal outcome, not an error —

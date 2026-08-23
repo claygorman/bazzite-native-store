@@ -49,6 +49,29 @@ export type TrailerAutoplay = 'off' | 'focus'
 export type DeckFloor = 'all' | 'playable' | 'verified'
 export type RefreshCadence = 'hourly' | 'daily' | 'weekly'
 
+/**
+ * Which machine the compatibility answers are about — design 8d, reopened.
+ *
+ * ⚠️ This is a SCOPE, not a filter. Turn 11 makes the ProtonDB tab answer one
+ * question — "will this exe run under Proton on *my* desktop" — and the same value has
+ * to mean the same thing in both places, so this row and the tab's device dropdown are
+ * one setting rather than two that can disagree.
+ *
+ * `desktop` is the default because that is what this app already assumed before the
+ * row existed, and because Bazzite on a desktop is the box it was written on.
+ */
+export type DeviceProfile = 'desktop' | 'handheld' | 'deck' | 'all'
+
+/**
+ * Which distribution's reports to prefer when reading the archive.
+ *
+ * ⚠️ `auto` is not "no answer" — it means *read it off this machine*, from
+ * `host_info`'s `PRETTY_NAME`. `any` is the off position: do not scope by distro at
+ * all. Those are different, and collapsing them would silently narrow the report set
+ * on a distro nobody else reports from.
+ */
+export type ReportDistro = 'auto' | 'any' | 'bazzite' | 'arch' | 'fedora' | 'ubuntu' | 'mint'
+
 export type Settings = {
   /* Updates */
   autoUpdate: boolean
@@ -79,6 +102,9 @@ export type Settings = {
   protonRatings: boolean
   deckVerified: boolean
   refreshCadence: RefreshCadence
+  deviceProfile: DeviceProfile
+  reportDistro: ReportDistro
+  warnKernelAnticheat: boolean
 
   /* Storage */
   cacheArtwork: boolean
@@ -124,6 +150,14 @@ export const DEFAULT_SETTINGS: Settings = {
   protonRatings: true,
   deckVerified: true,
   refreshCadence: 'daily',
+  deviceProfile: 'desktop',
+  reportDistro: 'auto',
+  // ⚠️ Defaults OFF, which is the rule at the top of this block applied honestly: the
+  // app said nothing about anti-cheat before this row existed, so shipping it on would
+  // be a new warning appearing unasked. It also only has anything to say once the
+  // report archive is on disk — 1,707 of the 21,890 reports that answered the question
+  // are impacted — and the archive is itself opt-in.
+  warnKernelAnticheat: false,
 
   cacheArtwork: true,
   cacheLimitMb: 2048,
@@ -185,6 +219,23 @@ const DECK_FLOOR_NAMES: Record<DeckFloor, string> = {
   verified: 'Verified only',
 }
 
+const DEVICE_PROFILE_NAMES: Record<DeviceProfile, string> = {
+  desktop: 'PC · desktop',
+  handheld: 'Handheld PC',
+  deck: 'Steam Deck',
+  all: 'All devices',
+}
+
+const REPORT_DISTRO_NAMES: Record<ReportDistro, string> = {
+  auto: 'This machine',
+  any: 'Any distro',
+  bazzite: 'Bazzite',
+  arch: 'Arch',
+  fedora: 'Fedora',
+  ubuntu: 'Ubuntu',
+  mint: 'Linux Mint',
+}
+
 export const LADDERS = {
   updateChannel: ladder<'updateChannel'>(['stable', 'testing'], (v) =>
     v === 'stable' ? 'Stable' : 'Testing',
@@ -204,6 +255,17 @@ export const LADDERS = {
   deckFloor: ladder<'deckFloor'>(['all', 'playable', 'verified'], (v) => DECK_FLOOR_NAMES[v]),
   refreshCadence: ladder<'refreshCadence'>(['hourly', 'daily', 'weekly'], (v) =>
     v === 'hourly' ? 'Hourly' : v === 'daily' ? 'Daily' : 'Weekly',
+  ),
+  deviceProfile: ladder<'deviceProfile'>(
+    ['desktop', 'handheld', 'deck', 'all'],
+    (v) => DEVICE_PROFILE_NAMES[v],
+  ),
+  // ⚠️ Seven values, one under the stepper's ceiling of eight. Adding an eighth
+  // distro makes this a sub-page, not a longer stepper — the ideology doc draws that
+  // line and `optionsFor` enforces it.
+  reportDistro: ladder<'reportDistro'>(
+    ['auto', 'any', 'bazzite', 'arch', 'fedora', 'ubuntu', 'mint'],
+    (v) => REPORT_DISTRO_NAMES[v],
   ),
   cacheLimitMb: ladder<'cacheLimitMb'>([512, 1024, 2048, 4096], (v) =>
     v >= 1024 ? `${v / 1024} GB` : `${v} MB`,

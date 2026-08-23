@@ -191,6 +191,34 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
           'Most of the catalogue has no verdict at all — this hides all of it',
         ),
         toggle('nativeLinuxFirst', 'Native Linux first', 'Sorts native builds above Proton ones'),
+        /*
+         * ⚠️ The SAME setting the ProtonDB tab's device dropdown reads — design 11a
+         * asks for that by name, so changing it in either place changes it everywhere.
+         * Two controls over one value is the only arrangement that cannot drift; two
+         * values behind two controls is how a page ends up disagreeing with itself.
+         */
+        step(
+          'deviceProfile',
+          'Device profile',
+          'Which machine the compatibility answers are about',
+        ),
+        step(
+          'reportDistro',
+          'Report distro',
+          'Which distribution’s reports to prefer — “This machine” reads it off this one',
+        ),
+        /*
+         * ⚠️ Reopened. docs/SETTINGS.md cut this row for "no endpoint we have carries
+         * an anti-cheat signal", which was true of the endpoints and false of the
+         * archive: ProtonDB's dump has an `isImpactedByAntiCheat` column, answered in
+         * 21,890 reports with 1,707 impacted. It says nothing until the archive is on
+         * disk, which is why it ships off.
+         */
+        toggle(
+          'warnKernelAnticheat',
+          'Warn on kernel anti-cheat',
+          'Flags games reported as blocked by anti-cheat on Linux',
+        ),
       ],
     },
     colB: {

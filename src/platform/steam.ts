@@ -841,3 +841,186 @@ export const fetchPopularTags = async (
     return []
   }
 }
+
+/* ─────────────────────────── Editions and bundles ─────────────────────────── */
+
+/**
+ * Design turn 14 — the ways to buy a game, and the thing Steam will not let you do:
+ * walk INTO a bundle rather than treating it as one opaque purchase.
+ *
+ * ⚠️ Verified live 2026-08-22, recorded in private/STEAM-ENDPOINTS.md. Nothing here is
+ * scraped. `IStoreBrowseService/GetItems` — the same endpoint `fetchStoreItems` already
+ * uses — returns `purchase_options[]` when asked, and that array carries BOTH
+ * `packageid` editions and `bundleid` bundles. The same endpoint resolves a bundle by
+ * id, which is what makes `/bundle/<id>` renderable in this client at all.
+ *
+ * ⚠️ `actions/ajaxresolvebundles` also works and is NOT used, for a reason worth
+ * recording: on bundle 232 it returned `final_price: 0` alongside
+ * `formatted_final_price: "$116.84"`, and `initial_price: 12984` alongside
+ * `formatted_orig_price: "$116.86"`. Its numeric fields disagree with its own formatted
+ * ones. A price that is silently zero is the worst failure this app could ship, so the
+ * endpoint whose numbers are self-consistent wins.
+ */
+
+/** One way to buy this game: the base package, a fancier edition, or a bundle. */
+export type PurchaseOption = {
+  /** Exactly one of these is set — it is what distinguishes an edition from a bundle. */
+  packageid?: number
+  bundleid?: number
+  name: string
+  /** How many games are in it. 1 for a plain edition. */
+  gameCount: number
+  formattedFinalPrice?: string
+  /** Pre-sale price. Absent when there is no sale. */
+  formattedOriginalPrice?: string
+  /** The sale discount, INCLUDING the bundle's own. */
+  discountPercent?: number
+  /**
+   * The bundle's standing discount for buying the items together.
+   *
+   * ⚠️ Different from `discountPercent`, and the design draws both: 14a strikes this
+   * one through and prints the combined figure in green. On Stray's Soundtrack Edition
+   * they are 4% and 53% — the bundle saves 4%, the sale does the rest. Showing only one
+   * of them misstates what the offer actually is.
+   */
+  bundleDiscountPercent?: number
+  /** What the items cost together before the bundle discount. */
+  formattedPriceBeforeBundleDiscount?: string
+}
+
+/** A bundle's own page — design 14b. */
+export type BundleDetails = {
+  bundleid: number
+  name: string
+  headerUrl?: string
+  /** The apps inside, in the order Steam lists them. */
+  appids: number[]
+  formattedFinalPrice?: string
+  formattedOriginalPrice?: string
+  discountPercent?: number
+  bundleDiscountPercent?: number
+}
+
+const purchaseOptionFrom = (raw: unknown): PurchaseOption | undefined => {
+  const o = asRecord(raw)
+  if (!o) return undefined
+  const packageid = asNumber(o.packageid)
+  const bundleid = asNumber(o.bundleid)
+  // Neither id means we cannot route anywhere from it, which makes it undrawable —
+  // every row on 14a is something you can press A on.
+  if (packageid === undefined && bundleid === undefined) return undefined
+  return {
+    packageid,
+    bundleid,
+    name: asString(o.purchase_option_name) ?? '',
+    gameCount: asNumber(o.included_game_count) ?? 1,
+    formattedFinalPrice: asString(o.formatted_final_price),
+    formattedOriginalPrice: asString(o.formatted_original_price),
+    discountPercent: asNumber(o.discount_pct),
+    bundleDiscountPercent: asNumber(o.bundle_discount_pct),
+    formattedPriceBeforeBundleDiscount: asString(o.formatted_price_before_bundle_discount),
+  }
+}
+
+/**
+ * Every way to buy one game — the base package, its editions, and every bundle it is in.
+ *
+ * Returns `[]` on any failure, and an empty list is a normal answer: plenty of games
+ * are in no bundle at all. ⚠️ 14a must then draw the base row ALONE rather than an
+ * empty frame — a heading with nothing under it reads as a load that failed.
+ */
+export const fetchPurchaseOptions = async (appid: number): Promise<PurchaseOption[]> => {
+  try {
+    const json = await steamGet({
+      host: 'api',
+      path: '/IStoreBrowseService/GetItems/v1/',
+      query: {
+        input_json: JSON.stringify({
+          ids: [{ appid }],
+          context: { language: 'english', country_code: STORE_LOCALE.cc, steam_realm: 1 },
+          data_request: { include_all_purchase_options: true, include_basic_info: true },
+        }),
+      },
+      // Same six hours as the rest of the app-fact hydration. Prices move on sale
+      // boundaries, not minute to minute.
+      ttlSeconds: 21600,
+    })
+
+    const items = asRecord(asRecord(json)?.response)?.store_items
+    const item = Array.isArray(items) ? asRecord(items[0]) : undefined
+    const options = item?.purchase_options
+    if (!Array.isArray(options)) return []
+    return options
+      .map(purchaseOptionFrom)
+      .filter((option): option is PurchaseOption => option !== undefined)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * One bundle, with the appids inside it — design 14b.
+ *
+ * ⚠️ The included apps come back WITHOUT reviews: `include_reviews` is honoured for the
+ * bundle itself and the per-app `reviews` object arrives empty (verified on bundle 234).
+ * So the drill-in page hydrates the returned appids through `fetchStoreItems`, which is
+ * a second call and cannot be avoided — the design's cards carry a review score each.
+ */
+export const fetchBundle = async (bundleid: number): Promise<BundleDetails | undefined> => {
+  try {
+    const json = await steamGet({
+      host: 'api',
+      path: '/IStoreBrowseService/GetItems/v1/',
+      query: {
+        input_json: JSON.stringify({
+          ids: [{ bundleid }],
+          context: { language: 'english', country_code: STORE_LOCALE.cc, steam_realm: 1 },
+          data_request: {
+            include_included_items: true,
+            include_basic_info: true,
+            include_assets: true,
+            include_all_purchase_options: true,
+          },
+        }),
+      },
+      ttlSeconds: 21600,
+    })
+
+    const items = asRecord(asRecord(json)?.response)?.store_items
+    const item = Array.isArray(items) ? asRecord(items[0]) : undefined
+    if (!item || item.success !== 1) return undefined
+
+    const included = asRecord(item.included_items)?.included_apps
+    const appids = Array.isArray(included)
+      ? included
+          .map((entry) => asNumber(asRecord(entry)?.appid))
+          .filter((id): id is number => id !== undefined)
+      : []
+
+    const best = asRecord(item.best_purchase_option)
+    return {
+      bundleid,
+      name: asString(item.name) ?? '',
+      headerUrl: assetUrl(asRecord(item.assets), 'header_2x', 'main_capsule_2x', 'header'),
+      appids,
+      formattedFinalPrice: asString(best?.formatted_final_price),
+      formattedOriginalPrice: asString(best?.formatted_original_price),
+      discountPercent: asNumber(best?.discount_pct),
+      bundleDiscountPercent: asNumber(best?.bundle_discount_pct),
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Hand a bundle off to the Steam client — the one step that leaves, per design 14b.
+ *
+ * ⚠️ `steam://store/<id>` takes an APPID only; there is no bundle form of it. The
+ * `openurl` verb is the documented way to hand the client an arbitrary store page, and
+ * it opens in Steam's own browser rather than the system one, which is what keeps a
+ * purchase inside Steam. ⚠️ Unverified on the box — it cannot be tested from a
+ * development machine, and it is the single most important link on the bundle page.
+ */
+export const openBundleInSteam = async (bundleid: number): Promise<void> =>
+  openExternal(`steam://openurl/https://store.steampowered.com/bundle/${bundleid}/`)

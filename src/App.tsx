@@ -20,6 +20,7 @@ import { useSystemStatus } from './hooks/useSystemStatus'
 import {
   DEFAULT_SETTINGS,
   indexOfValue,
+  labelFor,
   optionsFor,
   stepSetting,
   type Settings,
@@ -64,7 +65,7 @@ import {
   useTagSpotlights,
 } from './hooks/useTagBrowse'
 import { DETAIL_SCREENS, DetailsPage } from './components/DetailsPage'
-import { EXPANDABLE, sectionsFor } from './components/details/sections'
+import { EXPANDABLE, PROTON_FILTERS, sectionsFor } from './components/details/sections'
 import { ControllerHud } from './components/ControllerHud'
 import { SearchView, keyAt, rowLength, type SearchFocus } from './components/SearchView'
 import { Shelf } from './components/Shelf'
@@ -73,6 +74,18 @@ import { useAppDetails } from './hooks/useAppDetails'
 import { useInputActions } from './hooks/useInputActions'
 import { useMicrotrailer } from './hooks/useMicrotrailer'
 import { useProtonRating } from './hooks/useProtonRating'
+import { useProtonReports } from './hooks/useProtonReports'
+import { useOffers } from './hooks/useOffers'
+import { useBundle } from './hooks/useBundle'
+import { BundlePage } from './components/BundlePage'
+import { loadHostInfo } from './platform/systemInfo'
+import {
+  DEFAULT_PROTON_FILTERS,
+  protonOptionAt,
+  protonOptionCount,
+  protonOptionIndex,
+  type ProtonFilters,
+} from './components/details/DetailsProton'
 import { useHydratedRows } from './hooks/useHydratedRows'
 import { useRowProtonRatings } from './hooks/useRowProtonRatings'
 import { signIn, signOut } from './platform/auth'
@@ -81,7 +94,7 @@ import { isTypedKey, setTextCapture } from './platform/input'
 import { useInputSource } from './hooks/useInputSource'
 import { useSteamSession } from './hooks/useSteamSession'
 import { useStoreFocus } from './hooks/useStoreFocus'
-import { fetchFeaturedRows, openExternal, openInSteam } from './platform/steam'
+import { fetchFeaturedRows, openBundleInSteam, openExternal, openInSteam } from './platform/steam'
 import {
   VISIBLE_DAYS,
   fetchCalendarBand,
@@ -98,6 +111,16 @@ type View =
   // pressing B dumps you on the home screen having lost the query.
   | { screen: 'details'; appid: number; page: number; from: 'home' | 'search' }
   | { screen: 'search' }
+  /**
+   * 14b — a bundle's own page, `/bundle/<id>` rendered here rather than in Steam.
+   *
+   * ⚠️ `appid` is carried alongside the bundle id so B can go back to the offers block
+   * on the game you came from, with that game's page already loaded. Without it the
+   * only honest destination is Home, and walking into a bundle would cost you your
+   * place — which would undo the point of the turn, since the bundle exists here so you
+   * can look at its contents and come back.
+   */
+  | { screen: 'bundle'; bundleid: number; appid: number; from: 'home' | 'search' }
   /** 7a — pick a tag. */
   | { screen: 'tags' }
   /**
@@ -252,8 +275,21 @@ export const App = () => {
   const [searchResults, setSearchResults] = useState<StoreItem[]>([])
   /** null = focus is on the on-screen keyboard; a number = focus is in the results. */
   const [resultFocus, setResultFocus] = useState<number | null>(null)
-  /** Which part of the details page has focus, and where the gallery is. */
-  const [detailZone, setDetailZone] = useState<'media' | 'tabs'>('media')
+  /**
+   * Which part of the details page has focus, and where the gallery is.
+   *
+   * ⚠️ `offers` is the bottom half of the Overview screen — design turn 14a — and it is
+   * a THIRD zone rather than a mode of `media`, because the dpad means different things
+   * in it: left/right walks the items inside a bundle rather than the gallery. Reading
+   * top to bottom the page is tabs → media → offers, which is also the order up and
+   * down move through.
+   */
+  const [detailZone, setDetailZone] = useState<'media' | 'tabs' | 'offers'>('media')
+  /** Which offer row, and which item inside it — `undefined` means the row itself. */
+  const [offerRow, setOfferRow] = useState(0)
+  const [offerCol, setOfferCol] = useState<number | undefined>(undefined)
+  /** Which card the dpad is on inside a bundle's own page — turn 14b. */
+  const [bundleIndex, setBundleIndex] = useState(0)
   const [mediaIndex, setMediaIndex] = useState(0)
   /**
    * Trailer audio. Starts muted — a store that blares sound the moment you open a
@@ -265,9 +301,17 @@ export const App = () => {
    * that costs one press and spends no button.
    */
   const [trailerMuted, setTrailerMuted] = useState(true)
-  /** Focused panel on the About / Reviews screens, and whether A has opened it. */
+  /** Focused panel on the About / ProtonDB / Reviews screens, and whether A opened it. */
   const [sectionIndex, setSectionIndex] = useState(0)
   const [sectionExpanded, setSectionExpanded] = useState(false)
+  /**
+   * Where the dpad sits inside an OPEN ProtonDB filter list — design 10's control,
+   * reused. Separate from the committed value on purpose: arrowing past an option must
+   * not apply it. An earlier version of the settings dropdown applied every value you
+   * moved over, so walking a five-item list fired four changes nobody asked for.
+   */
+  const [sectionCursor, setSectionCursor] = useState(0)
+  const [protonFilters, setProtonFilters] = useState<ProtonFilters>(DEFAULT_PROTON_FILTERS)
   /** Whether the focused clip carries audio at all. Microtrailers do not. */
   const [trailerHasAudio, setTrailerHasAudio] = useState<boolean | undefined>(undefined)
   const onAudioChange = useCallback((value: boolean | undefined) => setTrailerHasAudio(value), [])
@@ -382,6 +426,33 @@ export const App = () => {
     status: 'loading' as const,
   }
   const detailsState = useAppDetails(view.screen === 'details' ? view.appid : undefined)
+  const protonReports = useProtonReports(view.screen === 'details' ? view.appid : undefined)
+  const offers = useOffers(view.screen === 'details' ? view.appid : undefined)
+  const bundle = useBundle(view.screen === 'bundle' ? view.bundleid : undefined)
+  /*
+   * ⚠️ The bundle cards' Proton tiers ride the SAME per-row hook the shelves use, which
+   * dedupes by appid and never re-asks. ProtonDB serves one appid per request with no
+   * batching, so three cards is three requests — acceptable once, and free on a second
+   * visit because the games in a bundle are usually ones you have already scrolled past.
+   */
+  const bundleRatings = useRowProtonRatings(bundle.bundle?.appids ?? [])
+  // A fresh bundle starts on its first card. Without this, walking into a three-card
+  // bundle from a two-card one opens with the cursor past the end.
+  useEffect(() => setBundleIndex(0), [view.screen === 'bundle' ? view.bundleid : undefined])
+
+  /**
+   * The rendering GPU, for the ProtonDB tab's on-your-hardware score.
+   *
+   * ⚠️ Read once here rather than through `useSystemStatus`, which is gated to the
+   * Settings screen because it also times the four upstreams. Borrowing it would run a
+   * network probe every time someone opened a game page. This is one local invoke that
+   * reads `/sys/class/drm`, and it is `undefined` in the browser build — which the
+   * score already treats as "nothing to match against" rather than as zero evidence.
+   */
+  const [hostGpu, setHostGpu] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    void loadHostInfo().then((host) => setHostGpu(host.gpu))
+  }, [])
 
   // Clamp gallery navigation to what actually exists, so holding a direction does
   // not run the index off the end and leave the user pressing back through nothing.
@@ -389,9 +460,29 @@ export const App = () => {
   // the screens use, so the focus index can never point at a panel that is not there.
   const sections =
     view.screen === 'details'
-      ? sectionsFor(view.page, detailsState.details, detailsState.reviews)
+      ? sectionsFor(
+          view.page,
+          detailsState.details,
+          detailsState.reviews,
+          protonReports.phase === 'ready',
+        )
       : []
   const activeSection = sections[sectionIndex]
+  /** The ProtonDB filter under focus, when one is — narrows `activeSection` for the input block. */
+  const activeFilter = PROTON_FILTERS.find((key) => key === activeSection)
+
+  /*
+   * Turn 14a's offer rows, as widths the dpad can be clamped against.
+   *
+   * ⚠️ Row 0 is the base game and has NO items, so its width is 0 — left/right must do
+   * nothing there rather than lighting an item that is not drawn. Every other row's
+   * width is its bundle's contents.
+   */
+  const offerRows: number[] =
+    view.screen === 'details'
+      ? [0, ...offers.offers.filter((o) => o.bundleid !== undefined).map((o) => o.items.length)]
+      : []
+  const offerBundles = offers.offers.filter((offer) => offer.bundleid !== undefined)
 
   const galleryLength = Math.max(
     1,
@@ -838,6 +929,41 @@ export const App = () => {
     setMediaIndex(0)
     setView({ screen: 'details', appid, page: 0, from: 'home' })
   }, [])
+
+  /**
+   * Act on one offer row, or one item inside it — design 14a.
+   *
+   * ⚠️ ONE function, called by both the A button and a mouse click. The two used to be
+   * written twice in this file for other screens and drifted every time; here the
+   * difference would be silent, because a click that opens the wrong page still opens
+   * a page. Clicking also lands FOCUS where you clicked, so the dpad carries on from
+   * where the pointer left off rather than jumping back to wherever it was.
+   */
+  const activateOffer = useCallback(
+    (row: number, col?: number) => {
+      if (view.screen !== 'details') return
+      setDetailZone('offers')
+      setOfferRow(row)
+      setOfferCol(col)
+      const offer = row === 0 ? undefined : offerBundles[row - 1]
+      if (offer === undefined) {
+        void openInSteam(view.appid)
+        return
+      }
+      const item = col !== undefined ? offer.items[col] : undefined
+      if (item) {
+        openDetails(item.appid)
+      } else if (offer.bundleid !== undefined) {
+        setView({
+          screen: 'bundle',
+          bundleid: offer.bundleid,
+          appid: view.appid,
+          from: view.from,
+        })
+      }
+    },
+    [view, offerBundles, openDetails],
+  )
 
   const onAction = useCallback(
     (action: InputAction) => {
@@ -1454,24 +1580,146 @@ export const App = () => {
         return
       }
 
+      /*
+       * 14b — a bundle's own page. One row of cards, so left/right is the only
+       * movement there is.
+       *
+       * ⚠️ X, not A, is the button that leaves. A walks INTO a game, which is the whole
+       * reason this page exists in the client instead of being a `steam://` handoff;
+       * putting the purchase on A would make the most destructive press the one people
+       * hit by reflex.
+       */
+      if (view.screen === 'bundle') {
+        const cards = bundle.bundle?.appids ?? []
+        if (action === 'left' || action === 'right') {
+          if (cards.length === 0) return
+          const delta = action === 'left' ? -1 : 1
+          setBundleIndex((i) => Math.min(Math.max(0, i + delta), cards.length - 1))
+          return
+        }
+        if (action === 'accept') {
+          const appid = cards[bundleIndex]
+          if (appid !== undefined) openDetails(appid)
+          return
+        }
+        if (action === 'secondary') {
+          void openBundleInSteam(view.bundleid)
+          return
+        }
+        if (action === 'back') {
+          /*
+           * ⚠️ Back to the OFFERS block on the game you came from, not to Home and not
+           * to the top of that page. You walked in from a specific row; landing anywhere
+           * else means finding it again, and the whole turn is about being able to look
+           * at a bundle's contents and then keep shopping.
+           */
+          setDetailZone('offers')
+          setView({ screen: 'details', appid: view.appid, page: 0, from: view.from })
+          return
+        }
+        return
+      }
+
       // On the details page the only navigation is out of it. Swallow everything
       // else so a stray dpad press does not silently move focus on the home screen
       // underneath and dump the user somewhere unexpected on the way back.
       if (view.screen === 'details') {
+        /*
+         * ⚠️ The offers block eats the dpad before anything else on the page, and only
+         * ever on Overview — it does not exist on the other three screens. Up from the
+         * first row hands focus back to the hero; everything else stays inside.
+         */
+        if (detailZone === 'offers') {
+          const width = offerRows[offerRow] ?? 0
+          if (action === 'up') {
+            if (offerCol !== undefined) {
+              // Out of the item strip before out of the row: two presses to leave a
+              // bundle you are inside, which is what stops a stray press losing it.
+              setOfferCol(undefined)
+            } else if (offerRow > 0) {
+              setOfferRow((r) => r - 1)
+            } else {
+              setDetailZone('media')
+            }
+            return
+          }
+          if (action === 'down') {
+            if (offerRow < offerRows.length - 1) {
+              setOfferRow((r) => r + 1)
+              // ⚠️ Reset the column on every row change. Row 2 having three items and
+              // row 3 having two would otherwise leave the cursor pointing past the end
+              // — the same rule `useStoreFocus` applies to shelves.
+              setOfferCol(undefined)
+            }
+            return
+          }
+          if (action === 'left' || action === 'right') {
+            if (width === 0) return
+            const delta = action === 'left' ? -1 : 1
+            const next = offerCol === undefined ? (delta > 0 ? 0 : width - 1) : offerCol + delta
+            // Stepping off the left edge returns to the ROW, which is how you reach the
+            // row's own action again without going up and back down.
+            setOfferCol(next < 0 ? undefined : Math.min(next, width - 1))
+            return
+          }
+          if (action === 'accept') {
+            // A on an item walks into THAT game's page — DLC included. This is the
+            // turn's whole point: a bundle you can browse rather than a wall of art.
+            // Shared with the pointer path so the two can never disagree.
+            activateOffer(offerRow, offerCol)
+            return
+          }
+          if (action === 'secondary') {
+            // X opens the bundle's page in Steam from the row itself.
+            const offer = offerRow === 0 ? undefined : offerBundles[offerRow - 1]
+            if (offer?.bundleid !== undefined) void openBundleInSteam(offer.bundleid)
+            return
+          }
+          if (action === 'back') {
+            if (offerCol !== undefined) {
+              setOfferCol(undefined)
+              return
+            }
+            setDetailZone('media')
+            return
+          }
+          // Everything else (LB/RB, menu, search) falls through to the handlers below.
+        }
+
         // LB/RB always page between the three screens, as the design specifies.
         if (action === 'shelfPrev') {
           setSectionIndex(0)
           setSectionExpanded(false)
+          setSectionCursor(0)
+          // Paging away from Overview unmounts the offers block, so focus cannot stay
+          // in it — it would land on a zone with nothing drawn.
+          if (detailZone === 'offers') setDetailZone('media')
           setView({ ...view, page: Math.max(0, view.page - 1) })
           return
         }
         if (action === 'shelfNext') {
           setSectionIndex(0)
           setSectionExpanded(false)
+          setSectionCursor(0)
+          if (detailZone === 'offers') setDetailZone('media')
           setView({
             ...view,
             page: Math.min(DETAIL_SCREENS.length - 1, view.page + 1),
           })
+          return
+        }
+
+        /*
+         * ⚠️ An OPEN filter list eats up/down before anything else on this page.
+         * The list is drawn as a vertical stack, so up/down is the only direction
+         * that can mean "next option" — and without this branch pressing down inside
+         * an open dropdown would step to the NEXT filter while its list was still on
+         * screen, which reads as the list scrolling the wrong thing.
+         */
+        if ((action === 'up' || action === 'down') && sectionExpanded && activeFilter) {
+          const count = protonOptionCount(protonReports.reports, activeFilter)
+          const delta = action === 'up' ? -1 : 1
+          setSectionCursor((i) => Math.min(Math.max(0, i + delta), count - 1))
           return
         }
 
@@ -1495,6 +1743,18 @@ export const App = () => {
           if (sections.length > 0 && sectionIndex < sections.length - 1) {
             setSectionIndex((i) => i + 1)
             setSectionExpanded(false)
+            return
+          }
+          /*
+           * Down off the hero drops into the offers block — turn 14a, and only on
+           * Overview, where it is drawn. ⚠️ Gated on there being something to land on:
+           * `offerRows` is empty until the purchase options resolve, and a zone change
+           * into an empty block would strand focus somewhere invisible.
+           */
+          if (view.page === 0 && offerRows.length > 0) {
+            setDetailZone('offers')
+            setOfferRow(0)
+            setOfferCol(undefined)
           }
           return
         }
@@ -1517,12 +1777,57 @@ export const App = () => {
           } else if (view.page === 0) {
             setMediaIndex((i) => Math.min(Math.max(0, i + delta), galleryLength - 1))
           } else if (sections.length > 0) {
-            // On the panel screens the dpad walks between panels.
+            // On the panel screens the dpad walks between panels. An open filter list
+            // closes rather than the panel behind it moving under it.
+            if (sectionExpanded) {
+              setSectionExpanded(false)
+              return
+            }
             setSectionIndex((i) => Math.min(Math.max(0, i + delta), sections.length - 1))
-            setSectionExpanded(false)
           }
           return
         }
+        /*
+         * A on the ProtonDB tab, in three parts.
+         *
+         * ⚠️ Committing happens on the CLOSING press, not while the cursor moves. Each
+         * of these filters re-derives the whole report list, and applying a value as
+         * you arrow past it would run that four times on the way down a five-item
+         * list — the exact behaviour design turn 10 removed from the settings
+         * dropdown.
+         */
+        if (action === 'accept' && activeFilter) {
+          if (sectionExpanded) {
+            const value = protonOptionAt(protonReports.reports, activeFilter, sectionCursor)
+            if (value !== undefined) {
+              setProtonFilters((current) => ({ ...current, [activeFilter]: value }))
+            }
+            setSectionExpanded(false)
+          } else {
+            // Open ON the committed value, never on the first row — two marks
+            // disagreeing about where you are is worse than no cursor at all.
+            setSectionCursor(
+              protonOptionIndex(protonReports.reports, activeFilter, protonFilters[activeFilter]),
+            )
+            setSectionExpanded(true)
+          }
+          return
+        }
+        /*
+         * The archive call to action — 13b's one focusable thing before the download.
+         *
+         * ⚠️ It starts the SAME download Settings › Compatibility runs, through the
+         * same hook, rather than deflecting to that page. Sending someone to Settings
+         * to press a second button would make this a signpost rather than a control,
+         * and `useProtonDump` already refuses a second concurrent run, so the two entry
+         * points cannot fight. It is also the one place in the app where A spends
+         * 66 MB, which is why the button says so on its face.
+         */
+        if (action === 'accept' && activeSection === 'pdbGet') {
+          if (!protonDump.busy) protonDump.download()
+          return
+        }
+
         // A expands the focused panel where there is more to show. Collapse first,
         // so A never both opens a panel and fires the page's primary action.
         if (action === 'accept' && view.page > 0 && activeSection) {
@@ -1620,7 +1925,19 @@ export const App = () => {
       sections,
       sectionIndex,
       sectionExpanded,
+      sectionCursor,
       activeSection,
+      activeFilter,
+      protonFilters,
+      protonReports.reports,
+      protonDump,
+      offerRows,
+      offerBundles,
+      offerRow,
+      offerCol,
+      activateOffer,
+      bundle.bundle,
+      bundleIndex,
       session,
       focus.row,
       focusedItem,
@@ -1977,6 +2294,25 @@ export const App = () => {
           </motion.div>
         )}
 
+        {view.screen === 'bundle' && (
+          <BundlePage
+            key={`bundle-${view.bundleid}`}
+            bundle={bundle.bundle}
+            facts={bundle.facts}
+            ratings={new Map(bundleRatings)}
+            loading={bundle.loading}
+            index={bundleIndex}
+            onPick={(cardIndex) => {
+              // Focus follows the pointer here too, so B and the dpad resume from the
+              // card that was clicked rather than from wherever the cursor had been.
+              setBundleIndex(cardIndex)
+              const appid = bundle.bundle?.appids[cardIndex]
+              if (appid !== undefined) openDetails(appid)
+            }}
+            source={inputSource}
+          />
+        )}
+
         {view.screen === 'details' && (
           // Same containing-block trap as search, above.
           <motion.div key={`details-${view.appid}`} {...PAGE_ENTER} className="absolute inset-0">
@@ -1988,10 +2324,19 @@ export const App = () => {
               fallbackName={focusedItem?.name}
               screen={view.page}
               zone={detailZone}
+              offers={offers}
+              offerRow={offerRow}
+              offerCol={offerCol}
+              onPickOffer={activateOffer}
               mediaIndex={mediaIndex}
               muted={trailerMuted}
               sectionIndex={sectionIndex}
               sectionExpanded={sectionExpanded}
+              sectionCursor={sectionCursor}
+              protonReports={protonReports}
+              protonFilters={protonFilters}
+              hostGpu={hostGpu}
+              deviceLabel={labelFor('deviceProfile', settings.deviceProfile)}
               onAudioChange={onAudioChange}
               source={inputSource}
               onOpenInSteam={() => void openInSteam(view.appid)}
@@ -2044,20 +2389,56 @@ export const App = () => {
              * X does nothing there — a pause used to live on it and was removed rather
              * than let one button mean two things a screen apart.
              */
-            view.screen === 'details' && view.page === 0 && trailerHasAudio !== undefined
+            /*
+             * ⚠️ The offers block reassigns BOTH A and X, so the tray has to say so.
+             * A on the details page normally hands off to Steam; down in the offers it
+             * walks into a game or a bundle page, and X — which is sound everywhere
+             * else on this screen — becomes the Steam handoff. Leaving the standing
+             * hints up would have the tray describing the wrong two buttons on the one
+             * screen where the wrong press costs you your place.
+             */
+            view.screen === 'details' && detailZone === 'offers'
               ? [
-                  trailerHasAudio
-                    ? {
-                        action: 'secondary' as const,
-                        label: trailerMuted ? 'SOUND ON' : 'MUTE',
-                      }
-                    : {
-                        action: 'secondary' as const,
-                        label: 'NO AUDIO',
-                        dimmed: true,
-                      },
+                  {
+                    action: 'accept' as const,
+                    label:
+                      offerRow === 0
+                        ? 'OPEN IN STEAM'
+                        : offerCol !== undefined
+                          ? 'OPEN SELECTED GAME'
+                          : 'OPEN BUNDLE PAGE',
+                  },
+                  ...(offerRow === 0
+                    ? []
+                    : [{ action: 'secondary' as const, label: 'BUY IN STEAM' }]),
                 ]
-              : []
+              : view.screen === 'details' && view.page === 0 && trailerHasAudio !== undefined
+                ? [
+                    trailerHasAudio
+                      ? {
+                          action: 'secondary' as const,
+                          label: trailerMuted ? 'SOUND ON' : 'MUTE',
+                        }
+                      : {
+                          action: 'secondary' as const,
+                          label: 'NO AUDIO',
+                          dimmed: true,
+                        },
+                  ]
+                : /*
+                   * The ProtonDB tab's A changes meaning with the archive, so the tray
+                   * says which one it is. ⚠️ This is the exception that proves the rule
+                   * about contextual glyphs: A here either spends 66 MB or opens a
+                   * filter list, and those are far enough apart that a single static
+                   * "SELECT" would be the misleading option.
+                   */
+                  view.screen === 'details' && view.page === 2
+                  ? protonReports.phase === 'ready'
+                    ? [{ action: 'accept' as const, label: sectionExpanded ? 'CHOOSE' : 'FILTER' }]
+                    : protonReports.phase === 'unavailable'
+                      ? []
+                      : [{ action: 'accept' as const, label: 'DOWNLOAD ARCHIVE' }]
+                  : []
           }
         />
         <ControllerHud

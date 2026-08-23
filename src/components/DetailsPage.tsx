@@ -8,11 +8,23 @@ import type { TrailerPreview } from '../platform/steam'
 import { DetailsAbout } from './details/DetailsAbout'
 import { MediaGallery, buildGallery } from './details/MediaGallery'
 import { DetailsExtras } from './details/DetailsExtras'
+import { DetailsProton, type ProtonFilters } from './details/DetailsProton'
+import { OfferList } from './details/OfferList'
+import type { OffersState } from '../hooks/useOffers'
+import type { ProtonReportsState } from '../hooks/useProtonReports'
 import { motion } from 'motion/react'
 import { PAGE_ENTER } from '../platform/motion'
 
-/** The three detail screens, paged with LB/RB as the design specifies. */
-export const DETAIL_SCREENS = ['Overview', 'About', 'Reviews & More'] as const
+/**
+ * The four detail screens, paged with LB/RB as the design specifies.
+ *
+ * ⚠️ ProtonDB is THIRD, not last — design turn 11 puts it directly after About, on the
+ * grounds that "does it run" is a purchase question and belongs beside the description
+ * rather than filed behind the reviews. Reordering this array reorders the pager, and
+ * `sectionsFor` in `details/sections.ts` keys off the same indices, so the two move
+ * together or focus lands on a screen that is not there.
+ */
+export const DETAIL_SCREENS = ['Overview', 'About', 'ProtonDB', 'Reviews & More'] as const
 export type DetailScreen = (typeof DETAIL_SCREENS)[number]
 
 type Props = {
@@ -25,13 +37,28 @@ type Props = {
   /** Index into DETAIL_SCREENS. */
   screen: number
   /** Which part of this page has controller focus. */
-  zone: 'media' | 'tabs'
+  zone: 'media' | 'tabs' | 'offers'
+  /** Turn 14a's offers block, and where the dpad is inside it. */
+  offers: OffersState
+  offerRow: number
+  offerCol?: number
+  /** Pointer click-through for the offers block; `col` undefined means the row. */
+  onPickOffer: (row: number, col?: number) => void
   /** Index into the media gallery on the Overview screen. */
   mediaIndex: number
   muted: boolean
-  /** Focused section on the About / Reviews screens. */
+  /** Focused section on the About / ProtonDB / Reviews screens. */
   sectionIndex: number
   sectionExpanded: boolean
+  /** Where the dpad sits inside an open ProtonDB filter list. */
+  sectionCursor: number
+  /** The local report archive, and why it is empty when it is. */
+  protonReports: ProtonReportsState
+  protonFilters: ProtonFilters
+  /** Host GPU from `host_info`, for the on-your-hardware score. */
+  hostGpu?: string
+  /** Settings › Compatibility › Device profile, rendered on the scope pill. */
+  deviceLabel: string
   onAudioChange?: (hasAudio: boolean | undefined) => void
   source: InputSource
   onOpenInSteam: () => void
@@ -76,10 +103,19 @@ export const DetailsPage = ({
   fallbackName,
   screen,
   zone,
+  offers,
+  offerRow,
+  offerCol,
+  onPickOffer,
   mediaIndex,
   muted,
   sectionIndex,
   sectionExpanded,
+  sectionCursor,
+  protonReports,
+  protonFilters,
+  hostGpu,
+  deviceLabel,
   onAudioChange,
   source,
   onOpenInSteam,
@@ -131,8 +167,19 @@ export const DetailsPage = ({
         ))}
       </div>
 
+      {/*
+        ⚠️ `absolute inset-0` on the MOTION wrapper, not just on the screen inside it.
+        `PAGE_ENTER` animates `y`, which compiles to a `transform` — and a transformed
+        element becomes the containing block for every `position: absolute` descendant.
+        A bare wrapper has no height of its own (its only child is absolutely
+        positioned), so the screen inside it resolved `top-25 bottom-22` against a
+        zero-height box and collapsed to a ~32px sliver with `overflow-hidden` eating
+        the rest. Sizing the wrapper puts the containing block back where the geometry
+        expects it. Screen 0 was never affected because its wrapper carries its own
+        `absolute` positioning.
+      */}
       {screen === 1 && (
-        <motion.div key="about" {...PAGE_ENTER}>
+        <motion.div key="about" className="absolute inset-0" {...PAGE_ENTER}>
           <DetailsAbout
             details={details}
             proton={proton}
@@ -144,7 +191,25 @@ export const DetailsPage = ({
         </motion.div>
       )}
       {screen === 2 && (
-        <motion.div key="extras" {...PAGE_ENTER}>
+        <motion.div key="proton" className="absolute inset-0" {...PAGE_ENTER}>
+          <DetailsProton
+            name={name}
+            rating={proton}
+            reports={protonReports.reports}
+            phase={protonReports.phase}
+            reportsLoading={protonReports.loading}
+            hostGpu={hostGpu}
+            deviceLabel={deviceLabel}
+            sectionIndex={sectionIndex}
+            expanded={sectionExpanded}
+            cursor={sectionCursor}
+            filters={protonFilters}
+            source={source}
+          />
+        </motion.div>
+      )}
+      {screen === 3 && (
+        <motion.div key="extras" className="absolute inset-0" {...PAGE_ENTER}>
           <DetailsExtras
             details={details}
             reviews={reviews}
@@ -258,6 +323,26 @@ export const DetailsPage = ({
       )}
 
       {/* The trailer as the object on screen, not a widget in a column. */}
+      {/*
+        Turn 14a — a new row in the BOTTOM HALF of Overview, below the hero column and
+        the gallery rather than replacing either. Both of those are absolutely
+        positioned from `top-24` and run out around `42rem` of a `67.5rem` viewport at
+        every scale the rem clamp produces, so the space underneath is genuinely free.
+      */}
+      {screen === 0 && (
+        <OfferList
+          offers={offers.offers}
+          loading={offers.loading}
+          subjectName={name}
+          subjectPriceLabel={priceLabel}
+          focused={zone === 'offers'}
+          row={offerRow}
+          col={offerCol}
+          onPick={onPickOffer}
+          source={source}
+        />
+      )}
+
       {screen === 0 && (
         <MediaGallery
           items={gallery}

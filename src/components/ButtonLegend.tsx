@@ -42,6 +42,8 @@ const KEYBOARD_SEARCH: LegendHint[] = [
 export type LegendScreen =
   | 'home'
   | 'details'
+  /** 14b — a bundle's own page. */
+  | 'bundle'
   | 'search'
   | 'tags'
   | 'tag-results'
@@ -51,6 +53,15 @@ export type LegendScreen =
   | 'settings-picker'
 
 const NAVIGATION: Record<LegendScreen, LegendHint[]> = {
+  /*
+   * ⚠️ One row of cards, so left/right is the ONLY movement — and saying so is the
+   * point. A page that offers up/down hints on a single row invites presses that do
+   * nothing, which at ten feet reads as the client having stopped responding.
+   */
+  bundle: [
+    { action: 'left', label: 'Game' },
+    { action: 'right', label: 'Game' },
+  ],
   home: [
     { action: 'shelfPrev', label: 'Prev shelf' },
     { action: 'shelfNext', label: 'Next shelf' },
@@ -121,6 +132,16 @@ const NAVIGATION: Record<LegendScreen, LegendHint[]> = {
  * silent.
  */
 const ACTIONS: Record<LegendScreen, LegendHint[]> = {
+  /*
+   * ⚠️ X is the buy, A is the walk-in. That split is the turn's argument: the bundle
+   * lives in this client so its contents can be judged, so the press people make by
+   * reflex has to be the one that keeps them here. Y stays the global wishlist verb.
+   */
+  bundle: [
+    { action: 'accept', label: 'OPEN THIS PAGE' },
+    { action: 'secondary', label: 'BUY IN STEAM' },
+    { action: 'back', label: 'BACK TO OFFERS' },
+  ],
   home: [
     { action: 'accept', label: 'SELECT' },
     { action: 'search', label: 'SEARCH' },
@@ -168,6 +189,26 @@ const ACTIONS: Record<LegendScreen, LegendHint[]> = {
   ],
 }
 
+/**
+ * The screen's standing hints, with any contextual ones layered over them.
+ *
+ * ⚠️ An extra REPLACES a standing hint for the same button rather than joining it. The
+ * details page normally offers A as "OPEN IN STEAM"; down in turn 14a's offers block A
+ * opens a bundle page instead — and appending left the tray showing two A prompts with
+ * two different verbs. One button can only mean one thing at a time, and a tray that
+ * says otherwise is worse than one that says nothing, because it is the thing people
+ * check when they are not sure what a press will do.
+ *
+ * Order is preserved: an overridden hint keeps its original position rather than
+ * jumping to the end, so the row does not reshuffle as context changes.
+ */
+const withExtra = (base: LegendHint[], extra: LegendHint[]): LegendHint[] => {
+  const overrides = new Map(extra.map((hint) => [hint.action, hint]))
+  const merged = base.map((hint) => overrides.get(hint.action) ?? hint)
+  const used = new Set(merged.map((hint) => hint.action))
+  return [...merged, ...extra.filter((hint) => !used.has(hint.action))]
+}
+
 export const ButtonLegend = ({
   screen = 'home',
   source,
@@ -195,7 +236,7 @@ export const ButtonLegend = ({
     </span>
 
     <span className="ml-auto flex items-center gap-6">
-      {[...ACTIONS[screen], ...extra].map((hint) => (
+      {withExtra(ACTIONS[screen], extra).map((hint) => (
         <span
           key={`${hint.action}-${hint.label}`}
           className={`flex items-center gap-2.5 ${hint.dimmed ? 'opacity-40' : ''}`}

@@ -32,12 +32,35 @@ by something; if you add one, wire it in the same commit.
 | **Rumble on focus**                                                                       | `gilrs` force-feedback is not wired. A switch for a feature that does not exist.                                                                                                        |
 | **Y button** (stepper: Wishlist / …)                                                      | Y is the global search shortcut. Rebinding it per screen is what `7b` already refused, and Settings is the _one_ exception (Y = reset row) precisely because it has no search to reach. |
 | **Keyboard mirrors controller**                                                           | One right answer — it is always true, in both builds.                                                                                                                                   |
-| **Warn on kernel anti-cheat**                                                             | No endpoint we have carries an anti-cheat signal. `categories` does not include one.                                                                                                    |
 | **Bazzite community reports**                                                             | No such source exists.                                                                                                                                                                  |
 | **Steam library target** · **Ask which drive each time** · **Queue install after buying** | We deep-link `steam://store/<appid>` and Steam picks the drive. Not ours to set — README §3.                                                                                            |
 | **Share compatibility reports** · **Anonymous usage reports**                             | This app sends nothing anywhere. Offering the switch implies it does, which is worse than not having it.                                                                                |
 | **Changelog** · **Session log** · **Report an issue**                                     | No release notes yet, no log file, and tasks go in `private/TASKS.md` — never GitHub issues.                                                                                            |
 | **Third-party licenses**                                                                  | Deferred, not refused. It needs a real dependency manifest, not a hand-written list that goes stale.                                                                                    |
+
+---
+
+## 2b · Rows that came back
+
+### **Warn on kernel anti-cheat** — reopened 2026-08-22
+
+Dropped above for "no endpoint we have carries an anti-cheat signal. `categories` does not include
+one." That was true of the **endpoints** and false of the **archive**. ProtonDB's open dump carries
+`isImpactedByAntiCheat` on every report: **21,890 reports answered it, 1,707 said impacted**. Turn
+13a put that archive on disk, so the row now has a source and is on the Compatibility page.
+
+⚠️ It ships **off**, and the standing rule in §1 is why: before this row existed the app said
+nothing about anti-cheat, so the default has to be the behaviour it is replacing. It is also silent
+until the archive is downloaded, which is itself opt-in — a warning switch that can only ever fire
+for people who took a second, separate action.
+
+### **Device profile** and **Report distro** — added 2026-08-22
+
+Neither was ever refused; they were simply never built. Design `11a` requires the first by name:
+the ProtonDB tab's device dropdown and this row are **one setting**, so changing it in either place
+changes it everywhere. `Report distro` defaults to `This machine`, which reads the distribution off
+`host_info` rather than guessing — distinct from `Any distro`, which is the off position. Collapsing
+those two would silently narrow the report set on a distro nobody else reports from.
 
 ---
 
@@ -150,7 +173,7 @@ relaunch state machine, the channel, automatic checking, and notify-before-resta
 
 **The feed is GitHub Releases**, and `.github/workflows/release.yml` publishes it:
 `semantic-release` cuts the tag and the release, then a second job builds the AppImage on
-`ubuntu-22.04`, signs it, writes `latest.json` and attaches all three to that release. The endpoint
+`ubuntu-24.04`, signs it, writes `latest.json` and attaches all three to that release. The endpoint
 in `tauri.conf.json` is `releases/latest/download/latest.json`, which GitHub always resolves to the
 newest release — so publishing a release _is_ publishing the update.
 

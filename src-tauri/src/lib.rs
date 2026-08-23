@@ -9,7 +9,7 @@ mod sysinfo;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Generic Steam GET. One command covers every endpoint in the catalog, so adding
 /// one from private/STEAM-ENDPOINTS.md never requires touching Rust.
@@ -65,14 +65,48 @@ async fn proton_check(app: tauri::AppHandle, timeout_ms: u64) -> Result<serde_js
 ///
 /// ⚠️ Long — a ~66 MB download and roughly half a gigabyte of JSON to walk. The caller
 /// is expected to treat this as a background job and not block a screen on it.
+///
+/// ⚠️ Uses `refresh_with_progress`, NOT `refresh`. The plain one passes a no-op
+/// callback, so nothing ever reaches `protondb://progress` — which the frontend
+/// listens for in `platform/protonDump.ts`. The bar then sits at zero for a minute and
+/// the state machine never crosses to `indexing`, because that transition is driven by
+/// `downloaded >= total` arriving. Throttling is the callee's job: it already reports
+/// at most once per MB.
 #[tauri::command]
 async fn proton_refresh(
     app: tauri::AppHandle,
     timeout_ms: u64,
 ) -> Result<serde_json::Value, String> {
-    protondb::refresh(proton_dir(&app)?, timeout_ms)
-        .await
-        .map_err(|e| e.to_string())
+    let emitter = app.clone();
+    protondb::refresh_with_progress(proton_dir(&app)?, timeout_ms, move |downloaded, total| {
+        // A failed emit is not worth aborting a 66 MB download over — the window can
+        // be gone while the job finishes. The bar stops moving; the result still lands.
+        let _ = emitter.emit(
+            "protondb://progress",
+            serde_json::json!({ "downloaded": downloaded, "total": total }),
+        );
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// What runtimes a set of games' reports were filed against — turn 13c's second bar.
+///
+/// ⚠️ This is a RUNTIME question, not a graded one. It says how many reports ran under
+/// a native build, official Proton, GE-Proton or Experimental; it says nothing about
+/// how well any of them went. Tiers stay with the live summaries endpoint, per
+/// `protondb.rs`'s header.
+///
+/// ⚠️ Local only. There is no aggregate endpoint upstream — one appid per HTTP request
+/// — so this is answerable at all only because the dump is already a SQLite table. The
+/// browser build therefore has no source for it and renders nothing; see
+/// `src/platform/protonVariants.ts`.
+#[tauri::command]
+async fn proton_variant_split(
+    app: tauri::AppHandle,
+    appids: Vec<u32>,
+) -> Result<protondb::VariantSplit, String> {
+    Ok(protondb::variant_split(&proton_dir(&app)?, &appids))
 }
 
 fn proton_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -153,7 +187,8 @@ pub fn run() {
             proton_reports,
             proton_index_status,
             proton_refresh,
-            proton_check
+            proton_check,
+            proton_variant_split
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
