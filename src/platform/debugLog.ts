@@ -56,3 +56,45 @@ export const logDebug = (...parts: unknown[]): void => {
     .then(({ invoke }) => invoke('debug_log', { line }))
     .catch(() => undefined)
 }
+
+/* ─────────────────── the loopback control channel ─────────────────── */
+
+/**
+ * Turn the debug HTTP channel on or off. Returns the URL to tunnel to.
+ *
+ * ⚠️ Separate from `debugLogging` on purpose. The log is a passive file; this opens a
+ * listening socket that can DRIVE the app, and the two deserve separate decisions rather
+ * than one switch that quietly does both.
+ */
+export const setDebugServer = async (on: boolean): Promise<string | undefined> => {
+  if (!isTauri()) return undefined
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return await invoke<string>('debug_server_set', { enabled: on })
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Publish what the app currently believes, for `GET /state`.
+ *
+ * ⚠️ This is the half the request log could never cover, and every bug found on the box so
+ * far has been in it: which appid the view holds, which fallback the title came from,
+ * whether pad focus was lost. "What left the machine" and "what the app thought was true"
+ * are different questions and the second one is usually the answer.
+ */
+export const publishDebugState = (state: Record<string, unknown>): void => {
+  if (!enabled && !serverOn) return
+  const json = JSON.stringify({ at: new Date().toISOString(), ...state })
+  if (enabled) logDebug('STATE', json)
+  if (!isTauri() || !serverOn) return
+  void import('@tauri-apps/api/core')
+    .then(({ invoke }) => invoke('debug_state_set', { state: json }))
+    .catch(() => undefined)
+}
+
+let serverOn = false
+export const markDebugServer = (on: boolean): void => {
+  serverOn = on
+}

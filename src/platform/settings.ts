@@ -118,6 +118,7 @@ export type Settings = {
   offlineMode: boolean
   prefetchFocused: boolean
   debugLogging: boolean
+  debugServer: boolean
 }
 
 /**
@@ -172,6 +173,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // ⚠️ Off, and it must stay off by default: enabled it writes a line per HTTP request.
   // A diagnostic you turn on to reproduce something, not a thing running forever.
   debugLogging: false,
+  // ⚠️ Also off, and a separate decision from the log: this one opens a listening socket
+  // that can drive the UI. Loopback-only, so reaching it from another machine takes a
+  // tunnel somebody deliberately opened.
+  debugServer: false,
 }
 
 /* ─────────────────────────── stepper ladders ─────────────────────────── */

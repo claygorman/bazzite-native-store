@@ -79,6 +79,7 @@ import { useOffers } from './hooks/useOffers'
 import { useBundle } from './hooks/useBundle'
 import { BundlePage } from './components/BundlePage'
 import { loadHostInfo } from './platform/systemInfo'
+import { publishDebugState } from './platform/debugLog'
 import {
   DEFAULT_PROTON_FILTERS,
   protonOptionAt,
@@ -2052,6 +2053,44 @@ export const App = () => {
       ? calendar?.recommended[focus.col]?.capsuleUrl
       : undefined
   const ambient = focusedItem?.capsuleUrl ?? calendarArt
+
+  /*
+   * Publish what the app believes, for the debug log and `GET /state`.
+   *
+   * ⚠️ This is the half the request log cannot cover, and it is where every bug found on
+   * the box has actually lived: which appid the view holds, where the title came from,
+   * which zone has focus. `hintName` is called out separately because a hint that does
+   * not match the loaded details IS the wrong-game bug — visible in one line rather than
+   * from a photograph of a television.
+   */
+  useEffect(() => {
+    publishDebugState({
+      screen: view.screen,
+      appid: view.screen === 'details' ? view.appid : undefined,
+      page: view.screen === 'details' ? view.page : undefined,
+      detailZone,
+      hintName: view.screen === 'details' ? view.hint?.name : undefined,
+      loadedName: detailsState.details?.name,
+      unavailable: detailsState.unavailable,
+      sections: sections.join(','),
+      sectionIndex,
+      offerRow,
+      offerCol,
+      protonPhase: protonReports.phase,
+      inputSource,
+    })
+  }, [
+    view,
+    detailZone,
+    detailsState.details?.name,
+    detailsState.unavailable,
+    sections,
+    sectionIndex,
+    offerRow,
+    offerCol,
+    protonReports.phase,
+    inputSource,
+  ])
 
   const onHome = view.screen === 'home'
 

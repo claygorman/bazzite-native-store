@@ -77,6 +77,45 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > a `_comment_*` key fails the build script with "unknown field", which reads like a
 > version mismatch between the CLI and `tauri-build`.
 
+## Debugging the box from somewhere else
+
+Two independent toggles, both off by default, both on **Settings → Network**.
+
+**Debug logging** writes a file. ⚠️ A file rather than stdout because in Game Mode the app
+is launched by Steam as a non-Steam shortcut, so `println!` and `console.log` go somewhere
+nobody is watching — invisible exactly when the box is the only place a bug reproduces.
+It records every request that actually left the machine (host, path, ms, error) plus every
+view/focus transition. The path is on Settings → About; capped at 4 MB.
+
+**Debug control channel** binds `127.0.0.1:8555`:
+
+```sh
+ssh -N -L 8555:127.0.0.1:8555 <user>@<box>
+curl -s localhost:8555/state | jq     # what the app believes right now
+curl -s localhost:8555/log            # the tail of the log file
+curl -s -X POST localhost:8555/action -d '{"action":"down"}'
+```
+
+⚠️ `/action` is why it exists. Reading state says what went wrong; injecting input lets a
+script REPRODUCE it — otherwise confirming something like "the dpad moves twice" costs a
+human pressing buttons and describing the result, one round trip per hypothesis.
+
+Rules that file must keep, and they are in its header too: **loopback only** (never
+0.0.0.0 — reaching it from another machine takes a tunnel someone deliberately opened),
+**off unless asked**, **nothing that spends money** (`/action` drives the UI; A on a store
+page is a `steam://` handoff and Steam still asks), and **no new dependency** — three fixed
+routes over `tokio::net` rather than a web framework in a client whose pitch is a small
+binary.
+
+⚠️ `/action` always sends press AND release. A press with no release latches the repeat
+timer and the UI runs away on its own; that has bitten this project before with synthetic
+keyboard events.
+
+⚠️ Port 8555, not 8080 — Steam's own CEF debugger holds 8080 on Bazzite and colliding with
+it would break the owned/wishlist reader for a debugging convenience.
+
+---
+
 ## The Flatpak — the Linux route that actually paints
 
 `flatpak/com.claygorman.bazzite-store.yml`, built by the `flatpak` job in `release.yml`,

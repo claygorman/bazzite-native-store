@@ -70,3 +70,19 @@ pub fn debug_log(app: tauri::AppHandle, line: String) {
         let _ = append(&path, &line);
     }
 }
+
+/// The last `lines` lines of the log, for the control channel's `/log`.
+///
+/// ⚠️ Reads the whole file and keeps the tail. Fine because the file is capped at 4 MB by
+/// `append` above — without that cap this would be a way to make the app read an
+/// unbounded file into memory on request.
+pub fn tail(app: &tauri::AppHandle, lines: usize) -> Result<String, String> {
+    let path = log_path(app)?;
+    let body = std::fs::read_to_string(&path).unwrap_or_default();
+    if body.is_empty() {
+        return Ok("(empty — is Debug logging on?)\n".into());
+    }
+    let all: Vec<&str> = body.lines().collect();
+    let start = all.len().saturating_sub(lines);
+    Ok(format!("{}\n", all[start..].join("\n")))
+}

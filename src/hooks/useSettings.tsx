@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { setDebugLogging } from '../platform/debugLog'
+import { markDebugServer, setDebugLogging, setDebugServer } from '../platform/debugLog'
 import {
   cadenceSeconds,
   DEFAULT_SETTINGS,
@@ -135,6 +135,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     void setDebugLogging(settings.debugLogging)
   }, [settings.debugLogging])
+
+  useEffect(() => {
+    markDebugServer(settings.debugServer)
+    void setDebugServer(settings.debugServer)
+  }, [settings.debugServer])
 
   useEffect(
     () =>

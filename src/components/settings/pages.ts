@@ -312,6 +312,11 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
           'Debug logging',
           'Write every request to a file you can read over SSH — see About for the path',
         ),
+        toggle(
+          'debugServer',
+          'Debug control channel',
+          'Serves state and accepts input on 127.0.0.1:8555 — tunnel to it over SSH',
+        ),
       ],
     },
     colB: {
