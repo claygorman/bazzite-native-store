@@ -65,7 +65,13 @@ import {
   useTagSpotlights,
 } from './hooks/useTagBrowse'
 import { DETAIL_SCREENS, DetailsPage } from './components/DetailsPage'
-import { EXPANDABLE, PROTON_FILTERS, sectionsFor } from './components/details/sections'
+import {
+  EXPANDABLE,
+  extrasAcross,
+  extrasAlong,
+  PROTON_FILTERS,
+  sectionsFor,
+} from './components/details/sections'
 import { ControllerHud } from './components/ControllerHud'
 import { SearchView, keyAt, rowLength, type SearchFocus } from './components/SearchView'
 import { Shelf } from './components/Shelf'
@@ -1802,6 +1808,18 @@ export const App = () => {
         // Up reaches the tab strip; Down returns to the content. Without this the
         // tabs are unreachable and LB/RB is the only way to change screen.
         if (action === 'up') {
+          // Two-column screen: up walks the CURRENT column, and only leaves for the
+          // tab strip once that column has no panel above.
+          if (view.page === 3 && detailZone === 'media' && sections.length > 0) {
+            const next = extrasAlong(sections, sectionIndex, -1)
+            if (next !== undefined) {
+              setSectionIndex(next)
+              setSectionExpanded(false)
+              return
+            }
+            setDetailZone('tabs')
+            return
+          }
           if (detailZone === 'media' && sections.length > 0 && sectionIndex > 0) {
             // Step back through panels before leaving the content entirely.
             setSectionIndex((i) => i - 1)
@@ -1814,6 +1832,16 @@ export const App = () => {
         if (action === 'down') {
           if (detailZone === 'tabs') {
             setDetailZone('media')
+            return
+          }
+          // Same as up: within the column, and nowhere else. Nothing sits below the
+          // panels on this screen, so running out simply stops.
+          if (view.page === 3 && sections.length > 0) {
+            const next = extrasAlong(sections, sectionIndex, 1)
+            if (next !== undefined) {
+              setSectionIndex(next)
+              setSectionExpanded(false)
+            }
             return
           }
           if (sections.length > 0 && sectionIndex < sections.length - 1) {
@@ -1857,6 +1885,17 @@ export const App = () => {
             // closes rather than the panel behind it moving under it.
             if (sectionExpanded) {
               setSectionExpanded(false)
+              return
+            }
+            /*
+             * ⚠️ Reviews & More is drawn as TWO COLUMNS, so left/right must mean
+             * "other column" there. It used to share the linear walk below, which made
+             * RIGHT from Customer Reviews land on Achievements — the panel directly
+             * underneath it. The other panel screens really are single columns and
+             * keep the linear behaviour.
+             */
+            if (view.page === 3) {
+              setSectionIndex((i) => extrasAcross(sections, i, delta < 0 ? -1 : 1))
               return
             }
             setSectionIndex((i) => Math.min(Math.max(0, i + delta), sections.length - 1))
