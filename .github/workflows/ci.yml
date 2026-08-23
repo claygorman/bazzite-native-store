@@ -57,10 +57,13 @@ jobs:
 
   rust:
     name: Rust
-    # ⚠️ 22.04, not `ubuntu-latest`. It is the oldest supported runner, so it links
-    # against the oldest glibc — and a binary built on a newer one refuses to start
-    # on anything older. The release job builds here for the same reason.
-    runs-on: ubuntu-22.04
+    # ⚠️ Kept in step with the release job's Linux runner ON PURPOSE — CI that builds
+    # on a different image than the release validates the wrong thing. Moved from
+    # 22.04 to 24.04 together with it: the AppImage bundles WebKitGTK from the runner,
+    # and the 2022 copy could not create an EGL display on the target box, so 0.3.1
+    # shipped a window that painted solid white. The full account is in the release
+    # workflow's matrix comment; do not move one of these without the other.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 

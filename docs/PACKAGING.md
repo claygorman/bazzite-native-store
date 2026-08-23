@@ -6,15 +6,40 @@ itself; macOS and Windows are deliberately unsigned and the README says so.**
 
 ## What a release produces
 
-`.github/workflows/release.yml` fans out over four runners. Each builds, signs its own
+`.github/workflows/release.yml` fans out over three runners. Each builds, signs its own
 bundle with the Tauri updater key, and writes one fragment of the update manifest.
 
-| Target           | Runner           | Updater artifact | Human download |
-| ---------------- | ---------------- | ---------------- | -------------- |
-| `linux-x86_64`   | `ubuntu-22.04`   | `*.AppImage`     | the same file  |
-| `darwin-aarch64` | `macos-latest`   | `*.app.tar.gz`   | `*.dmg`        |
-| `darwin-x86_64`  | `macos-13`       | `*.app.tar.gz`   | `*.dmg`        |
-| `windows-x86_64` | `windows-latest` | `*-setup.exe`    | the same file  |
+| Target                          | Runner           | Updater artifact | Human download |
+| ------------------------------- | ---------------- | ---------------- | -------------- |
+| `linux-x86_64`                  | `ubuntu-24.04`   | `*.AppImage`     | the same file  |
+| `darwin-aarch64`+`darwin-x86_64` | `macos-latest`  | `*.app.tar.gz`   | `*.dmg`        |
+| `windows-x86_64`                | `windows-latest` | `*-setup.exe`    | the same file  |
+
+> [!WARNING]
+> **The Linux runner version is load-bearing, and not for the reason you would guess.**
+> Tauri's AppImage bundler ships **WebKitGTK from the runner** — 165 libraries, including
+> its own GStreamer and GLib. Release `0.3.1` was built on `ubuntu-22.04` and launched on
+> Bazzite 44 as a **solid white window**: the process ran, `gilrs` enumerated both
+> controllers, and the 2022 WebKit could not create an EGL display against Mesa 26.2 on
+> RDNA 4 — `Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...`
+>
+> There is **no runtime workaround**. `WEBKIT_DISABLE_DMABUF_RENDERER`,
+> `WEBKIT_DISABLE_COMPOSITING_MODE` and `LIBGL_ALWAYS_SOFTWARE` all still abort, and
+> removing the bundled WebKit so the host's is used cascades into undefined symbols
+> (`gst_pad_probe_info_set_buffer`, then `g_once_init_leave_pointer`). It is fixable only
+> at packaging time.
+>
+> Moving to `ubuntu-24.04` raises the glibc floor, which is acceptable **here specifically**
+> because the target is Bazzite 44 (Fedora 44) rather than general-purpose Linux. The
+> `.github/workflows/ci.yml` Rust job is pinned to the same image on purpose — CI that
+> builds on a different runner than the release validates the wrong artifact.
+>
+> ⚠️ **CI cannot catch a recurrence.** The bad artifact builds, signs and runs; it just
+> does not paint. Only launching it on the box finds this.
+>
+> The real fix is a **Flatpak**, which uses the runtime's WebKit and bundles no browser at
+> all. That is tracked separately; the runner bump unblocks the AppImage without making the
+> AppImage the right shape.
 
 > [!IMPORTANT]
 > **Only macOS ships a separate updater archive.** Tauri **v1** wrapped the Linux and

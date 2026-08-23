@@ -83,16 +83,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ⚠️ ubuntu-22.04, not `latest` — it is the oldest supported runner, so it
-          # links the oldest glibc. A binary built on a newer one refuses to start on
-          # an older host with a bare "GLIBC_2.xx not found".
+          # ⚠️ ubuntu-24.04, and the history matters because the obvious "fix" is to
+          # put it back. This was ubuntu-22.04 on the correct reasoning that the oldest
+          # supported runner links the oldest glibc, and a binary built on a newer one
+          # refuses to start on an older host with a bare "GLIBC_2.xx not found".
+          #
+          # That reasoning was right about glibc and missed what else the pin freezes.
+          # Tauri's AppImage bundler ships WebKitGTK — plus its GStreamer and GLib
+          # dependencies, 165 libraries in all — taken from the RUNNER. A 2022 WebKit
+          # cannot create an EGL display against Mesa 26.2 on RDNA 4, so release 0.3.1
+          # launched on the target box, kept running, enumerated both controllers, and
+          # painted a solid white window:
+          #
+          #   Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...
+          #
+          # Root-caused on the real hardware 2026-08-22 (Bazzite 44.20260820, Radeon RX
+          # 9070 XT, Mesa 26.2.1, host WebKitGTK 2.52.5). ⚠️ There is NO runtime
+          # workaround — WEBKIT_DISABLE_DMABUF_RENDERER, WEBKIT_DISABLE_COMPOSITING_MODE
+          # and LIBGL_ALWAYS_SOFTWARE all still abort, and removing the bundled WebKit
+          # to fall back on the host's cascades into undefined symbols across GStreamer
+          # and GLib. It can only be fixed where the bundle is built.
+          #
+          # The glibc floor rises in exchange, and that is an acceptable trade HERE and
+          # only here: the stated target is Bazzite 44, which is Fedora 44. It is not a
+          # general-purpose Linux build.
+          #
+          # ⚠️ The real answer is a Flatpak, which uses the runtime's WebKit and bundles
+          # no browser at all — see private/TASKS.md. This unblocks the AppImage; it does
+          # not make the AppImage the right shape.
+          #
+          # ⚠️ CI cannot catch a recurrence. This failure is invisible to a build that
+          # only checks the build succeeded — the artifact is valid, signed and runnable,
+          # and simply does not paint.
+          #
           # ⚠️ `.AppImage`, NOT `.AppImage.tar.gz`. Tauri v1 tarballed the AppImage
           # before signing; v2 signs the AppImage itself, so the updater artifact and
           # the human download are the SAME file and there is no `ship:` here. Measured
           # on release 0.2.0, whose bundle dir held exactly:
           #   bazzite-store_0.2.0_amd64.AppImage
           #   bazzite-store_0.2.0_amd64.AppImage.sig
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             target: linux-x86_64
             slug: linux-x86_64
             bundles: appimage
