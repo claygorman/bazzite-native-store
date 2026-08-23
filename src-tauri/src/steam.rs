@@ -40,6 +40,16 @@ fn base_url(host: &str) -> Result<&'static str, SteamError> {
 struct CacheEntry {
     fetched_at: u64,
     body: String,
+    /**
+     * The origin's own freshness window, in seconds, when it stated one.
+     *
+     * ⚠️ Optional and defaulted so old cache files still parse. Without `default` every
+     * entry written before this field existed fails to deserialize and the whole disk
+     * cache silently empties on upgrade — a self-inflicted thundering herd against the
+     * rate limit, on exactly the launch where the user notices.
+     */
+    #[serde(default)]
+    origin_max_age: Option<u64>,
 }
 
 fn now_secs() -> u64 {
@@ -72,14 +82,45 @@ fn cache_key(host: &str, path: &str, query: &HashMap<String, String>) -> String 
     format!("{host}-{hash:016x}.json")
 }
 
+/// Steam's endpoints are edge-cached and say so in `Cache-Control: max-age=N`.
+///
+/// ⚠️ That number is a FLOOR, not a target. Asking again inside it spends a request and a
+/// slice of the rate limit to receive byte-identical data — measured 2026-08-23:
+/// `appdetails` 3600, `GetNumberOfCurrentPlayers` 852, `featuredcategories` 300.
+///
+/// So the effective lifetime is the LONGER of what the caller asked for and what the
+/// origin admits to. Going above the floor is a product decision and stays the caller's;
+/// going below it is only ever waste, so it is quietly prevented.
+///
+/// ⚠️ `max-age` rather than `Expires`, and they carry the same information: `Expires`
+/// needs an RFC 1123 date parser and therefore a date crate, for a value that is already
+/// present as an integer. One fewer dependency in a binary whose pitch is its size.
+fn effective_ttl(entry: &CacheEntry, requested: u64) -> u64 {
+    requested.max(entry.origin_max_age.unwrap_or(0))
+}
+
 fn read_cache(dir: &Path, key: &str, ttl_seconds: u64) -> Option<String> {
     let raw = std::fs::read_to_string(dir.join(key)).ok()?;
     let entry: CacheEntry = serde_json::from_str(&raw).ok()?;
-    (now_secs().saturating_sub(entry.fetched_at) < ttl_seconds).then_some(entry.body)
+    let ttl = effective_ttl(&entry, ttl_seconds);
+    (now_secs().saturating_sub(entry.fetched_at) < ttl).then_some(entry.body)
 }
 
-fn write_cache(dir: &Path, key: &str, body: &str) {
-    let entry = CacheEntry { fetched_at: now_secs(), body: body.to_string() };
+/// `max-age=N` out of a `Cache-Control` header, if it is there.
+fn max_age_of(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    let value = headers.get(reqwest::header::CACHE_CONTROL)?.to_str().ok()?;
+    value
+        .split(',')
+        .filter_map(|part| part.trim().strip_prefix("max-age="))
+        .find_map(|n| n.trim().parse::<u64>().ok())
+}
+
+fn write_cache(dir: &Path, key: &str, body: &str, origin_max_age: Option<u64>) {
+    let entry = CacheEntry {
+        fetched_at: now_secs(),
+        body: body.to_string(),
+        origin_max_age,
+    };
     if let Ok(serialized) = serde_json::to_string(&entry) {
         let _ = std::fs::create_dir_all(dir);
         let _ = std::fs::write(dir.join(key), serialized);
@@ -129,8 +170,10 @@ pub async fn get(
 
     match result {
         Ok(response) if response.status().is_success() => {
+            // ⚠️ Read BEFORE `.text()`, which consumes the response.
+            let origin_max_age = max_age_of(response.headers());
             let body = response.text().await.map_err(|e| SteamError::Http(e.to_string()))?;
-            write_cache(&cache_dir, &key, &body);
+            write_cache(&cache_dir, &key, &body, origin_max_age);
             Ok(body)
         }
         Ok(response) => {
@@ -238,7 +281,7 @@ pub fn clear(cache_dir: &Path) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{cache_key, clear, stats};
+    use super::{cache_key, clear, effective_ttl, max_age_of, stats, CacheEntry};
     use std::collections::HashMap;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
@@ -253,6 +296,51 @@ mod tests {
     /// The prefix the Downloads card reads back. Losing it silently would leave every
     /// byte attributed to "other" with nothing failing.
     #[test]
+    /// The origin's `max-age` is a FLOOR, never a ceiling.
+    ///
+    /// Measured against the live endpoints 2026-08-23: three requests 15s apart to
+    /// `GetNumberOfCurrentPlayers` returned an identical player count and an identical
+    /// `Expires`, while `max-age` counted down 755 -> 740 -> 724 toward it. So asking
+    /// inside that window spends a request for byte-identical data.
+    #[test]
+    fn the_origin_floor_raises_a_short_ttl_and_never_lowers_a_long_one() {
+        let entry = |max_age| CacheEntry {
+            fetched_at: 0,
+            body: String::new(),
+            origin_max_age: max_age,
+        };
+
+        // Caller wants 60s, origin says it cannot change for 852. Use 852.
+        assert_eq!(effective_ttl(&entry(Some(852)), 60), 852);
+        // Caller deliberately wants four hours. That is a product decision; keep it.
+        assert_eq!(effective_ttl(&entry(Some(3600)), 14_400), 14_400);
+        // ⚠️ No header, so no opinion — the caller's TTL stands rather than collapsing
+        // to zero and re-fetching everything on every read.
+        assert_eq!(effective_ttl(&entry(None), 900), 900);
+    }
+
+    #[test]
+    fn max_age_is_parsed_out_of_a_real_cache_control_header() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::CACHE_CONTROL,
+            "public, max-age=852".parse().unwrap(),
+        );
+        assert_eq!(max_age_of(&headers), Some(852));
+
+        // The store spells it without the space; both are real, seen the same day.
+        headers.insert(
+            reqwest::header::CACHE_CONTROL,
+            "public,max-age=3600".parse().unwrap(),
+        );
+        assert_eq!(max_age_of(&headers), Some(3600));
+
+        // ⚠️ `no-cache` must not parse as zero-and-therefore-fine. It has no max-age, so
+        // there is no origin opinion and the caller's TTL must survive untouched.
+        headers.insert(reqwest::header::CACHE_CONTROL, "no-cache".parse().unwrap());
+        assert_eq!(max_age_of(&headers), None);
+    }
+
     fn the_key_is_prefixed_with_its_host() {
         let key = cache_key("protondb", "/api/v1/x.json", &HashMap::new());
         assert!(key.starts_with("protondb-"), "{key}");
