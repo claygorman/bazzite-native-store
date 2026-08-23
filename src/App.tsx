@@ -2206,6 +2206,10 @@ export const App = () => {
       offerCol,
       protonPhase: protonReports.phase,
       inputSource,
+      // ⚠️ Added after an evening spent discovering the update status was the one
+      // thing `/state` could not tell us — it took driving the UI to a settings page
+      // over the control channel to read a string the app already knew.
+      update: describeUpdate(update),
     })
   }, [
     view,
@@ -2218,6 +2222,10 @@ export const App = () => {
     offerCol,
     protonReports.phase,
     inputSource,
+    // ⚠️ Without this the published status is whatever it was when some OTHER field
+    // last changed — which on an idle home screen is "never", i.e. exactly the case
+    // this was added to diagnose.
+    update,
   ])
 
   const onHome = view.screen === 'home'

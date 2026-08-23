@@ -169,11 +169,20 @@ mod imp {
         outcome.map_err(|_| "the update timed out".to_string())?
     }
 
-    /// Whether the portal is present at all, so the UI can tell "no portal" from
-    /// "portal says nothing".
-    pub async fn portal_version() -> Option<u32> {
-        let connection = Connection::session().await.ok()?;
-        FlatpakPortalProxy::new(&connection).await.ok()?.version().await.ok()
+    /// Whether the portal is present, and WHY NOT when it is not.
+    ///
+    /// ⚠️ This returned `Option<u32>` and swallowed every error, which cost an evening:
+    /// the Updates page reported "Managed by Flatpak" — its no-portal state — on a box
+    /// where `gdbus` reached the same portal and got version 8 back. A missing reason
+    /// made an in-app failure indistinguishable from a missing portal.
+    pub async fn portal_version() -> Result<u32, String> {
+        let connection = Connection::session()
+            .await
+            .map_err(|e| format!("session bus: {e}"))?;
+        let portal = FlatpakPortalProxy::new(&connection)
+            .await
+            .map_err(|e| format!("portal proxy: {e}"))?;
+        portal.version().await.map_err(|e| format!("portal version: {e}"))
     }
 }
 
@@ -185,8 +194,8 @@ mod imp {
     pub async fn install() -> Result<(), String> {
         Err("the Flatpak portal exists only on Linux".into())
     }
-    pub async fn portal_version() -> Option<u32> {
-        None
+    pub async fn portal_version() -> Result<u32, String> {
+        Err("the Flatpak portal exists only on Linux".into())
     }
 }
 
@@ -248,8 +257,17 @@ pub fn in_flatpak() -> bool {
 #[tauri::command]
 pub async fn flatpak_update_supported() -> Result<serde_json::Value, String> {
     let sandboxed = in_flatpak();
-    let version = if sandboxed { imp::portal_version().await } else { None };
-    Ok(serde_json::json!({ "sandboxed": sandboxed, "portalVersion": version }))
+    if !sandboxed {
+        return Ok(serde_json::json!({ "sandboxed": false, "portalVersion": null }));
+    }
+    // ⚠️ The reason travels with the answer. Reporting only "no portal" is what made
+    // this look like an unsupported platform rather than a bug in the probe.
+    match imp::portal_version().await {
+        Ok(version) => Ok(serde_json::json!({ "sandboxed": true, "portalVersion": version })),
+        Err(reason) => {
+            Ok(serde_json::json!({ "sandboxed": true, "portalVersion": null, "portalError": reason }))
+        }
+    }
 }
 
 /// ⚠️ `Ok(None)` is "nothing announced", NOT "up to date". See `ANNOUNCE_WAIT`.

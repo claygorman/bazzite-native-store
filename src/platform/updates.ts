@@ -144,16 +144,30 @@ export const publishedVersion = async (): Promise<string | undefined> => {
 export const flatpakUpdateSupport = async (): Promise<{
   sandboxed: boolean
   portalVersion: number | null
+  /** Why the portal is unreachable, when it is. Carried so the UI can say. */
+  portalError?: string
 }> => {
   if (!isTauri()) return { sandboxed: false, portalVersion: null }
   try {
     const { invoke } = await import('@tauri-apps/api/core')
-    const raw = await invoke<{ sandboxed: boolean; portalVersion: number | null }>(
-      'flatpak_update_supported',
-    )
-    return { sandboxed: raw.sandboxed === true, portalVersion: raw.portalVersion ?? null }
-  } catch {
-    return { sandboxed: false, portalVersion: null }
+    const raw = await invoke<{
+      sandboxed: boolean
+      portalVersion: number | null
+      portalError?: string
+    }>('flatpak_update_supported')
+    return {
+      sandboxed: raw.sandboxed === true,
+      portalVersion: raw.portalVersion ?? null,
+      portalError: raw.portalError,
+    }
+  } catch (err) {
+    // ⚠️ The invoke itself failing is a different fact from the portal being absent,
+    // and it used to be flattened into the same answer.
+    return {
+      sandboxed: false,
+      portalVersion: null,
+      portalError: err instanceof Error ? err.message : String(err),
+    }
   }
 }
 
@@ -180,16 +194,21 @@ export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateStat
      * `CreateUpdateMonitor` is bound to this app's own ref — updating anything else is
      * not expressible. See src-tauri/src/flatpakupdate.rs.
      */
-    const support = await flatpakUpdateSupport()
-    // No portal: nothing this app can do, so say so and name what does work.
-    if (support.portalVersion === null) return { status: 'managed' }
     const checkedAt = Date.now()
 
     /*
-     * The version feed FIRST, and the portal only as a fallback. The feed is a plain
-     * comparison of two strings, so it answers immediately and — unlike the monitor —
-     * can honestly report `current`. The portal is what INSTALLS; asking it whether an
-     * update exists means waiting on a signal that may simply not come yet.
+     * ⚠️ The feed is checked FIRST and UNCONDITIONALLY — it is NOT gated on the portal
+     * being reachable, and it used to be. That gating silenced the whole feature: a box
+     * whose portal probe failed reported "Managed by Flatpak" and never once mentioned
+     * that a newer build existed, which is precisely the notification this is for.
+     *
+     * Being able to INSTALL and being able to NOTICE are separate capabilities. Losing
+     * the first must not cost the second — worst case the user is told to run
+     * `flatpak update`, which is a great deal better than silence.
+     *
+     * The feed is also the only thing here that can honestly report `current`: it
+     * compares two strings, where the portal's monitor announces updates and never
+     * announces their absence.
      */
     const published = await publishedVersion()
     if (published !== undefined) {
@@ -198,8 +217,11 @@ export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateStat
         : { status: 'current', checkedAt }
     }
 
-    // Feed unreachable — offline, or Pages is down. Ask the monitor instead, which may
-    // already know from an earlier poll.
+    // Feed unreachable — offline, or Pages is down. Fall back to the monitor, which may
+    // already know from an earlier poll. No portal and no feed is the only case with
+    // genuinely nothing to say.
+    const support = await flatpakUpdateSupport()
+    if (support.portalVersion === null) return { status: 'managed' }
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       const commit = await invoke<string | null>('flatpak_update_check')
