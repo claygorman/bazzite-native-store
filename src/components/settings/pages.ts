@@ -301,6 +301,17 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
         step('requestTimeoutMs', 'Request timeout', 'Give up on a slow endpoint after this'),
         toggle('meteredConnection', 'Metered connection', 'Stops trailer and artwork prefetch'),
         toggle('offlineMode', 'Offline mode', 'Browse the cache, make no requests at all'),
+        /*
+         * ⚠️ Here rather than on About, because what it logs is REQUESTS — which host,
+         * which path, how long, and what failed. In Game Mode the app is launched by
+         * Steam, so stdout goes nowhere readable; this writes a file you can tail over
+         * SSH. The About page prints the path.
+         */
+        toggle(
+          'debugLogging',
+          'Debug logging',
+          'Write every request to a file you can read over SSH — see About for the path',
+        ),
       ],
     },
     colB: {

@@ -193,6 +193,35 @@ pub fn spawn(app: AppHandle) {
                         }
                     }
                     EventType::AxisChanged(axis, value, _) => {
+                        /*
+                         * ⚠️ Early-out on an axis that has not crossed anything. Measured
+                         * on an 8BitDo Ultimate: ~80 events/second while completely idle,
+                         * because a stick at rest still jitters in the last bits. Without
+                         * this, every one of those walks the match below forever.
+                         *
+                         * The latch array is what makes it safe to skip: `stick[]` already
+                         * holds whether each direction is pressed, so an event that would
+                         * not change it has nothing to say. Both edges still fire — this
+                         * only drops the ones that repeat a state we are already in.
+                         */
+                        let quiet = match axis {
+                            gilrs::Axis::LeftStickX => {
+                                let left = value < -STICK_DEADZONE;
+                                let right = value > STICK_DEADZONE;
+                                left == stick[0] && right == stick[1]
+                            }
+                            gilrs::Axis::LeftStickY => {
+                                let up = value > STICK_DEADZONE;
+                                let down = value < -STICK_DEADZONE;
+                                up == stick[2] && down == stick[3]
+                            }
+                            // Everything else is already discarded below.
+                            _ => true,
+                        };
+                        if quiet {
+                            continue;
+                        }
+
                         let (index, action) = match axis {
                             gilrs::Axis::LeftStickX if value < -STICK_DEADZONE => (0, "left"),
                             gilrs::Axis::LeftStickX if value > STICK_DEADZONE => (1, "right"),

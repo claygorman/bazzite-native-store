@@ -1,4 +1,5 @@
 import { isTauri } from './index'
+import { logDebug } from './debugLog'
 
 /**
  * A single generic Steam GET, so adding an endpoint from private/STEAM-ENDPOINTS.md
@@ -148,10 +149,33 @@ export const steamGet = (req: SteamRequest): Promise<unknown> => {
   const pending = inFlight.get(key)
   if (pending) return pending
 
+  /*
+   * ⚠️ Logged around the NETWORK call, not around `steamGet`. A cache hit or a
+   * deduplicated in-flight request returns above this point, so the log records what
+   * actually left the machine rather than what the app asked for — which is the
+   * difference between "the endpoint is failing" and "we never called it", and that is
+   * usually the whole question when something works here and not on the box.
+   */
+  const started = Date.now()
+  logDebug('GET', `${req.host}${req.path}`, buildQuery(req.query) || '(no query)')
+
   const request = (isTauri() ? tauriGet(req) : webGet(req))
     .then((body) => {
+      logDebug('OK ', `${req.host}${req.path}`, `${Date.now() - started}ms`)
       cache.set(key, { at: Date.now(), body })
       return body
+    })
+    .catch((error: unknown) => {
+      // Re-thrown: this is a diagnostic, not error handling. Swallowing here would
+      // change behaviour the moment logging is switched on, which is the one thing a
+      // debug facility must never do.
+      logDebug(
+        'ERR',
+        `${req.host}${req.path}`,
+        `${Date.now() - started}ms`,
+        error instanceof Error ? error.message : String(error),
+      )
+      throw error
     })
     .finally(() => {
       inFlight.delete(key)

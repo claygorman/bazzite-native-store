@@ -1,4 +1,5 @@
 mod auth;
+mod debuglog;
 mod display;
 mod input;
 pub mod protondb;
@@ -215,6 +216,9 @@ pub fn run() {
             display::steam_ui_scale,
             input::pad_info,
             input::pad_focus,
+            debuglog::debug_log,
+            debuglog::debug_log_set,
+            debuglog::debug_log_path,
             sysinfo::host_info,
             steamclient::steam_session_get,
             proton_reports,

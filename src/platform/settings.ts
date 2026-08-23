@@ -117,6 +117,7 @@ export type Settings = {
   meteredConnection: boolean
   offlineMode: boolean
   prefetchFocused: boolean
+  debugLogging: boolean
 }
 
 /**
@@ -168,6 +169,9 @@ export const DEFAULT_SETTINGS: Settings = {
   meteredConnection: false,
   offlineMode: false,
   prefetchFocused: true,
+  // ⚠️ Off, and it must stay off by default: enabled it writes a line per HTTP request.
+  // A diagnostic you turn on to reproduce something, not a thing running forever.
+  debugLogging: false,
 }
 
 /* ─────────────────────────── stepper ladders ─────────────────────────── */

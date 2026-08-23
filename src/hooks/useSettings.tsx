@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { setDebugLogging } from '../platform/debugLog'
 import {
   cadenceSeconds,
   DEFAULT_SETTINGS,
@@ -125,6 +126,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }),
     [settings.requestTimeoutMs, settings.offlineMode],
   )
+  /*
+   * ⚠️ Mirrored into the platform layer AND into Rust, because the log is written by the
+   * Rust side to a real file. Runs on mount too, so a session that starts with the toggle
+   * already on logs from the first request rather than from whenever settings are next
+   * touched — which would miss exactly the startup requests worth seeing.
+   */
+  useEffect(() => {
+    void setDebugLogging(settings.debugLogging)
+  }, [settings.debugLogging])
+
   useEffect(
     () =>
       setProtonPolicy({
