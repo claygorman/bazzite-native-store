@@ -118,9 +118,28 @@ shipped once:
    re-enable the style — so the ring silently never renders. The spec's own markup is safe because
    `outline` is always present and only the _colour_ swaps between transparent and accent. Keep it
    that way.
-6. **Nothing painted on a tile may exceed the clip container's padding.** A shelf scrolls by
-   clipping; a shadow or ring reaching past the escape hatch is sliced into a hard rectangle that
+6. **Nothing painted on a tile may exceed the clip container's escape hatch.** A shelf scrolls by
+   clipping; a shadow or ring reaching past the hatch is sliced into a hard rectangle that
    reads as "a weird grey square", not as a clipped shadow. See §1 above and `Shelf.tsx`.
+
+7. **Put the page margin on the CHILDREN, not on the box that clips.** The corollary to rule 6,
+   and the thing that actually makes it satisfiable.
+
+   A clipping box narrowed to content width clips at that narrower edge, so anything a child
+   paints outside itself — a glow, a ring, a drop shadow — dies against the _layout_, with lit
+   screen either side of the cut. That is what reads as a seam: not the cut, but the fact that
+   there is visibly more room next to it.
+
+   Keep the clipping box **full-bleed** and give the margin to the children that want it — the
+   title row and the scrolling track each carry their own `px-14` in `Shelf.tsx`. Same margin,
+   same alignment, but now the cut lands on the display edge, where it is invisible because
+   there is nothing beyond it to compare against.
+
+   ⚠️ The failure mode this replaces is a ratchet: each time the paint gets clipped you shrink
+   the paint, or pad the parent and push the children further inward, and neither ever reaches
+   the edge. Turn 12 shrank the tile's bloom from 54px to 36px before the layout was recognised
+   as the real problem — after which the design's own number went back in untouched. If you find
+   yourself trimming a shadow to fit a container, check what the container's width is doing first.
 
 ## 5. Data the spec's props need, and where it comes from
 

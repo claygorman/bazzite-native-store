@@ -59,15 +59,30 @@ if (!sig) {
   process.exit(1)
 }
 
-const fragment = {
-  [target]: {
-    // ⚠️ The CONTENTS of the .sig file, not a path or a URL. A path here fails
-    // signature verification on the client with no useful message.
-    signature: readFileSync(join(bundleDir, sig), 'utf8').trim(),
-    url: `https://github.com/${repo}/releases/download/${version}/${encodeURIComponent(archive)}`,
-  },
+/*
+ * ⚠️ `target` may be a COMMA-SEPARATED LIST, and macOS is why.
+ *
+ * There is no free Intel macOS runner left — GitHub retired `macos-13` and every
+ * current image is Apple silicon — so the mac job builds
+ * `--target universal-apple-darwin`, one archive containing both slices. The updater
+ * still looks itself up by `darwin-aarch64` or `darwin-x86_64`, so that single archive
+ * has to be registered under both keys, with the same url and the same signature.
+ */
+const entry = {
+  // ⚠️ The CONTENTS of the .sig file, not a path or a URL. A path here fails
+  // signature verification on the client with no useful message.
+  signature: readFileSync(join(bundleDir, sig), 'utf8').trim(),
+  url: `https://github.com/${repo}/releases/download/${version}/${encodeURIComponent(archive)}`,
 }
 
-const out = `latest-${target}.json`
+const keys = target
+  .split(',')
+  .map((t) => t.trim())
+  .filter(Boolean)
+const fragment = Object.fromEntries(keys.map((k) => [k, entry]))
+
+// A comma is legal in a filename but miserable in a glob and an artifact name, so the
+// fragment is named after the FIRST key rather than the raw list.
+const out = `latest-${keys[0]}.json`
 writeFileSync(out, `${JSON.stringify(fragment, null, 2)}\n`)
-console.log(`write-latest-json: ${target} -> ${archive}`)
+console.log(`write-latest-json: ${keys.join(' + ')} -> ${archive}`)

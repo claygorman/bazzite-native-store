@@ -70,7 +70,7 @@ jobs:
           fi
 
   bundles:
-    name: ${{ matrix.target }}
+    name: ${{ matrix.slug }}
     needs: release
     if: needs.release.outputs.published == 'true'
     runs-on: ${{ matrix.os }}
@@ -94,21 +94,33 @@ jobs:
           #   bazzite-store_0.2.0_amd64.AppImage.sig
           - os: ubuntu-22.04
             target: linux-x86_64
+            slug: linux-x86_64
             bundles: appimage
             dir: src-tauri/target/release/bundle/appimage
             suffix: .AppImage
             ship: ''
-          # macos-latest is Apple silicon; macos-13 is the last Intel runner.
+            rustTargets: ''
+            tauriArgs: ''
+          # ⚠️ ONE macOS job producing a UNIVERSAL binary, covering both architectures.
+          #
+          # There is no Intel macOS runner to build on any more: GitHub retired
+          # `macos-13`, and every current image (macos-14/15/26) is Apple silicon on the
+          # free tier. The Intel-only alternatives are `-large` runners, which a personal
+          # account cannot use. A job targeting `macos-13` does not fail — it QUEUES
+          # FOREVER against a label nothing will ever claim, and because the manifest job
+          # waits on the matrix, that silently strands the whole release with no
+          # `latest.json`. Cost us two releases before it was spotted.
+          #
+          # `universal-apple-darwin` builds both slices on the arm64 runner and lipos them
+          # together, so one archive serves both updater keys — see the comma-separated
+          # target below.
           - os: macos-latest
-            target: darwin-aarch64
+            target: darwin-aarch64,darwin-x86_64
+            slug: darwin-universal
+            rustTargets: aarch64-apple-darwin x86_64-apple-darwin
             bundles: app,dmg
-            dir: src-tauri/target/release/bundle/macos
-            suffix: .app.tar.gz
-            ship: '../dmg/*.dmg'
-          - os: macos-13
-            target: darwin-x86_64
-            bundles: app,dmg
-            dir: src-tauri/target/release/bundle/macos
+            tauriArgs: --target universal-apple-darwin
+            dir: src-tauri/target/universal-apple-darwin/release/bundle/macos
             suffix: .app.tar.gz
             ship: '../dmg/*.dmg'
           # ⚠️ `-setup.exe`, NOT `.nsis.zip` — the same v1/v2 change as the AppImage
@@ -118,10 +130,13 @@ jobs:
           #   bazzite-store_0.3.0_x64-setup.exe.sig
           - os: windows-latest
             target: windows-x86_64
+            slug: windows-x86_64
             bundles: nsis
             dir: src-tauri/target/release/bundle/nsis
             suffix: -setup.exe
             ship: ''
+            rustTargets: ''
+            tauriArgs: ''
     steps:
       - uses: actions/checkout@v7
         with:
@@ -143,10 +158,13 @@ jobs:
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+      - name: Extra Rust targets
+        if: matrix.rustTargets != ''
+        run: rustup target add ${{ matrix.rustTargets }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: ${{ matrix.target }}
+          key: ${{ matrix.slug }}
 
       # ⚠️ `libudev-dev` is not optional and is easy to miss: `gilrs` — the whole
       # gamepad layer — pulls `libudev-sys`, whose build script panics with
@@ -172,7 +190,7 @@ jobs:
           # a missing secret shows up as "no update available", never as an error.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build --bundles ${{ matrix.bundles }}
+        run: pnpm tauri build --bundles ${{ matrix.bundles }} ${{ matrix.tauriArgs }}
 
       # ⚠️ Both macOS runners produce `bazzite-store.app.tar.gz` — no architecture in
       # the name. Uploaded as-is with --clobber, whichever finishes second overwrites
@@ -187,7 +205,7 @@ jobs:
         run: |
           cd "${{ matrix.dir }}"
           archive=$(ls *"${{ matrix.suffix }}" | head -1)
-          renamed="bazzite-store_${{ needs.release.outputs.version }}_${{ matrix.target }}${{ matrix.suffix }}"
+          renamed="bazzite-store_${{ needs.release.outputs.version }}_${{ matrix.slug }}${{ matrix.suffix }}"
           if [ "$archive" != "$renamed" ]; then
             mv "$archive" "$renamed"
             mv "$archive.sig" "$renamed.sig"
@@ -204,8 +222,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: manifest-${{ matrix.target }}
-          path: latest-${{ matrix.target }}.json
+          name: manifest-${{ matrix.slug }}
+          # ⚠️ Named after the FIRST updater key, not the slug — see write-latest-json.
+          path: latest-*.json
 
       # The updater archive + signature, and the human-facing installer beside them.
       - name: Attach to the release
