@@ -2525,6 +2525,16 @@ export const App = () => {
               ? `shelf ${focus.row + 1}/${rows.length + (calendarDays > 0 ? 2 : 0)} · col ${focus.col + 1}`
               : undefined
           }
+          identity={
+            view.screen === 'details'
+              ? {
+                  appid: view.appid,
+                  hint: view.hint?.name,
+                  loaded: detailsState.details?.name,
+                  unavailable: detailsState.unavailable,
+                }
+              : undefined
+          }
         />
       </main>
     </MotionConfig>

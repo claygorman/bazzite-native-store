@@ -17,6 +17,15 @@ import { impliedUiScale, loadSteamUiScale, type SteamUiScale } from '../platform
 type Props = {
   /** Optional shelf/tile position readout — moved here off the design's top bar. */
   position?: string
+  /**
+   * What the app believes it is showing, for the one bug class a screenshot cannot
+   * settle: a page whose title belongs to a different game than its prices.
+   *
+   * ⚠️ On screen rather than only in the log, because the moment you notice it you are
+   * sitting in front of a television, not an SSH session. Reading `/state` needs the
+   * control channel already switched on and a tunnel already open; F2 needs neither.
+   */
+  identity?: { appid?: number; hint?: string; loaded?: string; unavailable?: boolean }
 }
 
 /**
@@ -57,7 +66,7 @@ const readDisplay = (): DisplayInfo => {
   }
 }
 
-export const ControllerHud = ({ position }: Props) => {
+export const ControllerHud = ({ position, identity }: Props) => {
   const [visible, setVisible] = useState(import.meta.env.DEV)
   const [display, setDisplay] = useState<DisplayInfo>(readDisplay)
   /** Steam's own UI scale for this panel, when we are on Bazzite and can read it. */
@@ -172,6 +181,34 @@ export const ControllerHud = ({ position }: Props) => {
         )}
       </div>
       {position !== undefined && <div className="text-white/45">{position}</div>}
+      {identity?.appid !== undefined && (
+        <div className="mt-1">
+          <span className="text-white/45">appid </span>
+          <span className="text-sky-300">{identity.appid}</span>
+          {/*
+            ⚠️ The mismatch is the whole point. `hint` is the name captured when you
+            pressed A; `loaded` is what appdetails actually returned. When they disagree —
+            or when the hint is showing because nothing loaded — the page is wearing one
+            game's identity over another game's facts, and that is worth shouting about
+            rather than printing quietly.
+          */}
+          <span className="text-white/45"> · title </span>
+          <span
+            className={
+              identity.loaded === undefined
+                ? 'text-amber-400'
+                : identity.hint !== undefined && identity.hint !== identity.loaded
+                  ? 'text-red-400'
+                  : 'text-white/70'
+            }
+          >
+            {identity.loaded ?? `${identity.hint ?? '—'} (hint)`}
+          </span>
+          {identity.unavailable === true && (
+            <span className="text-amber-400"> · appdetails returned nothing</span>
+          )}
+        </div>
+      )}
       <div className="mt-1">received:</div>
       {log.length === 0 ? (
         <div className="text-amber-400">
