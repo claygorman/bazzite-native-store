@@ -7,6 +7,7 @@ import { ButtonLegend } from './components/ButtonLegend'
 import { TagPicker, TAG_GRID_COLS, type TagZone } from './components/TagPicker'
 import { UP_MENU, UpMenu, type UpMenuId } from './components/UpMenu'
 import { SettingsView, type SettingsFocus } from './components/SettingsView'
+import { useProtonDump } from './hooks/useProtonDump'
 import {
   SETTINGS_PAGES,
   pageIndexById,
@@ -598,20 +599,98 @@ export const App = () => {
    * would fail silently every time. The row stays focusable so the page still explains
    * itself; it just does not pretend the press will do something.
    */
+  const protonDump = useProtonDump()
+
+  /**
+   * The two ProtonDB rows' faces and descriptions, per turn 13a's six states.
+   *
+   * ⚠️ The DESCRIPTIONS carry the work here, not the labels. "Nothing to cancel — the
+   * download is already on disk" is what turns an inert button into an explained one,
+   * and "Your snapshot still works. Fetching is a choice, not a repair" is what stops
+   * a newer snapshot reading as a fault. A state that looks broken and is not costs
+   * more trust than one that is.
+   */
+  const protonActionLabel = useMemo(() => {
+    const { phase, snapshot, latest, downloaded, total } = protonDump.state
+    // ⚠️ Parenthesise the division. `Math.round(downloaded * 100) / total` rounds the
+    // wrong operand: the byte units cancel so the magnitude looks right, but the
+    // rounding lands before the divide and 62% renders as 62.121212121212125%. A bug
+    // that produces a plausible number is the kind that ships.
+    const pct =
+      total !== undefined && total > 0 ? `${Math.round(((downloaded ?? 0) / total) * 100)}%` : '…'
+    switch (phase) {
+      case 'unavailable':
+        return {
+          'proton-download': {
+            label: 'Unavailable',
+            desc: 'The report archive needs the desktop app — the browser build cannot index it',
+          },
+          'proton-check': { label: 'Unavailable', desc: '' },
+        }
+      case 'checking':
+        return {
+          'proton-download': { label: 'Download', desc: '' },
+          'proton-check': {
+            label: 'Checking…',
+            desc: 'Asking which snapshot is current — a few KB, no archive fetched',
+          },
+        }
+      case 'downloading':
+        return {
+          'proton-download': {
+            label: pct,
+            desc: `Fetching the ${latest ?? snapshot ?? 'newest'} snapshot`,
+          },
+          'proton-check': { label: 'Check', desc: '' },
+        }
+      case 'indexing':
+        return {
+          'proton-download': {
+            label: 'Indexing…',
+            desc: 'Nothing to cancel — the download is already on disk',
+          },
+          'proton-check': { label: 'Check', desc: '' },
+        }
+      case 'outdated':
+        return {
+          'proton-download': {
+            label: 'Download',
+            desc: 'Your snapshot still works. Fetching is a choice, not a repair',
+          },
+          'proton-check': {
+            label: 'Check',
+            desc: `You have ${snapshot ?? '—'} · ${latest ?? 'a newer one'} has been published`,
+          },
+        }
+      case 'ready':
+        return {
+          'proton-download': { label: 'Re-download', desc: `Built from the ${snapshot} snapshot` },
+          'proton-check': {
+            label: 'Check',
+            desc: 'Checking is cheap and separate; it never starts a download on its own',
+          },
+        }
+      default:
+        return {}
+    }
+  }, [protonDump.state])
+
   const updateActionLabel = useMemo(
     () => ({
-      'check-updates':
-        update.status === 'ready'
-          ? 'Restart'
-          : update.status === 'available'
-            ? 'Install'
-            : update.status === 'downloading'
-              ? 'Downloading'
-              : update.status === 'checking'
-                ? 'Checking'
-                : update.status === 'unconfigured' || update.status === 'unsupported'
-                  ? 'Unavailable'
-                  : 'Check',
+      'check-updates': {
+        label:
+          update.status === 'ready'
+            ? 'Restart'
+            : update.status === 'available'
+              ? 'Install'
+              : update.status === 'downloading'
+                ? 'Downloading'
+                : update.status === 'checking'
+                  ? 'Checking'
+                  : update.status === 'unconfigured' || update.status === 'unsupported'
+                    ? 'Unavailable'
+                    : 'Check',
+      },
     }),
     [update.status],
   )
@@ -651,6 +730,17 @@ export const App = () => {
           setUpdate({ status: 'checking' })
           void checkForUpdate(settings.updateChannel).then(setUpdate)
           return
+        /*
+         * ⚠️ Neither of these ever fires on its own. 66 MB unasked, on a metered
+         * connection, on a machine whose point is playing games, is not a decision
+         * this code gets to make — see turn 13a and `useProtonDump`.
+         */
+        case 'proton-download':
+          return protonDump.download()
+
+        case 'proton-check':
+          return protonDump.check()
+
         case 'clear-cache':
           void clearCache().then(() => status.refresh())
           return
@@ -1853,7 +1943,8 @@ export const App = () => {
               session={session}
               version={clientVersion}
               source={inputSource}
-              actionLabel={updateActionLabel}
+              actionLabel={{ ...updateActionLabel, ...protonActionLabel }}
+              dump={protonDump}
               onActivate={(col, row) => {
                 // ⚠️ `open: false` — clicking a different row must not leave the
                 // previous one's list open behind the new focus.

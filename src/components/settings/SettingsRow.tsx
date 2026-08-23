@@ -6,8 +6,14 @@ import { labelFor, optionsFor, type Settings } from '../../platform/settings'
 type Props = {
   row: Row
   settings: Settings
-  /** Overrides a button's face where the action's verb depends on state. */
-  actionLabel?: string
+  /**
+   * Overrides a button row's face and description where they depend on state.
+   *
+   * ⚠️ The description matters as much as the label. Turn 13a uses it to say why a
+   * button is inert — "Nothing to cancel — the download is already on disk" — which
+   * turns a dead control into an explained one.
+   */
+  action?: { label?: string; desc?: string }
   focused: boolean
   /** A has opened this stepper's list. Only ever true on the focused row. */
   open?: boolean
@@ -44,7 +50,7 @@ type Props = {
 export const SettingsRow = ({
   row,
   settings,
-  actionLabel,
+  action,
   focused,
   open = false,
   cursor,
@@ -95,7 +101,9 @@ export const SettingsRow = ({
         {row.label}
       </span>
       {/* The description IS the documentation — there is no help page behind it. */}
-      <span className="text-base font-medium leading-snug text-ink-faint">{row.desc}</span>
+      <span className="text-base font-medium leading-snug text-ink-faint">
+        {action?.desc ?? row.desc}
+      </span>
     </span>
 
     {row.kind === 'toggle' && <Toggle on={settings[row.key]} />}
@@ -113,7 +121,7 @@ export const SettingsRow = ({
 
     {row.kind === 'button' && (
       <span className="flex flex-none items-center rounded-full border border-hairline bg-chip-strong px-5 py-3 text-lg font-semibold text-ink">
-        {actionLabel ?? row.value}
+        {action?.label ?? row.value}
       </span>
     )}
   </button>

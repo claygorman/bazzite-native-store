@@ -8,6 +8,7 @@ import { healthSummary, type ServiceHealth } from '../platform/serviceHealth'
 import { describeUpdate, type UpdateState } from '../platform/updates'
 import { labelFor, type Settings } from '../platform/settings'
 import type { SystemStatus } from '../hooks/useSystemStatus'
+import type { DumpState } from '../platform/protonDump'
 import type { InputSource } from '../platform/glyphs'
 import type { SessionState } from '../platform/auth'
 
@@ -45,7 +46,18 @@ type Props = {
    * be two dead rows most of the time, which is what the doc means by "a button is an
    * action, not a state".
    */
-  actionLabel?: Partial<Record<RowAction, string>>
+  /**
+   * Per-action overrides for a button row's FACE and its description.
+   *
+   * ⚠️ The description is overridable because turn 13a makes the row copy do work that
+   * a static string cannot: "Nothing to cancel — the download is already on disk"
+   * while indexing, "Your snapshot still works. Fetching is a choice, not a repair"
+   * when a newer snapshot exists. Those sentences are the difference between a state
+   * reading as a fault and reading as a choice.
+   */
+  actionLabel?: Partial<Record<RowAction, { label?: string; desc?: string }>>
+  /** The ProtonDB snapshot's state, for the Compatibility card — turn 13a. */
+  dump: { state: DumpState }
   /** Clicking a row focuses it and fires it, so a mouse behaves like the dpad. */
   onActivate: (col: number, row: number) => void
 }
@@ -73,6 +85,7 @@ export const SettingsView = ({
   version,
   source,
   actionLabel,
+  dump,
   onActivate,
 }: Props) => {
   const page = SETTINGS_PAGES[focus.page] ?? SETTINGS_PAGES[0]!
@@ -175,6 +188,7 @@ export const SettingsView = ({
             status={status}
             update={update}
             version={version}
+            dump={dump}
           />
 
           {/*
@@ -232,7 +246,16 @@ const Column = ({
   title: string
   rows: SettingsPage['colA']['rows']
   settings: Settings
-  actionLabel?: Partial<Record<RowAction, string>>
+  /**
+   * Per-action overrides for a button row's FACE and its description.
+   *
+   * ⚠️ The description is overridable because turn 13a makes the row copy do work that
+   * a static string cannot: "Nothing to cancel — the download is already on disk"
+   * while indexing, "Your snapshot still works. Fetching is a choice, not a repair"
+   * when a newer snapshot exists. Those sentences are the difference between a state
+   * reading as a fault and reading as a choice.
+   */
+  actionLabel?: Partial<Record<RowAction, { label?: string; desc?: string }>>
   focusedRow: number
   openRow: boolean
   cursorRow?: number
@@ -246,7 +269,7 @@ const Column = ({
         key={row.kind === 'button' ? row.action : row.key}
         row={row}
         settings={settings}
-        actionLabel={row.kind === 'button' ? actionLabel?.[row.action] : undefined}
+        action={row.kind === 'button' ? actionLabel?.[row.action] : undefined}
         focused={i === focusedRow}
         open={i === focusedRow && openRow}
         cursor={cursorRow}
@@ -299,12 +322,15 @@ const PageStatus = ({
   status,
   update,
   version,
+  dump,
 }: {
   page: SettingsPage
   settings: Settings
   status: SystemStatus
   update: UpdateState
   version: string
+  /** The ProtonDB snapshot's state — turn 13a's six. */
+  dump: { state: DumpState }
 }) => {
   const { host, pad, cache, display, steamScale, ourScale, services, probing } = status
 
@@ -376,33 +402,94 @@ const PageStatus = ({
         />
       )
 
-    case 'compatibility':
+    case 'compatibility': {
+      /*
+       * Turn 13a's six states, in the card rather than in a row.
+       *
+       * ⚠️ Status belongs here because the ideology doc allows exactly four controls —
+       * toggle, dropdown, button, read-only value — and "downloading" is none of them.
+       * Putting it in a row would have invented a fifth control to say something the
+       * card already exists to say.
+       *
+       * ⚠️ `unavailable` and `absent` are DIFFERENT states and must stay so. "This
+       * build cannot" and "you have not fetched it" lead to different sentences and
+       * different buttons; merging them makes the browser build offer a Download that
+       * cannot work.
+       */
+      const d = dump.state
+      const bytes =
+        d.total === undefined
+          ? undefined
+          : `${formatBytes(d.downloaded ?? 0)} of ${formatBytes(d.total)}`
+      const card = {
+        unavailable: {
+          tone: 'info' as const,
+          pill: 'Not available in the browser build',
+          sub: 'The report archive needs the desktop app — reports come from the API one game at a time',
+        },
+        absent: {
+          tone: 'info' as const,
+          pill: 'Not downloaded',
+          sub: 'Reports come one game at a time from the API until you fetch a snapshot',
+        },
+        checking: {
+          tone: 'info' as const,
+          pill: 'Checking GitHub',
+          sub: 'Asking which snapshot is current. No download yet — this costs a few KB',
+        },
+        downloading: {
+          tone: 'info' as const,
+          pill: 'Downloading',
+          // ⚠️ Falls back to a byte count with no total. A missing `content-length`
+          // must read as indeterminate, never as a bar at an invented percentage.
+          sub: bytes ?? `${formatBytes(d.downloaded ?? 0)} so far`,
+        },
+        indexing: {
+          tone: 'info' as const,
+          pill: 'Indexing',
+          sub: 'Building the local database. Around 8 seconds; there is no progress to report inside it',
+        },
+        ready: {
+          tone: 'ok' as const,
+          pill: 'Up to date',
+          sub: d.snapshot
+            ? `Built from the ${d.snapshot} snapshot`
+            : 'Built from the local snapshot',
+        },
+        outdated: {
+          tone: 'warn' as const,
+          pill: 'Newer snapshot available',
+          sub: `You have ${d.snapshot ?? '—'} · ${d.latest ?? 'a newer one'} has been published`,
+        },
+      }[d.phase]
+
+      const dash = '—'
       return (
         <StatusCard
-          tone="info"
-          pill={
-            settings.deckFloor === 'all' && !settings.hideUnrated
-              ? 'Showing everything'
-              : `Filtered to ${labelFor('deckFloor', settings.deckFloor).toLowerCase()}`
-          }
-          sub="Verdicts come from Valve and apply to every list in the app"
+          tone={card.tone}
+          pill={card.pill}
+          sub={card.sub}
           stats={[
-            { label: 'GPU', value: host.gpu ?? '' },
-            { label: 'Kernel', value: host.kernel ?? '' },
-            {
-              label: 'Shown',
-              value:
-                [settings.protonRatings && 'ProtonDB', settings.deckVerified && 'Deck']
-                  .filter(Boolean)
-                  .join(' + ') || 'Neither',
-            },
+            { label: 'Snapshot', value: d.snapshot ?? dash },
+            { label: 'Reports', value: d.reports?.toLocaleString('en-US') ?? dash },
+            { label: 'Games', value: d.games?.toLocaleString('en-US') ?? dash },
             {
               label: 'Ratings cached',
-              value: cache.byHost.protondb ? formatBytes(cache.byHost.protondb) : '',
+              value: cache.byHost.protondb ? formatBytes(cache.byHost.protondb) : dash,
             },
           ]}
-        />
+        >
+          {d.phase === 'downloading' && d.total !== undefined && (
+            <span className="block h-1.5 w-full overflow-hidden rounded-sm bg-chip">
+              <span
+                className="block h-1.5 rounded-sm bg-focus transition-[width] duration-200"
+                style={{ width: `${Math.round(((d.downloaded ?? 0) / d.total) * 100)}%` }}
+              />
+            </span>
+          )}
+        </StatusCard>
       )
+    }
 
     case 'downloads': {
       const segments = Object.entries(cache.byHost)

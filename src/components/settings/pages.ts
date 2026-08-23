@@ -43,6 +43,8 @@ export type RowAction =
   | 'clear-cache'
   | 'refresh-ratings'
   | 'run-diagnostics'
+  | 'proton-download'
+  | 'proton-check'
   | 'copy-diagnostics'
   | 'open-docs'
   | 'reset-all'
@@ -194,6 +196,29 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
     colB: {
       title: 'Data sources',
       rows: [
+        /*
+         * ⚠️ TWO buttons, not one — design turn 13a, and the separation is the point.
+         * Checking costs a few KB; downloading costs 66 MB. A single control whose
+         * meaning depends on hidden state is the thing you can least afford at ten
+         * feet, because the press that checks and the press that spends your
+         * bandwidth would look identical.
+         *
+         * Their descriptions are overridden per state from App.tsx — see the
+         * `actionLabel` map — so the row can explain why it is inert rather than just
+         * being inert.
+         */
+        button(
+          'proton-download',
+          'Local report archive',
+          '326,212 reports over 31,587 games, indexed on this machine. 66 MB once, not per game',
+          'Download',
+        ),
+        button(
+          'proton-check',
+          'Check for a newer snapshot',
+          'Asking which snapshot is current — a few KB, no archive fetched',
+          'Check',
+        ),
         toggle('protonRatings', 'ProtonDB ratings', 'Community tiers and the coloured dots'),
         toggle(
           'deckVerified',
