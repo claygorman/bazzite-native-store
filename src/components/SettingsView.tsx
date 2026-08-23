@@ -1,9 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Prompt } from './ButtonLegend'
 import { SettingsRow } from './settings/SettingsRow'
 import { CacheBars, ServiceList, StatusCard, type StatusTone } from './settings/StatusCard'
 import { SETTINGS_PAGES, type RowAction, type SettingsPage } from './settings/pages'
 import { formatAge, formatBytes } from '../platform/systemInfo'
+import { debugLogPath } from '../platform/debugLog'
 import { healthSummary, type ServiceHealth } from '../platform/serviceHealth'
 import { describeUpdate, type UpdateState } from '../platform/updates'
 import { labelFor, type Settings } from '../platform/settings'
@@ -336,6 +337,20 @@ const PageStatus = ({
 }) => {
   const { host, pad, cache, display, steamScale, ourScale, services, probing } = status
 
+  /*
+   * Where the debug log actually landed.
+   *
+   * ⚠️ Asked of Rust rather than assembled here. The path comes from `app_log_dir()`,
+   * which differs between a Flatpak (~/.var/app/<id>/…) and a plain install — printing a
+   * guessed path would be worse than printing none, because someone would tail it, find
+   * nothing, and conclude logging was broken.
+   */
+  const [logPath, setLogPath] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    if (!settings.debugLogging) return
+    void debugLogPath().then(setLogPath)
+  }, [settings.debugLogging])
+
   switch (page.id) {
     case 'updates':
       return (
@@ -559,7 +574,26 @@ const PageStatus = ({
         <StatusCard
           tone="info"
           pill={`Bazzite Store ${version}`}
-          sub={host.os}
+          /*
+           * ⚠️ The debug destinations belong HERE because the Network toggles point at
+           * them — "see About for the path" was written on that row before this card
+           * showed one, which made the row's own description a promise the UI did not
+           * keep. A switch that describes something you cannot then find is the same
+           * class of problem as a switch that does nothing.
+           *
+           * Shown only while something is on, so About stays about the install rather
+           * than growing two permanent rows nobody uses.
+           */
+          sub={
+            settings.debugLogging || settings.debugServer
+              ? [
+                  settings.debugLogging && logPath ? `log: ${logPath}` : '',
+                  settings.debugServer ? 'channel: http://127.0.0.1:8555' : '',
+                ]
+                  .filter(Boolean)
+                  .join('  ·  ')
+              : host.os
+          }
           stats={[
             { label: 'CPU', value: host.cpu ?? '' },
             { label: 'GPU', value: host.gpu ?? '' },

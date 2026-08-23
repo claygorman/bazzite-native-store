@@ -169,6 +169,55 @@ cargo test --manifest-path src-tauri/Cargo.toml
 The browser build is a faithful preview — same components, same data, and a gamepad works through
 the browser Gamepad API. Only the desktop-only paths differ.
 
+## Debugging on the box
+
+Both off by default, both on **Settings → Network**, and the paths and ports appear on
+**Settings → About** once either is on.
+
+⚠️ These exist because the app is launched by Steam as a non-Steam shortcut in Game Mode,
+so `stdout` and `console.log` go somewhere nobody is watching — invisible exactly when the
+box is the only place a bug reproduces.
+
+### Press F2 first
+
+The debug HUD is bound to **F2** (⊟ View on a pad) and needs no setup at all. On a game
+page it prints which appid the page holds and where its title came from:
+
+```
+appid 1332010 · title How to Fish (hint) · appdetails returned nothing
+```
+
+Amber means the title is only a hint, because nothing loaded. **Red means the hint and the
+loaded name disagree** — the page is wearing one game's identity over another game's
+prices. A screenshot cannot tell that apart from a slow load; this can.
+
+### Debug logging
+
+Writes every request that actually left the machine (host, path, ms, error) and every
+view/focus transition. Capped at 4 MB. The path is on About — it differs between a Flatpak
+and a plain install, so read it there rather than guessing.
+
+### Debug control channel
+
+Binds `127.0.0.1:8555`:
+
+```sh
+ssh -N -L 8555:127.0.0.1:8555 <user>@<box>
+curl -s localhost:8555/state | jq          # what the app believes right now
+curl -s localhost:8555/log                 # tail of the log file
+curl -s -X POST localhost:8555/action -d '{"action":"down"}'
+```
+
+`/action` is why it exists: reading state says what went wrong, injecting input lets a
+script **reproduce** it rather than asking someone to press buttons and describe the result.
+
+⚠️ Loopback only — never bound to `0.0.0.0`, so reaching it from another machine takes a
+tunnel someone deliberately opened. It refuses everything while the toggle is off, and no
+endpoint can spend money: `/action` drives the UI, and A on a store page is a `steam://`
+handoff that Steam still confirms.
+
+⚠️ Port 8555, not 8080 — Steam's own CEF debugger holds 8080 on Bazzite.
+
 ## How it works
 
 **Tauri v2 + React + TypeScript + Tailwind v4.** A ~10 MB binary instead of a bundled browser, on a
