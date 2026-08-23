@@ -372,6 +372,24 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.version }}
 
+      # ⚠️ Belt and braces on the version label. The metainfo is committed by
+      # semantic-release now, but this job is the last place the value can still be
+      # wrong and the only place it is observable — `flatpak info` reads it, and a
+      # wrong answer there sends people chasing a phantom "the update did not install".
+      # Re-syncing costs nothing; the assertion is what actually protects it.
+      - name: The metainfo announces THIS release
+        run: |
+          set -euo pipefail
+          node scripts/sync-version.mjs "${{ needs.release.outputs.version }}"
+          announced=$(grep -o '<release version="[^"]*"' \
+            flatpak/com.claygorman.bazzite-store.metainfo.xml | tail -1 |
+            sed 's/.*version="\([^"]*\)".*/\1/')
+          if [ "$announced" != "${{ needs.release.outputs.version }}" ]; then
+            echo "::error::metainfo says $announced, release is ${{ needs.release.outputs.version }}"
+            exit 1
+          fi
+          echo "metainfo announces $announced"
+
       # ⚠️ The manifest pins org.gnome.Platform 50, which the builder image may not
       # already carry. Installing it explicitly means a stale image degrades to a slower
       # build rather than to a confusing "runtime not found".

@@ -83,12 +83,33 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 `actions/checkout@v7` therefore builds `main` as it was *before* that commit.
 
 The `flatpak` job did exactly that until 2026-08-23, so the Flatpak of release N was built
-from a different tree than its own AppImage and reported N−1 — the box showed **0.5.2 while
-running 0.6.0 code**, because `__APP_VERSION__` comes from `package.json` at Vite build
-time.
+from a different tree than its own AppImage. Every build job needs
+`ref: ${{ needs.release.outputs.version }}`. It is easy to miss when adding a job, and the
+symptom is a wrong version string rather than a failure.
 
-Every build job needs `ref: ${{ needs.release.outputs.version }}`. It is easy to miss when
-adding a job, and the symptom is a wrong version string rather than a failure.
+### ⚠️ …and that was NOT why `flatpak info` read 0.5.2
+
+This section originally blamed the checkout for the box reporting **0.5.2 while running
+0.8.0 code**. It was a real bug and a *different* one, and fixing it did not move the
+number — which is the only reason the actual cause was ever found.
+
+`flatpak info` reads its version from the **AppStream metainfo**, not from
+`package.json`. `scripts/sync-version.mjs` rewrites that file during semantic-release's
+`prepare`, but `flatpak/com.claygorman.bazzite-store.metainfo.xml` **was not in
+`@semantic-release/git`'s `assets` list**. A file the git plugin does not commit is a file
+the tag does not carry — so the flatpak job checked out the tag exactly as it should and
+faithfully built the stale placeholder, release after release.
+
+Two guards now, because this failed silently for four releases:
+
+- the metainfo is in the `assets` list, so the tag carries the right value;
+- the flatpak job re-runs `sync-version.mjs` and **fails the build** if the metainfo does
+  not announce the release being built.
+
+The general lesson is worth more than the fix: **a version file is only synced if it is
+also committed.** A Tauri Flatpak carries its version in *four* places — `package.json`,
+`tauri.conf.json`, `Cargo.toml` and the metainfo — and the fourth is the only one a user
+ever sees in `flatpak info`.
 
 ---
 

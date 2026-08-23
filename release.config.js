@@ -69,6 +69,15 @@ export default {
           'src-tauri/tauri.conf.json',
           'src-tauri/Cargo.toml',
           'src-tauri/Cargo.lock',
+          /*
+           * ⚠️ The one that was missing, and the real reason the box read 0.5.2 while
+           * running 0.8.0 code. `sync-version.mjs` rewrites this file in `prepare`, but
+           * a file the git plugin does not COMMIT is a file the tag does not carry — so
+           * the flatpak job, checking out that tag exactly as it should, built the stale
+           * placeholder every time. The checkout fix in 0.6.1 was a real bug and a
+           * different one; it could never have fixed this.
+           */
+          'flatpak/com.claygorman.bazzite-store.metainfo.xml',
         ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
