@@ -1,3 +1,10 @@
+## [0.10.1](https://github.com/claygorman/bazzite-native-store/compare/0.10.0...0.10.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* a failed install no longer deletes the update it failed to install ([366736f](https://github.com/claygorman/bazzite-native-store/commit/366736fbb2aa79bb06641e6af69ba202b3675696))
+
 # [0.10.0](https://github.com/claygorman/bazzite-native-store/compare/0.9.3...0.10.0) (2026-08-23)
 
 
