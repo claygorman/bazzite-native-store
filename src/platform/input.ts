@@ -131,8 +131,15 @@ const makeEmitter = (listener: InputListener) => {
   }
 }
 
-const subscribeKeyboard = (listener: InputListener): (() => void) => {
-  const emit = makeEmitter(listener)
+const subscribeKeyboard = (
+  listener: InputListener,
+  /**
+   * An emitter to SHARE with another source, when one physical control can reach this
+   * app down two paths at once. Omitted, the keyboard gets its own as before.
+   */
+  shared?: ReturnType<typeof makeEmitter>,
+): (() => void) => {
+  const emit = shared ?? makeEmitter(listener)
 
   const onKeyDown = (e: KeyboardEvent) => {
     // Belt and braces. The capture listener normally stops these before they get
@@ -200,21 +207,40 @@ const subscribeTauri = (listener: InputListener): (() => void) => {
   let unlisten: (() => void) | undefined
   let cancelled = false
 
+  /*
+   * ⚠️ ONE edge detector shared by gilrs and the keyboard, and this is the fix for the
+   * dpad moving twice per press.
+   *
+   * Measured on the box with an 8BitDo Ultimate: one physical press, two moves — while
+   * the left stick moved once. The pad's receiver exposes PHANTOM KEYBOARD AND MOUSE
+   * interfaces beside the gamepad (the repo's own udev rules document this: "iface 1.1
+   * phantom keyboard + mouse, 8BitDo macro feature"), so a dpad press arrives twice: once
+   * as a gilrs button, once as an arrow key in the webview. The stick has no keyboard
+   * equivalent, which is exactly why it did not double — that asymmetry is the tell.
+   *
+   * Sharing the emitter makes the second arrival a no-op, because `makeEmitter` already
+   * swallows a press for an action it believes is held. It fixes the class rather than
+   * this pad: any device that reports one control down two paths now counts once.
+   *
+   * ⚠️ Do NOT "fix" this by dropping keyboard input when a pad is connected. The
+   * keyboard is what keeps the app drivable over SSH when Steam Input has handed us a
+   * virtual pad that emits nothing (private/BAZZITE-NOTES.md §1).
+   */
+  const shared = makeEmitter(listener)
+
   void (async () => {
     const { listen } = await import('@tauri-apps/api/event')
     const stop = await listen<{ action: InputAction; pressed: boolean }>(
       'input://action',
-      (event) => listener({ ...event.payload, source: 'gamepad' }),
+      (event) => shared(event.payload.action, event.payload.pressed, 'gamepad'),
     )
     if (cancelled) stop()
     else unlisten = stop
   })()
 
-  // Keyboard stays live here too: it costs nothing and keeps the app drivable over
-  // SSH when Steam Input has not handed us a usable pad (private/BAZZITE-NOTES.md §1).
   // The browser gamepad poll is deliberately NOT started — gilrs is the only pad
   // source in this build.
-  const stopKeys = subscribeKeyboard(listener)
+  const stopKeys = subscribeKeyboard(listener, shared)
 
   return () => {
     cancelled = true

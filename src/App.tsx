@@ -109,7 +109,24 @@ type View =
   // `from` is a one-level back-stack: B unwinds detail pages, then returns to
   // wherever the page was opened from. Without it, opening a game from search and
   // pressing B dumps you on the home screen having lost the query.
-  | { screen: 'details'; appid: number; page: number; from: 'home' | 'search' }
+  /**
+   * `hint` is the name and art of the game we BELIEVE we are opening, captured at the
+   * moment of the press.
+   *
+   * ⚠️ It exists because the fallbacks used to come from the home shelf's focused tile,
+   * which has nothing to do with which game this page is showing. That is invisible
+   * while `appdetails` succeeds — the real name wins — and catastrophic when it fails:
+   * the page then renders one game's NAME and ART above another game's price,
+   * compatibility and bundles. Seen on the box: Stray opened as "How to Fish" with
+   * Stray's 470 ProtonDB reports and Stray's soundtrack bundle under it.
+   */
+  | {
+      screen: 'details'
+      appid: number
+      page: number
+      from: 'home' | 'search'
+      hint?: { name?: string; art?: string }
+    }
   | { screen: 'search' }
   /**
    * 14b — a bundle's own page, `/bundle/<id>` rendered here rather than in Steam.
@@ -930,10 +947,10 @@ export const App = () => {
     void fetchAllTags().then(setAllTags)
   }, [view.screen, allTags.length])
 
-  const openDetails = useCallback((appid: number) => {
+  const openDetails = useCallback((appid: number, hint?: { name?: string; art?: string }) => {
     setDetailZone('media')
     setMediaIndex(0)
-    setView({ screen: 'details', appid, page: 0, from: 'home' })
+    setView({ screen: 'details', appid, page: 0, from: 'home', hint })
   }, [])
 
   /**
@@ -958,7 +975,7 @@ export const App = () => {
       }
       const item = col !== undefined ? offer.items[col] : undefined
       if (item) {
-        openDetails(item.appid)
+        openDetails(item.appid, { name: item.name, art: item.capsuleUrl })
       } else if (offer.bundleid !== undefined) {
         setView({
           screen: 'bundle',
@@ -1045,6 +1062,7 @@ export const App = () => {
                   appid: item.appid,
                   page: 0,
                   from: 'search',
+                  hint: { name: item.name, art: item.capsuleUrl },
                 })
               }
               return
@@ -1376,7 +1394,7 @@ export const App = () => {
           }
           case 'accept': {
             const item = wishlist.items[wishlistFocus]
-            if (item) openDetails(item.appid)
+            if (item) openDetails(item.appid, { name: item.name, art: item.capsuleUrl })
             return
           }
           default:
@@ -1501,7 +1519,7 @@ export const App = () => {
               return
             case 'accept': {
               const game = spotlights[spotlightIndex % spotlights.length]
-              if (game) openDetails(game.appid)
+              if (game) openDetails(game.appid, { name: game.name, art: game.capsuleUrl })
               return
             }
             default:
@@ -1572,7 +1590,7 @@ export const App = () => {
             return // one row of five; there is nothing below it
           case 'accept': {
             const item = tagBrowse.items[tagFocus]
-            if (item) openDetails(item.appid)
+            if (item) openDetails(item.appid, { name: item.name, art: item.capsuleUrl })
             return
           }
           default:
@@ -1605,7 +1623,10 @@ export const App = () => {
         }
         if (action === 'accept') {
           const appid = cards[bundleIndex]
-          if (appid !== undefined) openDetails(appid)
+          if (appid !== undefined) {
+            const facts = bundle.facts.get(appid)
+            openDetails(appid, { name: facts?.name, art: facts?.headerUrl })
+          }
           return
         }
         if (action === 'secondary') {
@@ -1620,7 +1641,15 @@ export const App = () => {
            * at a bundle's contents and then keep shopping.
            */
           setDetailZone('offers')
-          setView({ screen: 'details', appid: view.appid, page: 0, from: view.from })
+          setView({
+            screen: 'details',
+            appid: view.appid,
+            page: 0,
+            from: view.from,
+            // ⚠️ No hint: we are returning to a page whose details are already loaded,
+            // and inventing one from the bundle we just left would be the same
+            // wrong-identity bug in the opposite direction.
+          })
           return
         }
         return
@@ -1878,7 +1907,7 @@ export const App = () => {
             focusItem({ row: focus.row, col: 0 })
           } else {
             const game = calendar?.days[expandedDay]?.games[focus.col]
-            if (game) openDetails(game.appid)
+            if (game) openDetails(game.appid, { name: game.name, art: game.capsuleUrl })
           }
           return
         }
@@ -1892,7 +1921,7 @@ export const App = () => {
 
       if (onRecommendedRow && action === 'accept') {
         const game = calendar?.recommended[focus.col]
-        if (game) openDetails(game.appid)
+        if (game) openDetails(game.appid, { name: game.name, art: game.capsuleUrl })
         return
       }
 
@@ -1907,6 +1936,7 @@ export const App = () => {
             appid: focusedItem.appid,
             page: 0,
             from: 'home',
+            hint: { name: focusedItem.name, art: focusedItem.capsuleUrl },
           })
         }
         return
@@ -2313,7 +2343,10 @@ export const App = () => {
               // card that was clicked rather than from wherever the cursor had been.
               setBundleIndex(cardIndex)
               const appid = bundle.bundle?.appids[cardIndex]
-              if (appid !== undefined) openDetails(appid)
+              if (appid !== undefined) {
+                const facts = bundle.facts.get(appid)
+                openDetails(appid, { name: facts?.name, art: facts?.headerUrl })
+              }
             }}
             source={inputSource}
           />
@@ -2326,8 +2359,8 @@ export const App = () => {
               state={detailsState}
               proton={proton}
               preview={preview}
-              fallbackArt={focusedItem?.capsuleUrl}
-              fallbackName={focusedItem?.name}
+              fallbackArt={view.hint?.art}
+              fallbackName={view.hint?.name}
               screen={view.page}
               zone={detailZone}
               offers={offers}
