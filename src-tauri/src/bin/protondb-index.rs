@@ -6,6 +6,10 @@
 //! in two places and let them drift. `protondb.rs` never depended on Tauri, so it can
 //! simply be run here instead.
 //!
+//! The demo site already runs a server rather than serving static files, so this ships
+//! in the same image and writes the SQLite database the Node side reads through its
+//! built-in `node:sqlite`. One implementation, one store, two readers.
+//!
 //! There is also a hard reason not to do it in Node: the current snapshot expands to
 //! **491 MB of JSON**, and V8 caps a single string at 512 MB. `JSON.parse` on the whole
 //! file is already within 4% of throwing `RangeError: Invalid string length`, and the
@@ -53,14 +57,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let started = std::time::Instant::now();
     let records = bazzite_store_lib::protondb::parse_archive(&bytes)?;
     let parsed = started.elapsed();
-    let index = bazzite_store_lib::protondb::build_index(records, &out, &name)?;
+    let inserted = bazzite_store_lib::protondb::build_index(records, &out, &name)?;
+    let status = bazzite_store_lib::protondb::index_status(&out);
 
     println!(
         "{}",
         serde_json::json!({
             "snapshot": name,
-            "games": index.spans.len(),
-            "blobBytes": index.blob_len,
+            "games": status["games"],
+            "reports": inserted,
             "parseSeconds": parsed.as_secs_f64().round(),
             "totalSeconds": started.elapsed().as_secs_f64().round(),
         })

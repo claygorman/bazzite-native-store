@@ -39,6 +39,12 @@ serde_urlencoded = "0.7"
 # archive has to be decompressed and untarred here.
 flate2 = "1"
 tar = "0.4"
+# ⚠️ `bundled` compiles SQLite into the binary rather than linking whatever the host
+# ships. Costs ~1.5 MB and a C compiler at build time (the toolchain already needs one),
+# and buys the guarantee that the desktop app, CI and a Bazzite image are all running
+# the SAME SQLite — on an immutable ostree the system copy is outside our control, and
+# a version skew there would only surface on the target hardware.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [dev-dependencies]
 # The live CEF test is async; the app itself never needs the macros.
