@@ -1,5 +1,6 @@
 import { TIER_STYLE } from '../platform/protondb'
 import { formatPrice } from '../types/steam'
+import { appDetailsLikelyThrottled } from '../platform/steam'
 import type { InputSource } from '../platform/glyphs'
 import { ControllerGlyph } from './ControllerGlyph'
 import type { ProtonState } from '../hooks/useProtonRating'
@@ -224,7 +225,15 @@ export const DetailsPage = ({
         <motion.div
           key="overview-text"
           {...PAGE_ENTER}
-          className="absolute left-14 top-24 flex w-205 flex-col gap-3.5"
+          /*
+            ⚠️ Lifted and faded rather than unmounted when the offers take focus. Removing
+            it would reflow the page under the cursor and cost the entry animation on the
+            way back; moving it keeps the two halves of Overview feeling like one page you
+            scrolled rather than two screens that swapped.
+          */
+          className={`absolute left-14 top-24 flex w-205 flex-col gap-3.5 transition-all duration-200 ease-out ${
+            zone === 'offers' ? 'pointer-events-none -translate-y-6 opacity-0' : ''
+          }`}
         >
           {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
             overflow:hidden, which clips a text-shadow into a hard rectangle. A
@@ -245,8 +254,17 @@ export const DetailsPage = ({
             // success:false — age-gated or delisted, and the response cannot tell us
             // which. Say what we know rather than rendering an empty page.
             <p className="max-w-175 text-xl leading-relaxed text-amber-300/80">
-              Steam returned no details for this app. It is either age-gated or no longer listed —
-              the store API does not distinguish the two.
+              {/*
+                ⚠️ Rate limiting is named FIRST because it is the likeliest cause and the
+                only reversible one. Steam answers `success: false` at HTTP 200 both when
+                an app is genuinely gone and when it is simply refusing us — and this app
+                spends that budget itself, one request per tile you rest on. Accusing the
+                game of being delisted when the truth is "come back in five minutes" sent
+                a real investigation down the wrong path.
+              */}
+              {appDetailsLikelyThrottled()
+                ? 'Steam is rate-limiting this client, so it returned no details. Browsing many games quickly spends its budget — this usually clears within a few minutes.'
+                : 'Steam returned no details for this app. It may be rate-limiting us, age-gated, or no longer listed — the store API answers all three the same way.'}
             </p>
           ) : (
             <p className="max-w-175 text-xl leading-[1.45] text-ink-2/80">

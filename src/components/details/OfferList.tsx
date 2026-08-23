@@ -32,7 +32,19 @@ import type { InputSource } from '../../platform/glyphs'
  * of a 67.5rem viewport, at every scale the rem clamp produces; the button tray starts
  * at 6rem from the bottom. So this is the free space, not a guess.
  */
-const BAND = 'absolute inset-x-14 bottom-24 top-[35.5rem] overflow-hidden'
+/**
+ * Resting, the block sits under the hero and the gallery — "a new row below the current
+ * top two sections".
+ *
+ * ⚠️ Focused, it takes the page. The first version kept the band fixed and slid the list
+ * inside it, which meant four offers scrolled within an 18rem window while two thirds of
+ * the screen sat still — the content moved under a frame that did not, which reads as a
+ * widget rather than as a page. Moving the PAGE instead is what Clay asked for and is the
+ * better answer: the hero lifts away, the offers get the height they need, and nothing has
+ * to scroll inside anything.
+ */
+const BAND_REST = 'absolute inset-x-14 bottom-24 top-[35.5rem]'
+const BAND_FOCUSED = 'absolute inset-x-14 bottom-24 top-25'
 
 type Props = {
   offers: Offer[]
@@ -185,9 +197,11 @@ export const OfferList = ({
     })
   }, [row, offers.length, loading])
 
+  const band = `${focused ? BAND_FOCUSED : BAND_REST} transition-[top] duration-200 ease-out`
+
   if (loading) {
     return (
-      <div className={`${BAND} flex flex-col gap-4`}>
+      <div className={`${band} flex flex-col gap-4`}>
         <div className="h-8 w-72 animate-pulse rounded-md bg-chip" />
         <div className="h-28 animate-pulse rounded-xl bg-chip-soft" />
       </div>
@@ -195,7 +209,7 @@ export const OfferList = ({
   }
 
   return (
-    <div className={`${BAND} flex flex-col gap-4`}>
+    <div className={`${band} flex flex-col gap-4`}>
       <div className="flex items-baseline gap-4.5">
         <h2 className="text-3xl font-extrabold tracking-display text-ink">
           Editions &amp; bundles
@@ -214,6 +228,12 @@ export const OfferList = ({
         gallery's filmstrip slides horizontally. Shrinking the rows to fit instead would
         put 184x86 capsules and their labels below what reads at ten feet, which is the
         one thing this design cannot trade away.
+      */}
+      {/*
+        ⚠️ Still clips, but now only as a safety net. With the page lifted there is room
+        for four offers, and the translate below stays for the game that has eight — a
+        list that silently runs off the bottom of a television is worse than one that
+        slides.
       */}
       <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div

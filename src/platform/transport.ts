@@ -185,6 +185,32 @@ export const steamGet = (req: SteamRequest): Promise<unknown> => {
   return request
 }
 
+/**
+ * Drop a cached response the CALLER has judged useless.
+ *
+ * ⚠️ The transport cannot make this judgement itself. Steam refuses inside a 200 —
+ * `appdetails` answers `{"success": false}` when rate-limited, roughly 200 requests per
+ * five minutes per IP — and to every layer below the parser that is a normal, cacheable
+ * success. With appdetails on a six-hour TTL, one throttled moment renders a perfectly
+ * ordinary game as "age-gated or no longer listed" for the rest of the day.
+ *
+ * Clears BOTH caches. The memory map alone is not enough: the Tauri backend keeps its own
+ * copy on disk, so a page reload would serve the same refusal straight back.
+ */
+export const forgetSteam = (req: SteamRequest): void => {
+  cache.delete(cacheKey(req))
+  if (!isTauri()) return
+  void import('@tauri-apps/api/core')
+    .then(({ invoke }) =>
+      invoke('steam_forget', {
+        host: req.host,
+        path: req.path,
+        query: Object.fromEntries(Object.entries(req.query ?? {}).map(([k, v]) => [k, String(v)])),
+      }),
+    )
+    .catch(() => undefined)
+}
+
 /** Test/debug helper — not used by the app. */
 export const clearSteamCache = (): void => {
   cache.clear()

@@ -146,6 +146,20 @@ pub async fn get(
 
 /* ─────────────────────────── the cache, as a fact ─────────────────────────── */
 
+/// Drop one cached response.
+///
+/// ⚠️ Exists because Steam refuses INSIDE a 200. `appdetails` answers
+/// `{"success": false}` when it is rate-limited — roughly 200 requests per five minutes
+/// per IP — and that body is a perfectly cacheable HTTP success. With a six-hour TTL, one
+/// throttled moment turns into "this game is age-gated or delisted" for the rest of the
+/// day, on a game that is neither.
+///
+/// The caller is the only layer that can tell a refusal from an answer, so it gets a way
+/// to say "do not keep that one".
+pub fn forget(dir: &Path, host: &str, path: &str, query: &HashMap<String, String>) {
+    let _ = std::fs::remove_file(dir.join(cache_key(host, path, query)));
+}
+
 /// What the cache weighs, for the Downloads page's status card.
 ///
 /// ⚠️ Measured, not tracked. A running counter would have to survive restarts and

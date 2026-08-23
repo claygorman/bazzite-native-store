@@ -36,6 +36,18 @@ async fn steam_get(
     .map_err(|e| e.to_string())
 }
 
+/// Forget one cached Steam response — see `steam::forget`.
+#[tauri::command]
+fn steam_forget(
+    app: tauri::AppHandle,
+    host: String,
+    path: String,
+    query: HashMap<String, String>,
+) -> Result<(), String> {
+    steam::forget(&cache_dir(&app)?, &host, &path, &query);
+    Ok(())
+}
+
 /// One game's ProtonDB reports, read from the local index.
 ///
 /// Empty is a normal answer — the game may have no reports, or the index may not have
@@ -207,6 +219,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             steam_get,
+            steam_forget,
             cache_stats,
             cache_clear,
             updater_configured,

@@ -1,4 +1,4 @@
-import { steamGet } from './transport'
+import { forgetSteam, steamGet } from './transport'
 import { logEmpty } from './debugLog'
 import { isAdultContent } from './contentFilter'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
@@ -273,20 +273,60 @@ const asStringArray = (value: unknown, key: string): string[] =>
  * data, and so does a delisted app — you cannot tell which from here
  * (private/STEAM-URL-REFERENCE.md §2). Both surface as `undefined`.
  */
+/**
+ * How recently `/api/appdetails` refused us, and why that matters.
+ *
+ * ⚠️ `fetchMicrotrailer` calls the SAME endpoint, once per tile you rest on while
+ * browsing. Steam allows roughly 200 requests per five minutes per IP, so a few minutes
+ * of scrolling shelves can spend the budget — and then the details page's own call is
+ * refused with `success: false` at HTTP 200, which we were rendering as "age-gated or no
+ * longer listed" on games that are neither.
+ *
+ * ⚠️ Recording it does not fix it; the app still needs to stop spending the budget so
+ * freely. What it buys is an honest message and a log line that names the real suspect,
+ * instead of a confident accusation against the game.
+ */
+let lastRefusalAt = 0
+
+const noteAppDetailsRefusal = (): void => {
+  lastRefusalAt = Date.now()
+}
+
+/** True while a refusal is recent enough that throttling is the better explanation. */
+export const appDetailsLikelyThrottled = (): boolean => Date.now() - lastRefusalAt < 300_000
+
 export const fetchAppDetails = async (appid: number): Promise<AppDetails | undefined> => {
-  const json = await steamGet({
-    host: 'store',
+  const request = {
+    host: 'store' as const,
     path: '/api/appdetails',
     query: { appids: appid, ...STORE_LOCALE },
     ttlSeconds: 21_600,
-  })
+  }
+  const json = await steamGet(request)
 
   const entry = asRecord(asRecord(json)?.[String(appid)])
   if (!entry || entry.success !== true) {
-    // ⚠️ HTTP 200 with `success: false` — age-gated, delisted, or region-blocked, and the
-    // response cannot tell us which. This is the line that explains a details page
-    // reading "Steam returned no details for this app".
-    logEmpty('appdetails', { appid, success: entry?.success ?? null })
+    /*
+     * ⚠️ `success: false` is NOT only "age-gated or delisted". Steam answers exactly
+     * this when it is rate-limiting — roughly 200 requests per five minutes per IP — and
+     * it does so with HTTP 200, so nothing below the parser can tell the two apart.
+     *
+     * ⚠️ Which makes caching it actively harmful. On a six-hour TTL one throttled moment
+     * renders an ordinary game as permanently unavailable, and reloading does not help
+     * because the Tauri backend kept its own copy on disk. Stray, a game on the front
+     * page of the store, read "age-gated or no longer listed" for exactly this reason.
+     *
+     * So forget it and let the next visit ask again.
+     */
+    forgetSteam(request)
+    logEmpty('appdetails', {
+      appid,
+      success: entry?.success ?? null,
+      cached: 'evicted',
+      // ⚠️ The most likely cause, and the one the UI used to hide. See noteAppDetailsRefusal.
+      likely: 'rate-limited or age-gated — Steam does not say which',
+    })
+    noteAppDetailsRefusal()
     return undefined
   }
 
