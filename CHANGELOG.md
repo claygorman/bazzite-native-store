@@ -1,3 +1,15 @@
+# [0.5.0](https://github.com/claygorman/bazzite-native-store/compare/0.4.1...0.5.0) (2026-08-23)
+
+
+### Bug Fixes
+
+* verify the Windows installer too, and correct the EGL record ([68d0eca](https://github.com/claygorman/bazzite-native-store/commit/68d0eca8b04e2b8b1e6f264c7a5272d5a3e5a3a7))
+
+
+### Features
+
+* ship Linux as a Flatpak ([0921419](https://github.com/claygorman/bazzite-native-store/commit/0921419cc05d2e3c37fd2856791efec7251952d8))
+
 ## [0.4.1](https://github.com/claygorman/bazzite-native-store/compare/0.4.0...0.4.1) (2026-08-23)
 
 
