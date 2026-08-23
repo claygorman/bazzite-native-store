@@ -1,3 +1,20 @@
+## [0.6.1](https://github.com/claygorman/bazzite-native-store/compare/0.6.0...0.6.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* appdetails had never once worked in the Tauri build ([9063853](https://github.com/claygorman/bazzite-native-store/commit/90638538781676e09a5ba34a5e2bd7ce1518bbf6))
+* build the Flatpak from the release commit, and correct the record ([e850c29](https://github.com/claygorman/bazzite-native-store/commit/e850c29a52463a2548cdfcf50668dd53729cb988))
+* the app was rate-limiting itself, then blaming the game ([a0ba181](https://github.com/claygorman/bazzite-native-store/commit/a0ba18147f3271567c8711993032c937212e61c3))
+* the only reachable sign-in control said "Sign out" ([f73a621](https://github.com/claygorman/bazzite-native-store/commit/f73a62177c2c5c2b0093de388e414c76dca18bc8))
+
+
+### Performance Improvements
+
+* cache like a store, not like a live website ([cd2b5f7](https://github.com/claygorman/bazzite-native-store/commit/cd2b5f778af3604b05373511f1bc212e71e4b9db))
+* never ask again inside the origin's own freshness window ([173ef88](https://github.com/claygorman/bazzite-native-store/commit/173ef889fd5e132b77e9277f9ba29d4e21eb8f6d))
+* the microtrailer rides the batch that was already happening ([bb3334e](https://github.com/claygorman/bazzite-native-store/commit/bb3334e36bf3ca52578c45f32ebdcff7d6ef5040))
+
 # [0.6.0](https://github.com/claygorman/bazzite-native-store/compare/0.5.2...0.6.0) (2026-08-23)
 
 
