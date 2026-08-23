@@ -381,9 +381,16 @@ jobs:
           flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
             build flatpak/com.claygorman.bazzite-store.yml
 
+      # ⚠️ `--runtime-repo` is not optional, and 0.5.1 proved it. Without it the bundle
+      # says which runtime it needs but not WHERE that runtime comes from, so installing
+      # a purely local file sends flatpak looking for a remote that can supply
+      # org.gnome.Platform//50 — and on the target box that hung with "Timeout was
+      # reached" even though the runtime was already installed. The flag embeds the
+      # flathub repo definition so resolution is answerable offline-ish and instant.
       - name: Bundle
         run: |
           flatpak build-bundle repo \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             "bazzite-store_${{ needs.release.outputs.version }}_linux-x86_64.flatpak" \
             com.claygorman.bazzite-store
 

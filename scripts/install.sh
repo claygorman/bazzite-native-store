@@ -153,18 +153,24 @@ trap 'rm -rf "$TMP"' EXIT
 info "Downloading…"
 mkdir -p "$BIN_DIR"
 
-# ⚠️ Installs from 0.4.1 and earlier live at `$BIN_DIR/bazzite-store.AppImage`, and the
-# Steam shortcut registered then points at that exact path. The new path drops the
-# suffix, so the old file has to go — left behind it is a stale binary that still
-# launches, never updates again, and on Bazzite opens a white window. Say so, because
-# the Steam shortcut needs re-adding either way.
+# ⚠️ Installs from 0.4.1 and earlier live at `$BIN_DIR/bazzite-store.AppImage`. That file
+# has to go eventually — left behind it is a stale binary that still launches, never
+# updates again, and on Bazzite opens a white window.
+#
+# ⚠️ But NOT YET, and this is the whole lesson of 0.5.1: the first version of this script
+# deleted it here, BEFORE the flatpak install ran. The install then timed out and the box
+# was left with no app at all and a Steam shortcut pointing at a deleted path. A failed
+# install must be a no-op, never an uninstall. The removal now happens only after the new
+# install is verified — see `retire_legacy` at the end.
 LEGACY="$BIN_DIR/$APP_NAME.AppImage"
-if [ -e "$LEGACY" ]; then
+
+retire_legacy() {
+  [ -e "$LEGACY" ] || return 0
   rm -f "$LEGACY"
   info "Removed the old $LEGACY"
-  info "⚠️  Your existing Steam shortcut points at that path and will no longer work."
-  info "    Re-add it when prompted below, and delete the old entry in Steam."
-fi
+  info "⚠️  Your previous Steam shortcut pointed at that path and will no longer work."
+  info "    Delete that entry in Steam and let this script re-add it."
+}
 
 if [ "$FORMAT" = "flatpak" ]; then
   BUNDLE="$TMP/app.flatpak"
@@ -174,8 +180,33 @@ if [ "$FORMAT" = "flatpak" ]; then
   # A flatpak bundle is an ostree static delta, not an ELF — the magic check below
   # applies only to the AppImage. `flatpak install` validates it properly anyway and
   # refuses a truncated file.
-  flatpak install --user -y --noninteractive --bundle "$BUNDLE" \
-    || die "flatpak install failed."
+
+  # ⚠️ A bundle still has to RESOLVE its runtime, and a --user install consults the
+  # user's remotes. On a box whose flathub remote is only registered system-wide, that
+  # lookup goes hunting and hangs — 0.5.1 died here with "Timeout was reached" while
+  # installing a purely local file, on a machine that already had org.gnome.Platform//50.
+  flatpak remote-add --user --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+
+  if ! flatpak install --user -y --noninteractive --bundle "$BUNDLE"; then
+    # ⚠️ Second attempt with --no-deps, which skips runtime verification entirely. Only
+    # reached when the first try failed, and only useful because the runtime is normally
+    # already present — Bazzite ships flathub configured. If this also fails, the runtime
+    # genuinely is missing and the message says how to get it.
+    info "First attempt failed; retrying without dependency resolution…"
+    flatpak install --user -y --noninteractive --no-deps --bundle "$BUNDLE" || die \
+"flatpak install failed.
+
+  Nothing was changed — your previous install is untouched.
+
+  If the runtime is missing, fetch it once and re-run this script:
+    flatpak install --user -y flathub org.gnome.Platform//50"
+  fi
+
+  # ⚠️ Verify before anything destructive happens. `flatpak install` exiting 0 is not by
+  # itself proof the app is deployed and runnable.
+  flatpak info "$APP_ID" >/dev/null 2>&1 \
+    || die "flatpak reported success but $APP_ID is not installed. Nothing was changed."
 
   # ⚠️ A launcher shim, because `steam://addnonsteamgame/` takes a PATH and cannot be
   # handed `flatpak run com.claygorman.bazzite-store`. Writing the shim to the same
@@ -187,6 +218,8 @@ exec flatpak run $APP_ID "\$@"
 SHIM
   chmod 755 "$APP_PATH"
   printf '%s\n' "$VERSION" > "$VERSION_FILE"
+  # Safe now: the flatpak is installed and verified, and the shim exists.
+  retire_legacy
   info "Installed $VERSION as a Flatpak ($APP_ID)"
   info "Launcher: $APP_PATH"
 else
@@ -200,6 +233,7 @@ else
 
   install -m 755 "$EXTRACTED" "$APP_PATH"
   printf '%s\n' "$VERSION" > "$VERSION_FILE"
+  retire_legacy
   info "Installed $VERSION to $APP_PATH"
 fi
 
