@@ -1,7 +1,7 @@
 mod auth;
 mod display;
 mod input;
-mod protondb;
+pub mod protondb;
 mod steam;
 mod steamclient;
 mod sysinfo;
