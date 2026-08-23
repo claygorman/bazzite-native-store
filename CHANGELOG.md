@@ -1,3 +1,10 @@
+## [0.9.2](https://github.com/claygorman/bazzite-native-store/compare/0.9.1...0.9.2) (2026-08-23)
+
+
+### Bug Fixes
+
+* assert the static deltas survive, because losing them is silent ([c30523a](https://github.com/claygorman/bazzite-native-store/commit/c30523a94ccbdfa9b78c8b77c429d343c7489001))
+
 ## [0.9.1](https://github.com/claygorman/bazzite-native-store/compare/0.9.0...0.9.1) (2026-08-23)
 
 
