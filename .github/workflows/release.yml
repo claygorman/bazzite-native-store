@@ -253,6 +253,29 @@ jobs:
           rm -rf squashfs-root
           echo "$image contains bazzite-store and launches it"
 
+      # The Windows half of the same assertion. 0.4.0's installer was 2.10 MB and
+      # 0.4.1's is 4.28 MB — the wrong-binary bug hit Windows exactly as hard, and it
+      # was caught by comparing file sizes by hand, which is not a process.
+      #
+      # ⚠️ A missing 7z is a FAILURE, not a skip. A guard that quietly passes when its
+      # tool is absent is the same class of bug it exists to catch.
+      - name: The installer contains the app
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v 7z >/dev/null || { echo "::error::7z not on PATH; cannot verify the installer"; exit 1; }
+          cd "${{ matrix.dir }}"
+          installer=$(ls *-setup.exe | head -1)
+          listing=$(7z l "$installer")
+          grep -qE '(^|[\\/])bazzite-store\.exe$|[\\/]bazzite-store\.exe' <<<"$listing" \
+            || { echo "::error::no bazzite-store.exe in $installer"; echo "$listing"; exit 1; }
+          if grep -qE 'protondb-index\.exe' <<<"$listing"; then
+            echo "::error::protondb-index.exe is in the installer; check autobins/required-features"
+            exit 1
+          fi
+          echo "$installer contains bazzite-store.exe"
+
       # ⚠️ Both macOS runners produce `bazzite-store.app.tar.gz` — no architecture in
       # the name. Uploaded as-is with --clobber, whichever finishes second overwrites
       # the first, and the manifest then points BOTH darwin entries at one file whose

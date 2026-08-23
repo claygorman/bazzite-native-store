@@ -29,6 +29,25 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > (`gst_pad_probe_info_set_buffer`, then `g_once_init_leave_pointer`). It is fixable only
 > at packaging time.
 >
+> ⚠️ **Moving the runner did NOT fix this, and the reasoning above is why it could not.**
+> Verified on the box with `0.4.1`, which ships the correct binary and still aborts with
+> `EGL_BAD_PARAMETER` and a white window. The bundle carries a 94 MB
+> `libwebkit2gtk-4.1.so.0` marked `Ubuntu`; Ubuntu 24.04's WebKit is roughly 2.44/2.46-era
+> against Fedora 44's 2.52.5, so it is newer than 22.04's and still far too old.
+>
+> **Generalise it: no AppImage built on any Ubuntu runner can fix this.** The bundle always
+> carries that runner's WebKit and Ubuntu's will always trail Fedora's, so 22.04 → 24.04 →
+> 26.04 is chasing an asymptote. Either the format changes (Flatpak, RPM) or the build
+> environment matches the target distro (build the AppImage inside a `fedora:44` container).
+>
+> ⚠️ **A correction worth keeping, because the mistake is easy to repeat.** `0.4.0` was
+> read as evidence that the runner bump worked, on the grounds that it logged zero
+> `EGL_BAD_PARAMETER`. It was not evidence of anything: `0.4.0` was running the wrong
+> binary and exiting before it ever opened a webview, so the error had no opportunity to
+> appear. **An absence caused by one bug was read as a result about another.** When two
+> bugs are in flight, a negative result only counts if the code path that would produce
+> the symptom actually ran.
+>
 > Moving to `ubuntu-24.04` raises the glibc floor, which is acceptable **here specifically**
 > because the target is Bazzite 44 (Fedora 44) rather than general-purpose Linux. The
 > `.github/workflows/ci.yml` Rust job is pinned to the same image on purpose — CI that
@@ -59,8 +78,8 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > version mismatch between the CLI and `tauri-build`.
 
 > The real fix is a **Flatpak**, which uses the runtime's WebKit and bundles no browser at
-> all. That is tracked separately; the runner bump unblocks the AppImage without making the
-> AppImage the right shape.
+> all. That is tracked separately. ⚠️ The runner bump does **not** unblock the AppImage —
+> see the correction above; it remains a necessary-but-insufficient step.
 
 > [!IMPORTANT]
 > **Only macOS ships a separate updater archive.** Tauri **v1** wrapped the Linux and
