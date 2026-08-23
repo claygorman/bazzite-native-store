@@ -203,6 +203,39 @@ export type StoreCardProps = Partial<CardShape> & {
   owned?: boolean
   controllerSupport?: ControllerSupport
   tags?: readonly string[]
+  /* ── design turn 15a: the wishlist's five-band body ── */
+  /**
+   * Position in the list, drawn before the title.
+   *
+   * ⚠️ Presentation only — the card does not know what the ordering MEANS. 15a ranks by
+   * "your order", which Steam exposes only through an endpoint we cannot reach
+   * (see private/AUTH-AND-CART.md), so today this is the index and nothing more.
+   */
+  rank?: string
+  /**
+   * One line of genres, comma-joined by the CALLER.
+   *
+   * ⚠️ Deliberately not `tags`, which renders chips. 15a wants a quiet single line that
+   * ellipsises, because at two-up the tile is wide and the chips would win an argument
+   * with the title they sit under.
+   */
+  tagline?: string
+  /**
+   * "The reason to look today" — the band 15a cares most about.
+   *
+   * ⚠️ The caller decides both the sentence and whether there is one. A card that
+   * always has a note would need one invented for the ordinary case, and an invented
+   * reason is worse than a blank line.
+   */
+  note?: { text: string; tone: 'sale' | 'warn' | 'info' }
+  /**
+   * Price drops to a footer under a hairline, right-aligned.
+   *
+   * ⚠️ 15a fills the body top to bottom — the bands are `justify-between`, so the price
+   * anchors the bottom rather than sitting beside the title. Only sensible on a `side`
+   * card tall enough to have a bottom.
+   */
+  priceFooter?: boolean
   attention?: CardAttention
   /** Overlays the art once focused — the microtrailer. The design has no equivalent. */
   media?: ReactNode
@@ -241,6 +274,10 @@ export const StoreCard = ({
   owned,
   controllerSupport,
   tags,
+  rank,
+  tagline,
+  note,
+  priceFooter = false,
   attention = 'away',
   media,
   artFallback,
@@ -432,6 +469,14 @@ export const StoreCard = ({
         {/* §5.2 — `min-h-11` holds whether or not a price sits here, so two cards of
             different widths can share a row height. */}
         <div className={`flex items-center gap-3 ${compact ? 'min-h-5.5' : 'min-h-11'}`}>
+          {rank !== undefined && (
+            /* ⚠️ `flex-none` and tabular figures: the rank must not shrink when a long
+               title needs the room, and 9 beside 10 must not shift the titles under
+               each other by half a character. */
+            <span className="flex-none text-lg font-extrabold leading-snug tabular-nums text-ink-3/45">
+              {rank}
+            </span>
+          )}
           {/* §5.4 — `min-w-0` is required. Without it the flex item refuses to shrink
               and the row overflows instead of ellipsising. */}
           <span
@@ -447,10 +492,14 @@ export const StoreCard = ({
           >
             {title}
           </span>
-          {!priceOnFacts && (
+          {!priceOnFacts && !priceFooter && (
             <PriceBlock price={price} wasPrice={wasPrice} discount={discount} align="end" />
           )}
         </div>
+
+        {tagline !== undefined && tagline !== '' && (
+          <span className="truncate text-base font-medium leading-6 text-ink-3/50">{tagline}</span>
+        )}
 
         {/* §5.1 — `min-h-10` in BOTH price placements, same reason as above. */}
         <div
@@ -483,6 +532,32 @@ export const StoreCard = ({
           // §5.1 and §5.2: reserve the height, do not let the content earn it.
           <div className="flex min-h-7 items-center gap-2.5 overflow-hidden whitespace-nowrap">
             <CompatFacts tier={tier} deck={deck} deckLabel={deckLabel} />
+          </div>
+        )}
+
+        {note !== undefined && (
+          <span
+            className={`flex items-center gap-2.25 truncate text-base font-semibold leading-6 ${
+              note.tone === 'sale'
+                ? 'text-sale'
+                : note.tone === 'warn'
+                  ? 'text-warn'
+                  : 'text-focus'
+            }`}
+          >
+            <span className="size-1.75 shrink-0 rounded-full bg-current" />
+            {note.text}
+          </span>
+        )}
+
+        {priceFooter && (
+          /* ⚠️ `mt-auto` is what fills the body: the bands above keep their natural
+             heights and this one is pushed to the bottom edge, which is how 15a gets a
+             body that runs corner to corner instead of bunching under the title. */
+          <div className="mt-auto flex items-end gap-4 border-t border-hairline pt-3.5">
+            <span className="ml-auto flex items-end">
+              <PriceBlock price={price} wasPrice={wasPrice} discount={discount} align="end" />
+            </span>
           </div>
         )}
 

@@ -199,12 +199,23 @@ export const SettingsView = ({
           />
 
           {/*
-            ⚠️ `-m-1.5 p-1.5` — the rows draw an INSET ring, but the focus glow
-            (`shadow-focused-bare`) still reaches outside the box. Without the padding
-            it is clipped against the column gap on one side only, which reads as a
-            stray edge rather than a glow. Same rule as Shelf.tsx and TagSpotlight.tsx.
+            ⚠️ The padding here is MEASURED against the glow, not guessed at.
+            `shadow-focused-bare` is a 3rem blur, and a blur radius is not a reach: CSS
+            approximates blur B with a Gaussian of sigma B/2 and paints to ~3 sigma, so
+            it lays down pixels to about 4.5rem. This box previously spent `1.5`
+            (0.375rem) on it — under a tenth — which is why a focused row's glow was
+            cut into a hard vertical edge instead of fading.
+
+            Spent per edge, since the edges are not alike:
+              right  `-mr-14 pr-14` — cancels the page's own side margin so the cut
+                     happens at the DISPLAY edge, where there is nothing beyond it to
+                     compare against. Same trick as Shelf.tsx.
+              left   `-ml-8 pl-8` — the column gap, and no further: the rail is a
+                     sibling and a wider negative margin would slide this box over it.
+              y      `-my-8 py-8` — 2rem, past which the Gaussian is under ~2% alpha
+                     and there is nothing left to clip.
           */}
-          <div className="-m-1.5 grid min-h-0 flex-1 grid-cols-2 content-start gap-x-7 gap-y-3 overflow-y-auto p-1.5">
+          <div className="-mx-8 -my-8 -mr-14 grid min-h-0 flex-1 grid-cols-2 content-start gap-x-7 gap-y-3 overflow-y-auto py-8 pl-8 pr-14">
             <Column
               title={page.colA.title}
               rows={page.colA.rows}

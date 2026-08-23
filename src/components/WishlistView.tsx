@@ -4,23 +4,69 @@ import { StoreCard, type CardAttention } from './StoreCard'
 import { formatPrice, type StoreItem } from '../types/steam'
 import type { WishlistState } from '../hooks/useWishlist'
 import { useSetting } from '../hooks/useSettings'
+import { TIER_STYLE } from '../platform/protondb'
+import { useProtonRating } from '../hooks/useProtonRating'
 
 /**
- * Three across, scrolling — not a page of ten.
+ * Two across, scrolling — design turn 15a.
  *
  * ⚠️ The grid used to be two rows of five and paginate at ten, which left the entire
  * bottom half of a 4K screen empty while announcing "Page 1 / 3". A wishlist is a list
  * you scan, not a deck you deal, so the page scrolls and every item is on it.
  *
- * Three columns of the SIDE card rather than five of the stacked one: five squeezed the
- * caption below the width its own text needs, so "Deck Playable" rendered as "Deck
- * Playabl" on every tile whose verdict was longer than "Deck". The side layout gives the
- * text its own column instead of sharing the tile's width with nothing.
+ * Two columns of the SIDE card, per 15a. Five stacked ones squeezed the caption below
+ * the width its own text needs, so "Deck Playable" rendered as "Deck Playabl" on every
+ * tile whose verdict was longer than "Deck"; the side layout gives the text its own
+ * column instead of sharing the tile's width with nothing.
  */
-export const WISHLIST_COLS = 3
+export const WISHLIST_COLS = 2
 
-/** Art width for the side card, in rem. Its height is derived from Steam's ratio. */
-const ART_WIDTH_REM = 14
+/**
+ * 15a's measurements, converted at 16px per rem (DESIGN-PORT §1).
+ *
+ * ⚠️ The art is 420×236, which is 1.78:1 — NOT Steam's 460:215 header ratio. That is
+ * deliberate in the design: the art fills the card's full height and `object-cover`
+ * takes the crop off the sides. Deriving the height from the header ratio instead, as
+ * the grid tiles do, would leave a gap under the art on every card.
+ */
+const ART_WIDTH_REM = 420 / 16
+const ROW_HEIGHT_REM = 236 / 16
+
+/** Whole days from now until `epochSeconds`, or undefined if it is past. */
+const daysUntil = (epochSeconds: number | undefined, now: number): number | undefined => {
+  if (epochSeconds === undefined) return undefined
+  const days = Math.ceil((epochSeconds * 1000 - now) / 86_400_000)
+  return days > 0 ? days : undefined
+}
+
+/**
+ * 15a's fourth band — "the reason to look today".
+ *
+ * ⚠️ The design's best lines are the ones we cannot write. "Lowest price since you
+ * added it" and "Cheapest it has ever been" need price HISTORY, which nothing in this
+ * app stores; inventing them from the current discount would be a claim about the past
+ * built from a single point. So the band is present only when there is something true
+ * to put in it, and absent otherwise — a blank line beats a fabricated reason.
+ */
+const noteFor = (
+  item: StoreItem,
+  now: number,
+): { text: string; tone: 'sale' | 'warn' | 'info' } | undefined => {
+  if (item.comingSoon) {
+    const days = daysUntil(item.releaseDate, now)
+    return days === undefined
+      ? { text: 'Release date not announced', tone: 'info' }
+      : { text: days === 1 ? 'Releases tomorrow' : `Releases in ${days} days`, tone: 'info' }
+  }
+  const saleDays = daysUntil(item.discountEndsAt, now)
+  if (saleDays !== undefined && item.discounted && item.discountPercent > 0) {
+    return {
+      text: saleDays === 1 ? 'On sale — last day' : `On sale for ${saleDays} more days`,
+      tone: 'sale',
+    }
+  }
+  return undefined
+}
 
 type Props = {
   state: WishlistState
@@ -84,23 +130,38 @@ export const WishlistView = ({ state, focusedIndex, onActivate }: Props) => {
         </div>
       </header>
 
-      {/* ⚠️ `-mx-6 -my-6 px-6 py-6` — the focus ring and glow are painted outside the
-          card, and this grid is otherwise flush with the screen gutter. The padding is
-          also what stops `scrollIntoView` clipping a focused card's ring against the
-          scroll container's edge. */}
-      <div className="-mx-6 -my-6 min-h-0 flex-1 overflow-y-auto px-6 py-6">
-        <div className="grid grid-cols-3 gap-x-5 gap-y-5">
+      {/*
+        ⚠️ FULL-BLEED with the page gutter as its own padding — not a content-width box
+        with a little breathing room. `overflow-y-auto` is a clip box, and the focused
+        card's bloom reaches ~5rem: a blur radius is not a reach, because CSS
+        approximates a blur of B with a Gaussian of sigma B/2 and paints out to ~3
+        sigma, so 3.375rem of blur lays down pixels to about 5rem. See index.css's
+        `--shadow-tile-glow-hi` note, which had to work this out the hard way for the
+        shelves.
+
+        So `-mx-14 px-14` cancels the page margin and re-spends it INSIDE the clip box:
+        the cut then happens at the display edge, where there is nothing beyond it to
+        compare against, rather than as a hard seam inside the layout. `py-20` is 5rem,
+        the full documented reach, so the first and last rows bloom rather than chop —
+        15a asks for 72px here and 80 costs nothing visible.
+
+        ⚠️ This only holds while no ancestor is narrower than the screen. Narrow one and
+        the outermost card's glow chops again.
+      */}
+      <div className="-mx-14 min-h-0 flex-1 overflow-y-auto px-14 py-20">
+        <div className="grid grid-cols-2 gap-6.5" style={{ gridAutoRows: `${ROW_HEIGHT_REM}rem` }}>
           {items.map((item, index) => (
             <WishlistCard
               key={item.appid}
               item={item}
               focused={focusedIndex === index}
+              rank={index + 1}
               cardRef={focusedIndex === index ? focusedRef : undefined}
               onActivate={() => onActivate(item.appid)}
             />
           ))}
           {status === 'ready' && !loading && items.length === 0 && (
-            <span className="col-span-3 text-xl font-medium text-ink-faint">
+            <span className="col-span-2 text-xl font-medium text-ink-faint">
               Nothing on your wishlist yet.
             </span>
           )}
@@ -113,15 +174,30 @@ export const WishlistView = ({ state, focusedIndex, onActivate }: Props) => {
 const WishlistCard = ({
   item,
   focused,
+  rank,
   cardRef,
   onActivate,
 }: {
   item: StoreItem
   focused: boolean
+  rank: number
   cardRef?: React.RefObject<HTMLDivElement | null>
   onActivate: () => void
 }) => {
   const showDeck = useSetting('deckVerified')
+  /*
+   * ⚠️ Same hook and TIER_STYLE map as `Tile` and the tag results, so the three
+   * surfaces cannot disagree about what colour Gold is. 15a's third band puts the tier
+   * dot beside the review score, which is exactly what `CompatFacts` already draws.
+   */
+  const proton = useProtonRating(item.appid)
+  const tier = proton.status === 'rated' ? TIER_STYLE[proton.rating.tier] : undefined
+  /*
+   * ⚠️ Read once per render rather than per card. `Date.now()` inside `noteFor` would
+   * be a different instant for every tile in the grid, so two cards whose sale ends at
+   * the same moment could round to different day counts.
+   */
+  const now = Date.now()
   // Same price gating as every other surface: Coming Soon is resolved BEFORE
   // formatting, or an unreleased free-to-play title advertises itself as free.
   const onSale =
@@ -133,18 +209,10 @@ const WishlistCard = ({
   return (
     <div ref={cardRef}>
     <StoreCard
-      /*
-       * ⚠️ Art at Steam's own header ratio, 460:215. It was 7.625rem tall against a
-       * tile whose width the grid decided, so the box was far wider than the source and
-       * `object-cover` cropped the top and bottom off every capsule — which is why the
-       * art read as a squashed strip rather than as cover art.
-       *
-       * Derived from `artWidth` rather than written as a second magic number, so the
-       * two cannot drift apart.
-       */
+      /* 15a: 420×236, art filling the card's full height. See ART_WIDTH_REM. */
       layout="side"
       artWidth={ART_WIDTH_REM}
-      artHeight={(ART_WIDTH_REM * 215) / 460}
+      artHeight={ROW_HEIGHT_REM}
       density="compact"
       surface="boxed"
       title={item.name}
@@ -161,6 +229,10 @@ const WishlistCard = ({
       deck={showDeck ? item.deckCompat : undefined}
       flag={item.dealFlag}
       controllerSupport={item.controllerSupport === 'none' ? undefined : item.controllerSupport}
+      rank={String(rank).padStart(2, '0')}
+      note={noteFor(item, now)}
+      priceFooter
+      tier={tier}
       attention={(focused ? 'focused' : 'nearby') satisfies CardAttention}
       onActivate={onActivate}
     />
