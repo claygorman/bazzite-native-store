@@ -186,6 +186,23 @@ pub fn run() {
             input::spawn(app.handle().clone());
             Ok(())
         })
+        /*
+         * ⚠️ Pad input is gated on window focus, and it has to be gated HERE because
+         * `gilrs` reads /dev/input directly and never learns about focus at all. The
+         * keyboard stops on its own — those events come through the compositor — but the
+         * dpad kept driving the store underneath Steam's Quick Access Menu, so you came
+         * back to a different screen than the one you left.
+         *
+         * ⚠️ Measured on the box: with the QAM open a USB keyboard's arrows no longer
+         * reach the app, while the dpad still drives it. Keyboard input is focus-mediated
+         * and stops; /dev/input is not and does not. So gamescope really is moving focus,
+         * which is what makes WindowEvent::Focused the right signal rather than a guess.
+         */
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::Focused(focused) = event {
+                input::FOCUSED.store(*focused, std::sync::atomic::Ordering::Relaxed);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             steam_get,
             cache_stats,
@@ -197,6 +214,7 @@ pub fn run() {
             auth::steam_logout,
             display::steam_ui_scale,
             input::pad_info,
+            input::pad_focus,
             sysinfo::host_info,
             steamclient::steam_session_get,
             proton_reports,

@@ -31,6 +31,8 @@
 
 use gilrs::{Button, Event, EventType, Gilrs};
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tauri::{AppHandle, Emitter};
 
 #[derive(Clone, Serialize)]
@@ -101,6 +103,30 @@ pub fn pad_info() -> Vec<PadInfo> {
         .collect()
 }
 
+/// Whether the app window currently has focus.
+///
+/// ⚠️ This exists because `gilrs` reads `/dev/input` DIRECTLY and therefore knows nothing
+/// about focus. Keyboard events arrive through the compositor and stop when something
+/// else takes over; pad events do not. In Game Mode that means opening Steam's Quick
+/// Access Menu over the app leaves the dpad still driving the store underneath — you come
+/// back to a completely different screen from the one you left.
+///
+/// ⚠️ The asymmetry IS the evidence, measured on the box: with the QAM open, a USB
+/// keyboard's arrow keys no longer reach the app, while the dpad still drives it. Keyboard
+/// input is focus-mediated and stops; `/dev/input` is not and does not. That also implies
+/// gamescope genuinely moves focus rather than merely swallowing keys, which is what makes
+/// `WindowEvent::Focused` the right signal to hang this on.
+///
+/// `pad_focus` exposes the flag so the behaviour can be checked directly rather than
+/// inferred from whether the store moved.
+pub static FOCUSED: AtomicBool = AtomicBool::new(true);
+
+/// What the input thread believes about focus — surfaced for the debug HUD.
+#[tauri::command]
+pub fn pad_focus() -> bool {
+    FOCUSED.load(Ordering::Relaxed)
+}
+
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
         let mut gilrs = match Gilrs::new() {
@@ -119,16 +145,50 @@ pub fn spawn(app: AppHandle) {
         // per crossing rather than a storm of events every poll.
         let mut stick = [false; 4]; // left, right, up, down
 
+        // Latched actions, so focus loss can release whatever the pad was holding.
+        let mut held_buttons: Vec<&'static str> = Vec::new();
+        let mut was_focused = true;
+
         loop {
+            let focused = FOCUSED.load(Ordering::Relaxed);
+
+            // ⚠️ On losing focus, RELEASE everything first. A direction held at the
+            // moment Steam's menu opens would otherwise stay latched forever: the press
+            // was delivered, the release is swallowed, and the store scrolls on its own
+            // when focus returns.
+            if was_focused && !focused {
+                for action in held_buttons.drain(..) {
+                    let _ = app.emit("input://action", InputPayload { action, pressed: false });
+                }
+                for (i, latched) in stick.iter_mut().enumerate() {
+                    if *latched {
+                        *latched = false;
+                        let action = ["left", "right", "up", "down"][i];
+                        let _ = app.emit("input://action", InputPayload { action, pressed: false });
+                    }
+                }
+            }
+            was_focused = focused;
+
             while let Some(Event { event, .. }) = gilrs.next_event() {
+                // ⚠️ Drained, not skipped. `gilrs` queues events regardless, so returning
+                // early here would bank every press made while the menu was open and
+                // replay the lot the instant it closed.
+                if !focused {
+                    continue;
+                }
                 match event {
                     EventType::ButtonPressed(button, _) => {
                         if let Some(action) = action_for(button) {
+                            if !held_buttons.contains(&action) {
+                                held_buttons.push(action);
+                            }
                             let _ = app.emit("input://action", InputPayload { action, pressed: true });
                         }
                     }
                     EventType::ButtonReleased(button, _) => {
                         if let Some(action) = action_for(button) {
+                            held_buttons.retain(|a| *a != action);
                             let _ = app.emit("input://action", InputPayload { action, pressed: false });
                         }
                     }
