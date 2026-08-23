@@ -1,3 +1,10 @@
+## [0.9.1](https://github.com/claygorman/bazzite-native-store/compare/0.9.0...0.9.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* git dropped the ostree repo's empty directories, so 0.9.0 never built ([cbf2707](https://github.com/claygorman/bazzite-native-store/commit/cbf2707ecd1a941d3c6315f9c9dfc0148f7c243d)), closes [#pages](https://github.com/claygorman/bazzite-native-store/issues/pages)
+
 # [0.9.0](https://github.com/claygorman/bazzite-native-store/compare/0.8.0...0.9.0) (2026-08-23)
 
 
