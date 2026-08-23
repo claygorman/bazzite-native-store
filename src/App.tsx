@@ -784,6 +784,32 @@ export const App = () => {
     }
   }, [protonDump.state])
 
+  /**
+   * The Sign in / Sign out row's face, which is static in `pages.ts` and must not be.
+   *
+   * ⚠️ This row is the ONLY sign-in control a controller can reach. The account chip in
+   * the home header is a real button, but it is rendered without a `focused` prop and the
+   * focus model has no header row at all — `useStoreFocus` walks shelves and two trailing
+   * rows, and nothing else. So on a pad-first client the chip does not exist.
+   *
+   * ⚠️ And the row it falls back to said "Sign out" while signed OUT, which is why the
+   * button could not be found: it was there, wearing the opposite label, deliberately
+   * buried at the furthest point on the page because that placement is right for Reset
+   * and wrong for the only way in.
+   */
+  const sessionActionLabel = useMemo(
+    () =>
+      session.status === 'signed-in'
+        ? {}
+        : {
+            'sign-out': {
+              label: 'Sign in',
+              desc: 'Opens Steam in a browser to confirm it is you',
+            },
+          },
+    [session.status],
+  )
+
   const updateActionLabel = useMemo(
     () => ({
       'check-updates': {
@@ -2335,7 +2361,7 @@ export const App = () => {
               session={session}
               version={clientVersion}
               source={inputSource}
-              actionLabel={{ ...updateActionLabel, ...protonActionLabel }}
+              actionLabel={{ ...updateActionLabel, ...protonActionLabel, ...sessionActionLabel }}
               dump={protonDump}
               onActivate={(col, row) => {
                 // ⚠️ `open: false` — clicking a different row must not leave the
