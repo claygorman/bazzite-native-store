@@ -1,3 +1,10 @@
+## [0.5.2](https://github.com/claygorman/bazzite-native-store/compare/0.5.1...0.5.2) (2026-08-23)
+
+
+### Bug Fixes
+
+* a failed install must never be an uninstall ([59840d5](https://github.com/claygorman/bazzite-native-store/commit/59840d5707cbefdfd0eff30bef986eca31cb5bac))
+
 ## [0.5.1](https://github.com/claygorman/bazzite-native-store/compare/0.5.0...0.5.1) (2026-08-23)
 
 
