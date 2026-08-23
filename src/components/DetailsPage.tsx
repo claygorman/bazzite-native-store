@@ -109,7 +109,7 @@ export const DetailsPage = ({
       <div className="absolute inset-0 bg-[radial-gradient(94rem_59rem_at_22%_12%,rgba(30,82,160,.4),rgba(9,15,26,.86)_60%,#080d16_88%)]" />
 
       <div className="absolute left-14 top-10 flex items-center gap-3.5 text-base font-semibold text-ink-3/55">
-        <ControllerGlyph action="back" source={source} className="!size-6.5" />
+        <ControllerGlyph action="back" source={source} size="lg" />
         {[details?.genres[0], details?.publishers[0]].filter(Boolean).join(' · ') || 'Back'}
       </div>
 
@@ -249,7 +249,7 @@ export const DetailsPage = ({
               onClick={onOpenInSteam}
               className="flex items-center gap-3 whitespace-nowrap rounded-full bg-gradient-to-br from-focus to-focus-deep px-7 py-3.75 text-xl font-bold text-ink-on-accent shadow-[0_0_2.75rem_rgba(77,155,230,.5)]"
             >
-              <ControllerGlyph action="accept" source={source} className="!size-6.5" />
+              <ControllerGlyph action="accept" source={source} size="lg" />
               Open in Steam
               {priceLabel && ` · ${priceLabel}`}
             </button>

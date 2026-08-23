@@ -311,14 +311,55 @@ pub fn build_index(
     Ok(index)
 }
 
+/// The parsed index, held across lookups.
+///
+/// ⚠️ This cache is not an optimisation, it is a fix. Measured on the real 31,587-game
+/// index: a lookup cost 5.4ms, of which 5.5ms was re-parsing the 1.26 MB
+/// `protondb-index.json` — the seek and read of the actual reports was free by
+/// comparison. Every call paid to deserialise 31,587 spans in order to use one.
+///
+/// Keyed on the blob's (length, mtime) so a rebuild is picked up without anyone having
+/// to remember to invalidate it. ~1.3 MB resident for the process lifetime.
+static INDEX_CACHE: std::sync::OnceLock<std::sync::RwLock<Option<CachedIndex>>> =
+    std::sync::OnceLock::new();
+
+struct CachedIndex {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+    index: std::sync::Arc<Index>,
+}
+
+fn cache() -> &'static std::sync::RwLock<Option<CachedIndex>> {
+    INDEX_CACHE.get_or_init(|| std::sync::RwLock::new(None))
+}
+
 /// Read the index only if it actually describes the blob sitting next to it.
-fn load_index(dir: &Path) -> Option<Index> {
+fn load_index(dir: &Path) -> Option<std::sync::Arc<Index>> {
+    let meta = fs::metadata(blob_path(dir)).ok()?;
+    let (actual, modified) = (meta.len(), meta.modified().ok());
+
+    if let Ok(guard) = cache().read() {
+        if let Some(hit) = guard.as_ref() {
+            if hit.len == actual && hit.modified == modified {
+                return Some(hit.index.clone());
+            }
+        }
+    }
+
     let index: Index = serde_json::from_slice(&fs::read(index_path(dir)).ok()?).ok()?;
-    let actual = fs::metadata(blob_path(dir)).ok()?.len();
     // A zero means an index written before this check existed — accept it rather than
     // forcing a redownload, since the spans are still self-consistent.
     if index.blob_len != 0 && index.blob_len != actual {
         return None;
+    }
+
+    let index = std::sync::Arc::new(index);
+    if let Ok(mut guard) = cache().write() {
+        *guard = Some(CachedIndex {
+            len: actual,
+            modified,
+            index: index.clone(),
+        });
     }
     Some(index)
 }
@@ -473,7 +514,7 @@ pub fn index_status(dir: &Path) -> serde_json::Value {
 /// 66 MB, fetch it?" instead of spending someone's bandwidth to find out. One small
 /// JSON listing; the archives themselves are untouched.
 pub async fn check(dir: PathBuf, timeout_ms: u64) -> Result<serde_json::Value, String> {
-    let installed = load_index(&dir).map(|i| i.snapshot);
+    let installed = load_index(&dir).map(|i| i.snapshot.clone());
     let latest = latest_snapshot_name(timeout_ms).await?;
     Ok(serde_json::json!({
         "installed": installed,
@@ -1021,5 +1062,38 @@ mod check_tests {
         // Sanity: the repo is live, so the newest must be recent-ish, not 2018.
         let (year, _, _) = snapshot_rank(&newest).unwrap();
         assert!(year >= 2026, "newest snapshot looks stale: {newest}");
+    }
+}
+
+#[cfg(test)]
+mod cost_tests {
+    use super::*;
+
+    /// How expensive is ONE lookup against a real 31,587-game index?
+    ///
+    /// `cargo test --release --lib -- --ignored lookup_cost --nocapture`
+    /// Requires an index built into /tmp/pdb-real by the protondb-index binary.
+    #[test]
+    #[ignore]
+    fn lookup_cost() {
+        let dir = std::path::PathBuf::from("/tmp/pdb-real");
+        if !dir.join("protondb-index.json").exists() {
+            eprintln!("no index at {dir:?}; skipping");
+            return;
+        }
+        let started = std::time::Instant::now();
+        let index = load_index(&dir).expect("index should load");
+        println!(
+            "load_index: {:?} for {} games",
+            started.elapsed(),
+            index.spans.len()
+        );
+
+        let started = std::time::Instant::now();
+        for _ in 0..20 {
+            let _ = reports_for(&dir, 2358720);
+        }
+        println!("reports_for x20: {:?}", started.elapsed());
+        println!("  -> per lookup: {:?}", started.elapsed() / 20);
     }
 }

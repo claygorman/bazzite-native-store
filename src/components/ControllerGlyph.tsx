@@ -130,23 +130,51 @@ const Letter = ({
   </text>
 )
 
+/**
+ * Sizes, resolved PER SOURCE.
+ *
+ * ⚠️ A pad glyph is a circle and takes `size-*`; a keyboard prompt is a PILL whose
+ * width has to fit its label — "Enter" is five characters, "Esc" three. Callers used to
+ * pass `className="!size-6.5"`, which forced the pill's width to 1.625rem with
+ * `!important` and spilled the word out over whatever sat beside it. That is not
+ * fixable at the call site, because the call site does not know which source is active
+ * — `source` is a runtime value. So the component owns it.
+ *
+ * ⚠️ Literal class strings, not interpolation. Tailwind scans source text, so a
+ * computed `` `size-${n}` `` produces no CSS at all and the glyph silently renders at
+ * its default size.
+ */
+const GLYPH_SIZE = {
+  sm: { pad: 'size-5', bumper: 'h-3.5 w-6', key: 'h-5 text-xs' },
+  md: { pad: 'size-6', bumper: 'h-4 w-7', key: 'h-6 text-sm' },
+  lg: { pad: 'size-6.5', bumper: 'h-4.75 w-8.5', key: 'h-6.5 text-sm' },
+} as const
+
+export type GlyphSize = keyof typeof GLYPH_SIZE
+
 export const ControllerGlyph = ({
   action,
   source,
+  size,
   className = '',
 }: {
   action: InputAction
   source: InputSource
+  /** Sized per source — see `GLYPH_SIZE`. Omit for the default. */
+  size?: GlyphSize
   className?: string
 }) => {
   const glyph = glyphFor(action, source)
+  const sized = size ? GLYPH_SIZE[size] : undefined
 
   // A keyboard is not a pad. Telling someone at a keyboard to "press A" is wrong twice
   // over, and drawing them a bumper is wrong three times.
   if (source === 'keyboard') {
     return (
       <span
-        className={`grid h-7 min-w-8.5 shrink-0 place-items-center rounded-md bg-chip-strong px-2 text-sm font-extrabold text-ink ${className}`}
+        className={`grid shrink-0 place-items-center rounded-md bg-chip-strong px-2 font-extrabold text-ink ${
+          sized?.key ?? 'h-7 text-sm'
+        } min-w-8.5 ${className}`}
       >
         {glyph.label}
       </span>
@@ -160,7 +188,7 @@ export const ControllerGlyph = ({
       <svg
         viewBox="0 0 39 22"
         aria-hidden
-        className={`h-4.75 w-8.5 shrink-0 ${className}`}
+        className={`shrink-0 ${sized?.bumper ?? 'h-4.75 w-8.5'} ${className}`}
         fill={MONO}
       >
         {/* Mirrored for the right-hand pair, which is how the sheet draws RB and RT. */}
@@ -174,7 +202,12 @@ export const ControllerGlyph = ({
   }
 
   return (
-    <svg viewBox="0 0 32 32" aria-hidden className={`size-7.5 shrink-0 ${className}`} fill={MONO}>
+    <svg
+      viewBox="0 0 32 32"
+      aria-hidden
+      className={`shrink-0 ${sized?.pad ?? 'size-7.5'} ${className}`}
+      fill={MONO}
+    >
       {art.kind === 'dpad' ? (
         <g transform={art.rotate}>
           <g transform="translate(4,4)">

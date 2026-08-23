@@ -147,7 +147,7 @@ export const Tile = ({
               is the active input, so it should be the button, not a description of it. */}
           {focused && padActive && (
             <span className="absolute bottom-2.5 right-2.5 grid place-items-center rounded-md bg-scrim p-1.25">
-              <ControllerGlyph action="accept" source="gamepad" className="!size-6" />
+              <ControllerGlyph action="accept" source="gamepad" size="md" />
             </span>
           )}
         </>

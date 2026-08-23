@@ -252,7 +252,7 @@ export const MediaGallery = ({ items, index, focused, muted, onAudioChange, sour
               <span className="text-ink-3/70">Silent preview</span>
             ) : focused ? (
               <span className="flex items-center gap-2">
-                <ControllerGlyph action="secondary" source={source} className="!size-5" />
+                <ControllerGlyph action="secondary" source={source} size="sm" />
                 to {muted ? 'unmute' : 'mute'}
               </span>
             ) : (
