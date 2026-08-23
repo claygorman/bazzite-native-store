@@ -16,6 +16,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Does the Flatpak manifest still build?
+  #
+  # ⚠️ Here rather than only in `release.yml`, because that job is gated behind a
+  # published release — which would make the release itself the manifest's first test,
+  # and a manifest breaks for dull reasons: a runtime branch goes EOL, an SDK extension
+  # moves with the freedesktop base, a build command drifts from package.json.
+  #
+  # ⚠️ It still cannot verify the thing the Flatpak EXISTS to fix. A bundle that builds
+  # and installs cleanly can still fail to create an EGL display on hardware GitHub does
+  # not have. Only the box answers that — docs/PACKAGING.md carries the one-liner.
+  #
+  # Path-gated so ordinary frontend work does not pay for an SDK download.
+  flatpak:
+    name: Flatpak builds
+    if: |
+      github.event_name == 'pull_request' ||
+      contains(github.event.head_commit.message, 'flatpak') ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Runtime and SDK
+        run: |
+          flatpak --system remote-add --if-not-exists --from flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo || true
+          flatpak --system install -y --noninteractive flathub \
+            org.gnome.Platform//50 org.gnome.Sdk//50 \
+            org.freedesktop.Sdk.Extension.rust-stable//25.08 \
+            org.freedesktop.Sdk.Extension.node24//25.08
+
+      - name: Build
+        run: |
+          flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
+            build flatpak/com.claygorman.bazzite-store.yml
+
+      # Same assertion the release makes: the artifact contains the app, not just a
+      # successful build.
+      - name: The build contains the app
+        run: |
+          set -euo pipefail
+          test -x build/files/bin/bazzite-store \
+            || { echo "::error::no bazzite-store binary in the flatpak build"; ls -R build/files/bin || true; exit 1; }
+          test -f build/files/share/applications/com.claygorman.bazzite-store.desktop \
+            || { echo "::error::desktop entry missing"; exit 1; }
+          test -f build/files/share/metainfo/com.claygorman.bazzite-store.metainfo.xml \
+            || { echo "::error::metainfo missing"; exit 1; }
+          echo "flatpak build contains the app, its desktop entry and its metainfo"
+
   frontend:
     name: Typecheck, tests, build
     runs-on: ubuntu-latest
