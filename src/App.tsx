@@ -778,7 +778,13 @@ export const App = () => {
                 ? 'Downloading'
                 : update.status === 'checking'
                   ? 'Checking'
-                  : update.status === 'unconfigured' || update.status === 'unsupported'
+                  : // ⚠️ `managed` reads Unavailable too, and that is right: the button
+                    // genuinely cannot do anything in a Flatpak. The card beside it says
+                    // where updates come from instead, so the row is short rather than
+                    // misleading.
+                    update.status === 'unconfigured' ||
+                      update.status === 'unsupported' ||
+                      update.status === 'managed'
                     ? 'Unavailable'
                     : 'Check',
       },

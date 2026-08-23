@@ -77,6 +77,57 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > a `_comment_*` key fails the build script with "unknown field", which reads like a
 > version mismatch between the CLI and `tauri-build`.
 
+## The Flatpak — the Linux route that actually paints
+
+`flatpak/com.claygorman.bazzite-store.yml`, built by the `flatpak` job in `release.yml`,
+attached to the release as `bazzite-store_<version>_linux-x86_64.flatpak`.
+
+It fixes the white window **by mechanism, not by version chasing**: the app links the
+runtime's WebKitGTK and the GL stack comes from a host-matched
+`org.freedesktop.Platform.GL` extension — the combination those pieces are built and
+tested against. `org.gnome.Platform` **50** is pinned because it is Flathub's current
+default and a Tauri v2 app shipping there today pins the same; GNOME 48 went EOL in
+March 2026.
+
+| Decision | Why |
+| --- | --- |
+| Runs **beside** the AppImage job | `merge-latest-json.mjs` refuses a feed with no `linux-x86_64`, and the in-app updater stays meaningful off Flatpak. Dropping the AppImage is a separate decision. |
+| Network allowed during the build | `flatpak-node-generator` supports npm and yarn, **not pnpm**. Vendoring would cost a pnpm workaround plus regeneration on every lockfile change and buys nothing while we self-distribute. Revisit for Flathub. |
+| Single-file bundle, not an ostree repo | An ostree repo on GitHub Pages would give real `flatpak update` and is the eventual answer; the bundle gets a working app on the box first. |
+| App id keeps its hyphen | `com.claygorman.bazzite-store` also drives `app_cache_dir()`. Renaming to the Flathub-preferred `com.claygorman.BazziteStore` silently orphans every user's cache, so it waits for a migration. |
+
+### ⚠️ Two sandbox facts that are invisible until someone looks at the box
+
+- **`--device=input`.** `gilrs` reads `/dev/input/event*`, denied by default. Without it
+  there are **no gamepads at all**, and it looks exactly like the input layer being
+  broken rather than a missing permission.
+- **`/run/host/os-release`.** Inside the sandbox `/etc/os-release` describes the GNOME
+  runtime, not Bazzite. `sysinfo.rs` reads the host copy first — otherwise the
+  diagnostics card confidently reports the wrong operating system, which is the one
+  thing that card exists not to do.
+
+### Installing
+
+`install.sh` prefers the `.flatpak` whenever `flatpak` is present and falls back to the
+AppImage otherwise. ⚠️ `steam://addnonsteamgame/` takes a **path** and cannot be handed
+`flatpak run`, so the installer writes a three-line shim to `~/.local/bin/bazzite-store`
+and points the shortcut at that — the stable, version-free path the script has always
+relied on.
+
+⚠️ **That path changed**: it used to be `bazzite-store.AppImage`. The installer deletes
+the old file and says so, because the Steam shortcut created before this change points at
+it and has to be re-added.
+
+### Updates
+
+A Flatpak cannot update itself — `/app` is read-only, so `tauri-plugin-updater` has no
+file to swap. The app detects `FLATPAK_ID` in Rust (`is_flatpak`) and the Updates page
+reports **"Managed by Flatpak"** with the command that does work, rather than offering an
+Install button that fails every time. That is the same honesty rule `unconfigured`
+already enforces.
+
+---
+
 > The real fix is a **Flatpak**, which uses the runtime's WebKit and bundles no browser at
 > all. That is tracked separately. ⚠️ The runner bump does **not** unblock the AppImage —
 > see the correction above; it remains a necessary-but-insufficient step.

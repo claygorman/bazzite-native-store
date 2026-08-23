@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata. Flatpak wants this at /app/share/metainfo/<app-id>.metainfo.xml, and
+  without it the app has no name, icon or description anywhere a desktop shows software.
+
+  ⚠️ The <id> must match the Flatpak app id AND the .desktop filename exactly. A mismatch
+  does not error — the entry simply never associates, and the app shows up nameless.
+-->
+<component type="desktop-application">
+  <id>com.claygorman.bazzite-store</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Bazzite Store</name>
+  <summary>Controller-first Steam store for Game Mode</summary>
+
+  <description>
+    <p>
+      A controller-first Steam store client for Bazzite Game Mode, built to replace Big
+      Picture's store tab at couch distance on a 4K television.
+    </p>
+    <p>
+      It browses; it never buys. Every purchase hands off to the Steam client through a
+      steam:// link rather than reimplementing a cart, and it holds no payment details of
+      any kind.
+    </p>
+    <p>
+      Compatibility answers come from ProtonDB alongside Valve's own Deck verdicts, so
+      "will this actually run" is on the page you are already looking at.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.claygorman.bazzite-store.desktop</launchable>
+  <url type="homepage">https://github.com/claygorman/bazzite-native-store</url>
+  <url type="bugtracker">https://github.com/claygorman/bazzite-native-store/issues</url>
+
+  <developer id="com.claygorman">
+    <name>Clay Gorman</name>
+  </developer>
+
+  <!-- Designed for a television and a gamepad, which is what these two declare. -->
+  <supports>
+    <control>gamepad</control>
+  </supports>
+  <recommends>
+    <display_length compare="ge">1280</display_length>
+  </recommends>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.4.1" date="2026-08-22"/>
+  </releases>
+</component>

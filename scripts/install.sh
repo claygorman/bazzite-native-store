@@ -32,8 +32,13 @@ set -euo pipefail
 
 REPO="${REPO:-claygorman/bazzite-native-store}"
 APP_NAME="bazzite-store"
+# Must match `identifier` in src-tauri/tauri.conf.json and the Flatpak manifest id.
+APP_ID="com.claygorman.bazzite-store"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
-APP_PATH="$BIN_DIR/$APP_NAME.AppImage"
+# ⚠️ No `.AppImage` suffix any more: this path holds the AppImage on a plain Linux box
+# and a three-line `flatpak run` shim on Bazzite. It stays version-free either way, so
+# the Steam shortcut registered once keeps working through every later update.
+APP_PATH="$BIN_DIR/$APP_NAME"
 # ⚠️ A marker file, because the installed version is otherwise unknowable: the archive
 # carries the version in its FILENAME and we deliberately rename to a stable path so
 # the Steam shortcut never breaks. Without this, `--check` would have to download the
@@ -88,13 +93,38 @@ done
 # `bazzite-store_0.2.0_amd64.AppImage` and its `.sig` and nothing else.
 info "Looking up the latest release…"
 API="https://api.github.com/repos/$REPO/releases/latest"
-ASSET_URL=$(
-  curl -fsSL "$API" \
-    | grep -o '"browser_download_url": *"[^"]*\.AppImage"' \
-    | head -1 | cut -d'"' -f4
-) || true
+RELEASE=$(curl -fsSL "$API") || die "Could not reach the GitHub releases API."
 
-[ -n "${ASSET_URL:-}" ] || die "No AppImage found in the latest release.
+asset_matching() {
+  printf '%s' "$RELEASE" \
+    | grep -o "\"browser_download_url\": *\"[^\"]*$1\"" \
+    | head -1 | cut -d'"' -f4
+}
+
+# ── Which format? ────────────────────────────────────────────────────────────
+#
+# ⚠️ Flatpak first, and this is not a preference — it is the only format that WORKS on
+# Bazzite. The AppImage bundles WebKitGTK from the CI runner, and no Ubuntu runner's
+# WebKit can create an EGL display against Fedora 44 / Mesa 26.2 / RDNA 4: releases
+# 0.3.1 and 0.4.1 both launched, ran, and painted a solid white window. The Flatpak
+# links the runtime's WebKit instead. See docs/PACKAGING.md.
+#
+# The AppImage stays as the fallback for a Linux box with no flatpak, where it is
+# untested but at least plausible.
+FORMAT=appimage
+if command -v flatpak >/dev/null 2>&1; then
+  FLATPAK_URL=$(asset_matching '\.flatpak')
+  [ -n "${FLATPAK_URL:-}" ] && { FORMAT=flatpak; ASSET_URL="$FLATPAK_URL"; }
+fi
+if [ "$FORMAT" = "appimage" ]; then
+  ASSET_URL=$(asset_matching '\.AppImage')
+  if command -v flatpak >/dev/null 2>&1; then
+    info "note: no .flatpak in this release; falling back to the AppImage."
+    info "      on Bazzite that build is known to open a white window."
+  fi
+fi
+
+[ -n "${ASSET_URL:-}" ] || die "No installable Linux asset in the latest release.
   Either none has been published yet, or the release is still building:
     https://github.com/$REPO/releases"
 
@@ -121,18 +151,57 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 info "Downloading…"
-EXTRACTED="$TMP/app.AppImage"
-curl -fsSL --proto '=https' --tlsv1.2 -o "$EXTRACTED" "$ASSET_URL" \
-  || die "Download failed: $ASSET_URL"
-
-# ⚠️ Check it really is a binary before making it executable. A truncated download or
-# an HTML error page saved to disk would otherwise be chmod +x'd and handed to Steam.
-head -c 4 "$EXTRACTED" | grep -q $'\x7fELF' || die "That file is not a Linux binary."
-
 mkdir -p "$BIN_DIR"
-install -m 755 "$EXTRACTED" "$APP_PATH"
-printf '%s\n' "$VERSION" > "$VERSION_FILE"
-info "Installed $VERSION to $APP_PATH"
+
+# ⚠️ Installs from 0.4.1 and earlier live at `$BIN_DIR/bazzite-store.AppImage`, and the
+# Steam shortcut registered then points at that exact path. The new path drops the
+# suffix, so the old file has to go — left behind it is a stale binary that still
+# launches, never updates again, and on Bazzite opens a white window. Say so, because
+# the Steam shortcut needs re-adding either way.
+LEGACY="$BIN_DIR/$APP_NAME.AppImage"
+if [ -e "$LEGACY" ]; then
+  rm -f "$LEGACY"
+  info "Removed the old $LEGACY"
+  info "⚠️  Your existing Steam shortcut points at that path and will no longer work."
+  info "    Re-add it when prompted below, and delete the old entry in Steam."
+fi
+
+if [ "$FORMAT" = "flatpak" ]; then
+  BUNDLE="$TMP/app.flatpak"
+  curl -fsSL --proto '=https' --tlsv1.2 -o "$BUNDLE" "$ASSET_URL" \
+    || die "Download failed: $ASSET_URL"
+
+  # A flatpak bundle is an ostree static delta, not an ELF — the magic check below
+  # applies only to the AppImage. `flatpak install` validates it properly anyway and
+  # refuses a truncated file.
+  flatpak install --user -y --noninteractive --bundle "$BUNDLE" \
+    || die "flatpak install failed."
+
+  # ⚠️ A launcher shim, because `steam://addnonsteamgame/` takes a PATH and cannot be
+  # handed `flatpak run com.claygorman.bazzite-store`. Writing the shim to the same
+  # stable path the AppImage used keeps the existing Steam shortcut working across
+  # every future update — which is the whole reason that path never carries a version.
+  cat > "$APP_PATH" <<SHIM
+#!/usr/bin/env sh
+exec flatpak run $APP_ID "\$@"
+SHIM
+  chmod 755 "$APP_PATH"
+  printf '%s\n' "$VERSION" > "$VERSION_FILE"
+  info "Installed $VERSION as a Flatpak ($APP_ID)"
+  info "Launcher: $APP_PATH"
+else
+  EXTRACTED="$TMP/app.AppImage"
+  curl -fsSL --proto '=https' --tlsv1.2 -o "$EXTRACTED" "$ASSET_URL" \
+    || die "Download failed: $ASSET_URL"
+
+  # ⚠️ Check it really is a binary before making it executable. A truncated download or
+  # an HTML error page saved to disk would otherwise be chmod +x'd and handed to Steam.
+  head -c 4 "$EXTRACTED" | grep -q $'\x7fELF' || die "That file is not a Linux binary."
+
+  install -m 755 "$EXTRACTED" "$APP_PATH"
+  printf '%s\n' "$VERSION" > "$VERSION_FILE"
+  info "Installed $VERSION to $APP_PATH"
+fi
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;

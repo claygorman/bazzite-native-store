@@ -1,0 +1,106 @@
+# The Flatpak — the Linux shipping format, replacing the AppImage on Bazzite.
+#
+# ⚠️ Why this exists at all, so nobody "simplifies" it back to an AppImage:
+# Tauri's AppImage bundler ships WebKitGTK **from the CI runner**, and no Ubuntu runner's
+# WebKit is new enough to create an EGL display against Fedora 44 / Mesa 26.2 / RDNA 4.
+# Releases 0.3.1 and 0.4.1 both launched, stayed alive, enumerated controllers, and painted
+# a solid white window with `EGL_BAD_PARAMETER`. Bumping the runner 22.04 -> 24.04 did not
+# help and could not: Ubuntu's WebKit will always trail Fedora's. See docs/PACKAGING.md.
+#
+# A Flatpak fixes it by mechanism rather than by chasing versions. The app links the
+# RUNTIME's WebKit, and the GL stack arrives from a host-matched
+# `org.freedesktop.Platform.GL` extension — the combination those pieces are actually built
+# and tested against.
+#
+# Build it:
+#   flatpak-builder --user --install --force-clean build flatpak/com.claygorman.bazzite-store.yml
+# Bundle it:
+#   flatpak build-bundle repo bazzite-store.flatpak com.claygorman.bazzite-store
+---
+# ⚠️ The id matches `identifier` in src-tauri/tauri.conf.json and must keep matching. That
+# same string decides `app_cache_dir()` on the Rust side, so renaming it — for instance to
+# the hyphen-free `com.claygorman.BazziteStore` that Flathub's linter prefers — silently
+# orphans every existing user's Steam cache. flatpak-builder accepts the hyphen; leave it
+# until Flathub is genuinely on the table, and migrate the cache in the same change.
+id: com.claygorman.bazzite-store
+
+# ⚠️ Verified, not copied from a tutorial: 50 is Flathub's current default branch for
+# org.gnome.Platform, and a Tauri v2 app shipping on Flathub today pins the same. That
+# matters more than it looks — GNOME 48 went EOL in March 2026, and the entire point of
+# this file is a WebKit new enough for Mesa 26.2.
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+
+# ⚠️ Extension branches are coupled to the SDK's freedesktop base (25.08 for GNOME 50). If
+# CI reports an extension that cannot be found, that coupling is what moved — drop node24
+# to node20, which is what the reference Tauri app on Flathub uses.
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node24
+
+command: bazzite-store
+
+finish-args:
+  - --socket=wayland
+  # Game Mode is gamescope/Wayland, but the desktop session and the `DISPLAY=:1` debug
+  # path both need X11. Cheap, and its absence looks like the app failing to start.
+  - --socket=fallback-x11
+  - --share=ipc
+  # ⚠️ Not optional. Every shelf is a Steam API call, and the Steam client's CEF debugger
+  # that supplies owned/wishlist state listens on loopback.
+  - --share=network
+  - --device=dri
+  # ⚠️ THE one that is invisible until someone holds a controller. `gilrs` reads
+  # /dev/input/event*, which the sandbox denies by default — without this there are no
+  # gamepads at all, and it looks exactly like the input layer being broken rather than
+  # like a missing permission.
+  - --device=input
+  # Full trailers carry real audio through hls.js; microtrailers are silent.
+  - --socket=pulseaudio
+
+build-options:
+  # ⚠️ npm's default global prefix is inside the read-only SDK. Point it somewhere writable
+  # and put it on PATH, or `npm install -g pnpm` fails with EACCES half a gigabyte into the
+  # build.
+  append-path: /usr/lib/sdk/node24/bin:/usr/lib/sdk/rust-stable/bin:/run/build/bazzite-store/npm-global/bin
+  env:
+    npm_config_prefix: /run/build/bazzite-store/npm-global
+    CARGO_HOME: /run/build/bazzite-store/cargo
+
+modules:
+  - name: bazzite-store
+    buildsystem: simple
+    sources:
+      # Builds the working tree, so CI builds exactly the commit it checked out.
+      - type: dir
+        path: ..
+    build-options:
+      # ⚠️ Network during the build, deliberately. Flathub forbids this and requires
+      # vendored source manifests generated from lockfiles — but `flatpak-node-generator`
+      # supports npm and yarn, NOT pnpm, which this repo uses. Vendoring would therefore
+      # cost a pnpm workaround plus a regeneration step on every lockfile change, and buy
+      # nothing while we self-distribute. Revisit when Flathub is the target.
+      build-args:
+        - --share=network
+    build-commands:
+      # Honour the repo's pinned package manager rather than whatever npm resolves to.
+      - npm install -g pnpm@9.15.3
+      - pnpm install --frozen-lockfile
+      # ⚠️ `--no-bundle` builds the binary and stops. Tauri's own bundlers are exactly what
+      # this file exists to replace; letting it build an AppImage here would reintroduce
+      # the WebKit it must not carry.
+      - pnpm tauri build --no-bundle
+      - install -Dm755 src-tauri/target/release/bazzite-store /app/bin/bazzite-store
+      - install -Dm644 flatpak/com.claygorman.bazzite-store.desktop
+        /app/share/applications/com.claygorman.bazzite-store.desktop
+      - install -Dm644 flatpak/com.claygorman.bazzite-store.metainfo.xml
+        /app/share/metainfo/com.claygorman.bazzite-store.metainfo.xml
+      # No new artwork needed — these three already ship for the other bundlers, and
+      # 128x128@2x is a 256px image despite the name.
+      - install -Dm644 src-tauri/icons/32x32.png
+        /app/share/icons/hicolor/32x32/apps/com.claygorman.bazzite-store.png
+      - install -Dm644 src-tauri/icons/128x128.png
+        /app/share/icons/hicolor/128x128/apps/com.claygorman.bazzite-store.png
+      - install -Dm644 "src-tauri/icons/128x128@2x.png"
+        /app/share/icons/hicolor/256x256/apps/com.claygorman.bazzite-store.png

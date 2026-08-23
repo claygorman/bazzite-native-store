@@ -291,6 +291,8 @@ const SERVICE_TONE: Record<ServiceHealth['state'], StatusTone> = {
 const UPDATE_TONE: Record<UpdateState['status'], StatusTone> = {
   unsupported: 'info',
   unconfigured: 'warn',
+  // Not a problem — it is how a Flatpak is supposed to work.
+  managed: 'info',
   idle: 'info',
   checking: 'info',
   current: 'ok',
@@ -347,7 +349,15 @@ const PageStatus = ({
               ? `Checked ${formatAge(Math.round((Date.now() - update.checkedAt) / 1000))}`
               : update.status === 'unconfigured'
                 ? 'No feed URL or signing key in tauri.conf.json'
-                : undefined
+                : /*
+                   * ⚠️ Says where updates DO come from rather than just refusing. A
+                   * Flatpak install cannot replace itself — /app is read-only — so the
+                   * honest thing is to name the command that does work instead of
+                   * leaving someone to conclude the app is stuck.
+                   */
+                  update.status === 'managed'
+                  ? 'Installed as a Flatpak — run `flatpak update` or the installer again'
+                  : undefined
           }
           stats={[
             { label: 'Client', value: version },

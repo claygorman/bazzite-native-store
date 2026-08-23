@@ -109,6 +109,20 @@ async fn proton_variant_split(
     Ok(protondb::variant_split(&proton_dir(&app)?, &appids))
 }
 
+/// Whether this process is running inside a Flatpak sandbox.
+///
+/// ⚠️ Read here rather than in the webview, which has no `process.env` to consult —
+/// there is no Node in a Tauri frontend, and the obvious `globalThis.process` check
+/// silently evaluates to `false` everywhere rather than failing loudly.
+///
+/// `FLATPAK_ID` is exported by flatpak for every app it launches, so this reflects how
+/// the app was actually started rather than how it was built — which matters, because
+/// the same binary ships in the Flatpak and (for now) in the AppImage.
+#[tauri::command]
+fn is_flatpak() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some()
+}
+
 fn proton_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_cache_dir()
@@ -177,6 +191,7 @@ pub fn run() {
             cache_stats,
             cache_clear,
             updater_configured,
+            is_flatpak,
             auth::steam_login,
             auth::steam_session,
             auth::steam_logout,

@@ -34,6 +34,22 @@ fn read(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+/// os-release for the machine, not for the sandbox we happen to be inside.
+///
+/// ⚠️ Inside a Flatpak, `/etc/os-release` describes the **runtime** — it would report
+/// the GNOME Platform image rather than Bazzite, on a card whose entire value is that
+/// you can trust it without checking. Flatpak mounts the host's copy at
+/// `/run/host/os-release` for exactly this, so try that first and fall back.
+///
+/// ⚠️ Not gated on `FLATPAK_ID`. The path either exists or it does not, and reading it
+/// unconditionally means the check cannot rot when the environment variable changes or
+/// the app is launched some way that does not set it.
+fn host_os_release() -> String {
+    read("/run/host/os-release")
+        .or_else(|| read("/etc/os-release"))
+        .unwrap_or_default()
+}
+
 /// One `KEY=value` line out of an os-release style file, unquoted.
 fn os_release_field(body: &str, key: &str) -> Option<String> {
     body.lines()
@@ -107,7 +123,7 @@ fn read_trimmed(path: &Path) -> Option<String> {
 
 #[tauri::command]
 pub fn host_info() -> HostInfo {
-    let os_release = read("/etc/os-release").unwrap_or_default();
+    let os_release = host_os_release();
     HostInfo {
         os: os_release_field(&os_release, "PRETTY_NAME"),
         image: os_release_field(&os_release, "VERSION_ID"),

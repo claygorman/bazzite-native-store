@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Bazzite Store
+GenericName=Steam Store
+Comment=Controller-first Steam store for Bazzite Game Mode
+Exec=bazzite-store
+Icon=com.claygorman.bazzite-store
+Terminal=false
+Categories=Game;
+Keywords=steam;store;games;proton;bazzite;
+StartupNotify=true
+StartupWMClass=bazzite-store

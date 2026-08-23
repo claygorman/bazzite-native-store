@@ -330,6 +330,74 @@ jobs:
             gh release upload "${{ needs.release.outputs.version }}" "${extra[@]}" --clobber
           fi
 
+  # The Flatpak — the Linux format that actually paints on Bazzite.
+  #
+  # ⚠️ Runs BESIDE the AppImage job rather than replacing it, on purpose. The AppImage
+  # still builds and signs, `merge-latest-json.mjs` refuses to publish a feed with no
+  # linux-x86_64 entry, and the in-app updater stays meaningful for anyone not installing
+  # through Flatpak. Deleting the AppImage job is a separate decision with its own
+  # consequences for the update feed.
+  #
+  # ⚠️ This job cannot verify the thing it exists to fix. A Flatpak that builds, bundles
+  # and installs cleanly can still fail to create an EGL display on hardware CI does not
+  # have. Only the box can answer that — see docs/PACKAGING.md.
+  flatpak:
+    name: flatpak
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      # The builder image carries flatpak + flatpak-builder; running in a container
+      # avoids installing a whole ostree stack onto the runner.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+
+      # ⚠️ The manifest pins org.gnome.Platform 50, which the builder image may not
+      # already carry. Installing it explicitly means a stale image degrades to a slower
+      # build rather than to a confusing "runtime not found".
+      - name: Runtime and SDK
+        run: |
+          flatpak --system remote-add --if-not-exists --from flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo || true
+          flatpak --system install -y --noninteractive flathub \
+            org.gnome.Platform//50 org.gnome.Sdk//50 \
+            org.freedesktop.Sdk.Extension.rust-stable//25.08 \
+            org.freedesktop.Sdk.Extension.node24//25.08
+
+      - name: Build
+        run: |
+          flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
+            build flatpak/com.claygorman.bazzite-store.yml
+
+      - name: Bundle
+        run: |
+          flatpak build-bundle repo \
+            "bazzite-store_${{ needs.release.outputs.version }}_linux-x86_64.flatpak" \
+            com.claygorman.bazzite-store
+
+      # The same class of assertion the AppImage gets: check the ARTIFACT, not the build.
+      # A bundle that installs and then has no binary is a green build and a dead app.
+      - name: The bundle contains the app
+        run: |
+          set -euo pipefail
+          bundle=$(ls *.flatpak | head -1)
+          flatpak --user remote-add --no-gpg-verify --if-not-exists ci-check repo
+          flatpak --user install -y --noninteractive --bundle "$bundle"
+          test -x "/var/lib/flatpak/app/com.claygorman.bazzite-store/current/active/files/bin/bazzite-store" \
+            || test -x "$HOME/.local/share/flatpak/app/com.claygorman.bazzite-store/current/active/files/bin/bazzite-store" \
+            || { echo "::error::no bazzite-store binary inside $bundle"; exit 1; }
+          echo "$bundle contains bazzite-store"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.release.outputs.version }}" *.flatpak --clobber
+
   manifest:
     name: Publish the update feed
     needs: [release, bundles]

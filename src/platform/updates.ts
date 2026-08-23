@@ -29,6 +29,17 @@ export type UpdateState =
   | { status: 'unsupported' }
   /** No feed URL or no public key. Says so rather than claiming to be current. */
   | { status: 'unconfigured' }
+  /**
+   * Installed as a Flatpak, where updates are the host's job.
+   *
+   * ⚠️ A distinct state rather than reusing `unconfigured`, because the two need
+   * different sentences and different buttons. `unconfigured` means we could update and
+   * nobody wired the feed; this means the client CANNOT update itself and should not
+   * pretend otherwise — `/app` is read-only, so there is no file for the updater to
+   * swap. Saying "up to date" here would be a lie, and offering Install would be a
+   * button that fails every time.
+   */
+  | { status: 'managed' }
   | { status: 'idle' }
   | { status: 'checking' }
   /** Asked, and there is nothing newer. The only state that may claim currency. */
@@ -63,6 +74,24 @@ type TauriUpdate = {
   ) => Promise<void>
 }
 
+/**
+ * Whether this process is running inside a Flatpak sandbox.
+ *
+ * ⚠️ Asked of Rust, not of the webview. A Tauri frontend has no Node, so the obvious
+ * `process.env.FLATPAK_ID` check is not merely unavailable — it evaluates to `false`
+ * everywhere and would quietly leave the Updates page offering an Install button that
+ * can never work.
+ */
+export const isFlatpak = async (): Promise<boolean> => {
+  if (!isTauri()) return false
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return (await invoke<boolean>('is_flatpak')) === true
+  } catch {
+    return false
+  }
+}
+
 /** True only when both a feed URL and a public key are configured. Read from Rust. */
 export const updaterConfigured = async (): Promise<boolean> => {
   if (!isTauri()) return false
@@ -76,6 +105,10 @@ export const updaterConfigured = async (): Promise<boolean> => {
 
 export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateState> => {
   if (!isTauri()) return { status: 'unsupported' }
+  // ⚠️ Before the feed check, not after. A Flatpak install has a perfectly valid feed
+  // configured and still cannot use it, so asking "is it configured" first would answer
+  // the wrong question and report `unconfigured`.
+  if (await isFlatpak()) return { status: 'managed' }
   if (!(await updaterConfigured())) return { status: 'unconfigured' }
 
   const checkedAt = Date.now()
@@ -162,6 +195,8 @@ export const describeUpdate = (state: UpdateState): string => {
       return 'Not available in the browser build'
     case 'unconfigured':
       return 'Update feed not configured'
+    case 'managed':
+      return 'Managed by Flatpak · flatpak update'
     case 'idle':
       return 'Not checked yet'
     case 'checking':
