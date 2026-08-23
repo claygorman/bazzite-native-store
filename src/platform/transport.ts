@@ -93,13 +93,35 @@ const webGet = async (req: SteamRequest): Promise<unknown> => {
   return req.as === 'text' ? res.text() : res.json()
 }
 
+/**
+ * ⚠️ Every query value is forced to a string, and this is not tidying.
+ *
+ * `SteamRequest.query` is `Record<string, string | number>`, but the Rust command takes
+ * `HashMap<String, String>`. A number therefore reaches serde and is REJECTED — the call
+ * fails at our own IPC boundary in about a millisecond, having never touched the network:
+ *
+ *   invalid args `query` for command `steam_get`:
+ *   invalid type: integer `1332010`, expected a string
+ *
+ * ⚠️ Invisible in development, because `webGet` builds a query STRING and numbers
+ * stringify on the way. So `appdetails` — whose callers pass `appids: appid` as a number —
+ * worked in the browser and had never once succeeded in the Tauri build. On the box that
+ * surfaced as "Steam returned no details for this app. It is either age-gated or no longer
+ * listed", a confident accusation against games that were fine, and it cost a night of
+ * chasing rate limits and sandbox permissions.
+ *
+ * Done HERE rather than at each call site so no future caller can reintroduce it.
+ */
+const stringifyQuery = (query: SteamRequest['query']): Record<string, string> =>
+  Object.fromEntries(Object.entries(query ?? {}).map(([key, value]) => [key, String(value)]))
+
 const tauriGet = async (req: SteamRequest): Promise<unknown> => {
   const { invoke } = await import('@tauri-apps/api/core')
   // Rust returns the raw body as a string; it never interprets Steam's shapes.
   const body = await invoke<string>('steam_get', {
     host: req.host,
     path: req.path,
-    query: req.query ?? {},
+    query: stringifyQuery(req.query),
     ttlSeconds: req.ttlSeconds,
     timeoutMs: policy.timeoutMs,
   })
