@@ -118,10 +118,13 @@ export const SettingsView = ({
         {/*
           ⚠️ 22rem is the artboard's 352px, converted — 352 ÷ 16, per DESIGN-PORT §1.
           This shipped at `w-44`, which is 11rem: exactly half, and almost certainly a
-          44-for-88 slip rather than a decision. The symptom was "Downloads & Storage"
-          wrapping to two lines, so one entry stood at 110px against its neighbours' 71
-          and the column lost its rhythm. Measured: that label needs 16.5rem on one
-          line, so 11rem could never have held it and 22rem holds it comfortably.
+          44-for-88 slip rather than a decision.
+
+          The symptom that exposed it was "Downloads & Storage" wrapping to two lines,
+          leaving one entry 110px tall against its neighbours' 71. That page is now
+          just "Storage", so no label currently needs the room — but the slip was real
+          and 22rem is the specified value, so it stays. Do not re-derive this width
+          from whatever the longest label happens to be this week.
 
           Vertically tighter than the artboard on purpose — seven entries share the
           height with a status card, and the extra width means less of it is needed.

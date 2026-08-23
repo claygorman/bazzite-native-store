@@ -207,7 +207,15 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
 
   {
     id: 'downloads',
-    title: 'Downloads & Storage',
+    /*
+     * ⚠️ "Storage", not the artboard's "Downloads & Storage". The download half of 8e
+     * is gone: "Steam library target" and "Ask which drive each time" were dropped
+     * because this client never installs a game — it deep-links to Steam and Steam
+     * picks the drive. What remains is the media cache and a way to reclaim it, which
+     * is storage and nothing else. A page called Downloads that cannot download is a
+     * promise the client does not keep.
+     */
+    title: 'Storage',
     question: 'What bytes does the client own?',
     colA: {
       title: 'Media cache',
