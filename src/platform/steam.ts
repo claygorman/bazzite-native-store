@@ -1,4 +1,5 @@
 import { steamGet } from './transport'
+import { logEmpty } from './debugLog'
 import { isAdultContent } from './contentFilter'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
 import type { AppDetails, ReviewSummary, StoreItem, StoreRow, StoreTag } from '../types/steam'
@@ -281,7 +282,13 @@ export const fetchAppDetails = async (appid: number): Promise<AppDetails | undef
   })
 
   const entry = asRecord(asRecord(json)?.[String(appid)])
-  if (!entry || entry.success !== true) return undefined
+  if (!entry || entry.success !== true) {
+    // ⚠️ HTTP 200 with `success: false` — age-gated, delisted, or region-blocked, and the
+    // response cannot tell us which. This is the line that explains a details page
+    // reading "Steam returned no details for this app".
+    logEmpty('appdetails', { appid, success: entry?.success ?? null })
+    return undefined
+  }
 
   const data = asRecord(entry.data)
   if (!data) return undefined

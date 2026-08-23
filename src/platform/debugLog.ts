@@ -57,6 +57,20 @@ export const logDebug = (...parts: unknown[]): void => {
     .catch(() => undefined)
 }
 
+/**
+ * A request that SUCCEEDED and yielded nothing usable.
+ *
+ * ⚠️ The gap this closes is the one that matters. `steamGet` logs OK on any 2xx, but
+ * Steam refuses inside a 200 body: `appdetails` answers `{"success": false}` for an
+ * age-gated or delisted app, and an odd shape from `GetTagList` is a perfectly healthy
+ * HTTP response carrying nothing. Both render as an empty screen while the log says the
+ * request was fine — which is worse than no log, because it points the search in the
+ * wrong direction.
+ */
+export const logEmpty = (what: string, detail?: unknown): void => {
+  logDebug('NONE', what, detail === undefined ? '' : detail)
+}
+
 /* ─────────────────── the loopback control channel ─────────────────── */
 
 /**

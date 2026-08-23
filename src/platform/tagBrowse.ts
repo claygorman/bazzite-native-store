@@ -1,4 +1,5 @@
 import { steamGet } from './transport'
+import { logEmpty } from './debugLog'
 import { STORE_LOCALE } from './steam'
 import { parseSearchResults, type SearchPage } from './searchResults.ts'
 
@@ -40,13 +41,23 @@ export const fetchAllTags = async (): Promise<StoreTagInfo[]> => {
       ttlSeconds: 86_400,
     })
     const list = (json as { response?: { tags?: unknown } } | null)?.response?.tags
-    if (!Array.isArray(list)) return []
-    return list.flatMap((raw) => {
+    if (!Array.isArray(list)) {
+      // 200 with a shape we do not recognise. Without this the tag screen is simply
+      // empty and the request log says everything succeeded.
+      logEmpty('GetTagList', { got: typeof list })
+      return []
+    }
+    const tags = list.flatMap((raw) => {
       const o = raw as Record<string, unknown> | null
       const tagid = typeof o?.tagid === 'number' ? o.tagid : undefined
       const name = typeof o?.name === 'string' && o.name.length > 0 ? o.name : undefined
       return tagid !== undefined && name !== undefined ? [{ tagid, name }] : []
     })
+    // ⚠️ A list that arrived but survived none of the field checks is a DIFFERENT
+    // failure from a list that never arrived, and both end as an empty tag screen. The
+    // counts tell them apart in one line.
+    if (tags.length === 0) logEmpty('GetTagList', { received: list.length, usable: 0 })
+    return tags
   } catch {
     return []
   }
