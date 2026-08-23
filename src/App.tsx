@@ -2262,6 +2262,17 @@ export const App = () => {
             <span className="text-base font-extrabold uppercase tracking-[0.26em] text-ink">
               Store
             </span>
+            {/*
+              ⚠️ The running version, on screen rather than three pages into Settings.
+              This app has now shipped two separate bugs whose only symptom was a wrong
+              version string, and both were found by someone reading `flatpak info` over
+              SSH rather than by looking at it. Dimmer and smaller than the wordmark: it
+              is for identifying a build in a screenshot, not something to read from the
+              sofa.
+            */}
+            <span className="text-sm font-semibold tabular-nums text-ink-3/40">
+              {clientVersion}
+            </span>
             <span className="h-4.5 w-px bg-hairline" />
             {/*
               ⚠️ Both routes named, because they are not interchangeable and the design

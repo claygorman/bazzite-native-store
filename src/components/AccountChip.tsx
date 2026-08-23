@@ -39,7 +39,14 @@ export const AccountChip = ({
     )
   }
 
-  const label = session.player?.personaname ?? session.steamid
+  /*
+   * ⚠️ Never the SteamID64. It used to fall back to the raw 17-digit id, which is
+   * unreadable at ten feet, means nothing to the person it belongs to, and puts an
+   * account identifier permanently on a television — and into every screenshot taken
+   * of it. `Signed in` is the honest thing to say when the name did not resolve: we
+   * know who you are, we just could not fetch the label.
+   */
+  const label = session.player?.personaname ?? 'Signed in'
 
   return (
     <span
