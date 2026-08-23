@@ -5,6 +5,37 @@ description = "Controller-first Steam store client for Bazzite Game Mode"
 authors = ["Clay Gorman"]
 edition = "2021"
 
+# ⚠️ Both halves of this are load-bearing, and 0.4.0 shipped without them.
+#
+# Cargo AUTO-DISCOVERS every file under `src/bin/` as an extra binary target. Adding
+# `src/bin/protondb-index.rs` therefore gave this crate two binaries, and with neither
+# `default-run` here nor `mainBinaryName` in tauri.conf.json set, the bundler had no way
+# to know which one is the app. It picked the indexer: the 0.4.0 AppImage contained
+# `usr/bin/protondb-index` and NO `bazzite-store` at all, with `Exec=protondb-index` in
+# the desktop entry, so launching it printed a usage string and exited.
+#
+# ⚠️ `default-run` alone fixes which binary launches and still ships the other one — 9.3
+# MB of build-time tooling inside the app image. `autobins = false` plus explicit
+# sections is what stops a future file in `src/bin/` re-creating the ambiguity silently.
+default-run = "bazzite-store"
+autobins = false
+
+[[bin]]
+name = "bazzite-store"
+path = "src/main.rs"
+
+# The dump indexer. Build-time tooling, never part of the app:
+#   cargo run --features tooling --bin protondb-index -- <out-dir> [archive.tar.gz]
+[[bin]]
+name = "protondb-index"
+path = "src/bin/protondb-index.rs"
+required-features = ["tooling"]
+
+[features]
+# Off by default, which is the whole point: a release build must not produce this
+# target, so the bundler cannot pick it up even if the guards above are edited away.
+tooling = []
+
 [lib]
 name = "bazzite_store_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

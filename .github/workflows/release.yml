@@ -222,6 +222,37 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build --bundles ${{ matrix.bundles }} ${{ matrix.tauriArgs }}
 
+      # ⚠️ Assert on the ARTIFACT, not on the build. Two shipped releases in a row were
+      # broken in ways a green build cannot see: 0.3.1 bundled a WebKit that could not
+      # create an EGL display and painted a white window, and 0.4.0 shipped the wrong
+      # binary entirely — `usr/bin/protondb-index` with `Exec=protondb-index`, and no
+      # `bazzite-store` in the image at all, so launching it printed a usage string.
+      #
+      # Both compiled, bundled, signed and uploaded without a single failing step. This
+      # is the cheapest check that would have caught the second one and any repeat of it.
+      # It cannot catch the first — only running the thing on a GPU can — which is why
+      # the matrix comment above carries that warning separately.
+      - name: The AppImage contains the app
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ matrix.dir }}"
+          image=$(ls *.AppImage | head -1)
+          "./$image" --appimage-extract >/dev/null
+          test -x squashfs-root/usr/bin/bazzite-store \
+            || { echo "::error::no bazzite-store binary in $image"; ls -la squashfs-root/usr/bin; exit 1; }
+          grep -qx 'Exec=bazzite-store' squashfs-root/*.desktop \
+            || { echo "::error::desktop entry does not launch bazzite-store"; cat squashfs-root/*.desktop; exit 1; }
+          # Build-time tooling has no business in the app image, and its presence means
+          # the bin-target guards in Cargo.toml have been edited away.
+          if [ -e squashfs-root/usr/bin/protondb-index ]; then
+            echo "::error::protondb-index is in the bundle; check autobins/required-features"
+            exit 1
+          fi
+          rm -rf squashfs-root
+          echo "$image contains bazzite-store and launches it"
+
       # ⚠️ Both macOS runners produce `bazzite-store.app.tar.gz` — no architecture in
       # the name. Uploaded as-is with --clobber, whichever finishes second overwrites
       # the first, and the manifest then points BOTH darwin entries at one file whose

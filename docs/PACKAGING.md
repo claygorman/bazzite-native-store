@@ -37,6 +37,27 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > ⚠️ **CI cannot catch a recurrence.** The bad artifact builds, signs and runs; it just
 > does not paint. Only launching it on the box finds this.
 >
+> [!WARNING]
+> **The crate has more than one binary target, and the bundler will guess wrong.** Cargo
+> auto-discovers everything under `src-tauri/src/bin/` as an extra binary. `0.4.0` shipped
+> `usr/bin/protondb-index` with `Exec=protondb-index` in the desktop entry and **no
+> `bazzite-store` binary in the image at all** — launching it printed a usage string and
+> exited. Three guards now hold it, and all three should stay:
+>
+> - `mainBinaryName` in `tauri.conf.json` — names the app for the bundler.
+> - `default-run` + `autobins = false` + explicit `[[bin]]` in `Cargo.toml` — stops a new
+>   file under `src/bin/` re-creating the ambiguity silently.
+> - `required-features = ["tooling"]` on the indexer, off by default, so a release build
+>   never produces that target. Build it with
+>   `cargo run --features tooling --bin protondb-index`.
+>
+> ⚠️ `mainBinaryName` alone is not enough: the app then launches correctly and the image
+> still carries 9.3 MB of build-time tooling.
+>
+> ⚠️ **Do not put comment keys in `tauri.conf.json`.** It rejects unknown fields outright —
+> a `_comment_*` key fails the build script with "unknown field", which reads like a
+> version mismatch between the CLI and `tauri-build`.
+
 > The real fix is a **Flatpak**, which uses the runtime's WebKit and bundles no browser at
 > all. That is tracked separately; the runner bump unblocks the AppImage without making the
 > AppImage the right shape.
