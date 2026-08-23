@@ -268,9 +268,17 @@ jobs:
           cd "${{ matrix.dir }}"
           installer=$(ls *-setup.exe | head -1)
           listing=$(7z l "$installer")
-          grep -qE '(^|[\\/])bazzite-store\.exe$|[\\/]bazzite-store\.exe' <<<"$listing" \
+          # ⚠️ Compare the NAME COLUMN, not the raw line. The first version of this
+          # matched `[\\/]bazzite-store\.exe`, i.e. it required a path separator — but
+          # NSIS lists root-level payload with no directory at all
+          # ("...  16669184   bazzite-store.exe"), so it never matched and failed a
+          # perfectly good 0.5.0 build. A guard that rejects correct artifacts is worse
+          # than no guard: it costs a release and teaches you to ignore it.
+          # `tr -d '\r'` because 7z on Windows emits CRLF and the CR would end up in $NF.
+          names=$(printf '%s\n' "$listing" | tr -d '\r' | awk 'NF{print $NF}')
+          printf '%s\n' "$names" | grep -qxE '(.*[\\/])?bazzite-store\.exe' \
             || { echo "::error::no bazzite-store.exe in $installer"; echo "$listing"; exit 1; }
-          if grep -qE 'protondb-index\.exe' <<<"$listing"; then
+          if printf '%s\n' "$names" | grep -qxE '(.*[\\/])?protondb-index\.exe'; then
             echo "::error::protondb-index.exe is in the installer; check autobins/required-features"
             exit 1
           fi
@@ -392,11 +400,18 @@ jobs:
             || { echo "::error::no bazzite-store binary inside $bundle"; exit 1; }
           echo "$bundle contains bazzite-store"
 
+      # ⚠️ `--repo` explicitly, and safe.directory first. This job runs in a container
+      # as a different uid than the checkout, so git refuses the working tree with
+      # "detected dubious ownership" — and `gh` infers the repository FROM git, so it
+      # dies before it ever talks to the API. The flatpak had already built, bundled and
+      # passed its own assertion when 0.5.0 failed here; only the upload was broken.
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ needs.release.outputs.version }}" *.flatpak --clobber
+          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+          gh release upload "${{ needs.release.outputs.version }}" *.flatpak \
+            --clobber --repo "$GITHUB_REPOSITORY"
 
   manifest:
     name: Publish the update feed
