@@ -115,7 +115,18 @@ export const SettingsView = ({
 
       <div className="flex min-h-0 flex-1 gap-8">
         {/* The rail. Driven by LB/RB, never focusable — see the ideology doc §5. */}
-        <nav className="flex w-44 shrink-0 flex-col gap-1.5">
+        {/*
+          ⚠️ 22rem is the artboard's 352px, converted — 352 ÷ 16, per DESIGN-PORT §1.
+          This shipped at `w-44`, which is 11rem: exactly half, and almost certainly a
+          44-for-88 slip rather than a decision. The symptom was "Downloads & Storage"
+          wrapping to two lines, so one entry stood at 110px against its neighbours' 71
+          and the column lost its rhythm. Measured: that label needs 16.5rem on one
+          line, so 11rem could never have held it and 22rem holds it comfortably.
+
+          Vertically tighter than the artboard on purpose — seven entries share the
+          height with a status card, and the extra width means less of it is needed.
+        */}
+        <nav className="flex w-88 shrink-0 flex-col gap-1">
           {SETTINGS_PAGES.map((p, i) => (
             /*
               ⚠️ Two states, not one. Which page you are ON is a permanent fact of the
@@ -127,14 +138,21 @@ export const SettingsView = ({
             <span
               key={p.id}
               className={[
-                'flex items-center gap-4 rounded-lg px-5 py-4 text-xl font-semibold',
+                'flex items-center gap-3.5 rounded-lg px-4.5 py-3 text-xl font-semibold',
                 'transition-colors duration-150',
                 i === focus.page ? 'bg-info-wash text-focus-ink' : 'text-ink-2/60',
                 i === focus.page && onRail ? 'shadow-focused-bare' : '',
               ].join(' ')}
             >
+              {/*
+                ⚠️ `shrink-0`. Without it this bar is a flex child with no minimum, so
+                the longest UNBREAKABLE label squeezes it to zero width and the entry
+                loses its "you are here" mark while every other page keeps one. It
+                showed up on Compatibility alone — "Downloads & Storage" is two words
+                and wraps, so it never forced the issue.
+              */}
               <span
-                className={`w-1 rounded-sm bg-focus transition-all duration-150 ${
+                className={`w-1 shrink-0 rounded-sm bg-focus transition-all duration-150 ${
                   i === focus.page
                     ? onRail
                       ? 'h-8 opacity-100'
