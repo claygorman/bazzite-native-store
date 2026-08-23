@@ -55,6 +55,15 @@ type Props = {
   muted: boolean
   /** Reports whether the current clip actually carries audio. undefined = unknown yet. */
   onAudioChange?: (hasAudio: boolean | undefined) => void
+  /**
+   * Get out of the way — the offers band below has taken focus and lifted over this.
+   *
+   * ⚠️ Not cosmetic. Everything on this page is absolutely positioned, and the lifted
+   * band's `top` puts it ABOVE this element's `top-24`. Without retreating, the gallery
+   * simply covers the offers' right-hand column: the first bundle's price, discount and
+   * "Open bundle page" button all render underneath the trailer.
+   */
+  retreated?: boolean
   source: InputSource
 }
 
@@ -107,7 +116,15 @@ const SpeakerIcon = ({ muted }: { muted: boolean }) => (
   </svg>
 )
 
-export const MediaGallery = ({ items, index, focused, muted, onAudioChange, source }: Props) => {
+export const MediaGallery = ({
+  items,
+  index,
+  focused,
+  muted,
+  onAudioChange,
+  retreated,
+  source,
+}: Props) => {
   const stripRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   /** undefined = not determined yet. */
@@ -184,7 +201,11 @@ export const MediaGallery = ({ items, index, focused, muted, onAudioChange, sour
   if (!current) return null
 
   return (
-    <div className="absolute right-14 top-24 flex w-205 flex-col gap-3">
+    <div
+      className={`absolute right-14 top-24 flex w-205 flex-col gap-3 transition-all duration-200 ease-out ${
+        retreated ? 'pointer-events-none -translate-y-6 opacity-0' : ''
+      }`}
+    >
       <div
         className={[
           'relative h-97 w-full overflow-hidden rounded-lg',

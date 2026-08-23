@@ -224,15 +224,27 @@ export const DetailsPage = ({
       {screen === 0 && (
         <motion.div
           key="overview-text"
-          {...PAGE_ENTER}
+          initial={PAGE_ENTER.initial}
           /*
             ⚠️ Lifted and faded rather than unmounted when the offers take focus. Removing
             it would reflow the page under the cursor and cost the entry animation on the
             way back; moving it keeps the two halves of Overview feeling like one page you
             scrolled rather than two screens that swapped.
           */
-          className={`absolute left-14 top-24 flex w-205 flex-col gap-3.5 transition-all duration-200 ease-out ${
-            zone === 'offers' ? 'pointer-events-none -translate-y-6 opacity-0' : ''
+          /*
+            ⚠️ The retreat is driven through `animate`, NOT through classes, and that is
+            the whole fix. This element previously spread `{...PAGE_ENTER}` — whose
+            `animate` is `{opacity: 1, y: 0}` — alongside a conditional
+            `opacity-0 -translate-y-6`. Motion writes its animate values as INLINE
+            STYLES, and an inline style beats a utility class, so the fade-out was dead
+            code: the hero stayed at full opacity and the lifted offers band rendered
+            straight through the game's title. Nothing about it looked wrong in the
+            source, which is why it survived.
+          */
+          animate={zone === 'offers' ? { opacity: 0, y: -24 } : PAGE_ENTER.animate}
+          transition={PAGE_ENTER.transition}
+          className={`absolute left-14 top-24 flex w-205 flex-col gap-3.5 ${
+            zone === 'offers' ? 'pointer-events-none' : ''
           }`}
         >
           {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
@@ -368,6 +380,9 @@ export const DetailsPage = ({
           focused={zone === 'media'}
           muted={muted}
           onAudioChange={onAudioChange}
+          // Same retreat as the hero: the lifted band sits above this element's `top-24`
+          // and would otherwise hide the first offer's price and its button.
+          retreated={zone === 'offers'}
           source={source}
         />
       )}
