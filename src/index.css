@@ -62,6 +62,12 @@ html {
    * distance. This is the same plate, one step brighter.
    */
   --color-plate-focus: #1b2a3c;
+  /*
+   * The settings dropdown's panel — turn 10. Darker than `plate` on purpose: it floats
+   * OVER rows that are themselves plates, and a panel the same colour as what it covers
+   * reads as part of the row rather than above it.
+   */
+  --color-dropdown: #0b1220;
   --color-inset: rgb(8 13 22 / 0.45); /* note box inside a plate */
   --color-scrim: rgb(8 13 22 / 0.82); /* badge sitting over artwork */
   --color-ink-soft: rgb(232 238 241 / 0.9); /* resting title */
@@ -162,6 +168,11 @@ html {
   --shadow-tile-glow-hi:
     0 0 0 0.09375rem rgb(150 205 250 / 0.38), 0 0 3.375rem rgb(77 155 230 / 0.62);
   --shadow-tile-drop: 0 1.25rem 2.875rem rgb(0 0 0 / 0.6);
+  /*
+   * The dropdown's lift. Deep and soft — it is the only surface in the app that floats
+   * over another interactive surface, so it has to be unambiguous which one is on top.
+   */
+  --shadow-dropdown: 0 1.375rem 3rem rgb(0 0 0 / 0.7);
   --shadow-flag: 0.125rem 0.0625rem 0.3125rem rgb(0 0 0 / 0.35);
   /*
    * The Settings badge dot in the Up menu. The dark ring is not decoration — the dot

@@ -1,4 +1,5 @@
-import type { Ref } from 'react'
+import { useLayoutEffect, useRef, useState, type Ref } from 'react'
+import { createPortal } from 'react-dom'
 import type { SettingsRow as Row } from './pages'
 import { labelFor, optionsFor, type Settings } from '../../platform/settings'
 
@@ -10,6 +11,14 @@ type Props = {
   focused: boolean
   /** A has opened this stepper's list. Only ever true on the focused row. */
   open?: boolean
+  /**
+   * Which option the dpad is sitting on while the list is open.
+   *
+   * ⚠️ Deliberately NOT the committed value. Turn 10 draws them apart — "moved to Gold,
+   * check stays on Silver" — so moving the stick previews without changing anything and
+   * B can still walk away. `settings[row.key]` remains the truth until A.
+   */
+  cursor?: number
   /** Set on the focused row so the column can scroll it into view. */
   elementRef?: Ref<HTMLButtonElement>
   onActivate: () => void
@@ -38,6 +47,7 @@ export const SettingsRow = ({
   actionLabel,
   focused,
   open = false,
+  cursor,
   elementRef,
   onActivate,
 }: Props) => (
@@ -46,7 +56,11 @@ export const SettingsRow = ({
     type="button"
     onClick={onActivate}
     className={[
-      'relative flex w-full gap-5 overflow-hidden rounded-lg py-4.5 pl-6.5 pr-5.5 text-left',
+      // ⚠️ NOT `overflow-hidden`. It used to be, for the focus bar's square corners,
+      // and that is what forced the value list to render inside the row. The bar rounds
+      // its own left corners now — see DESIGN-PORT.md rule 7: never clip the parent to
+      // tidy a child when another child has to paint outside it.
+      'relative flex w-full gap-5 rounded-lg py-4.5 pl-6.5 pr-5.5 text-left',
       open ? 'items-start' : 'items-center',
       'transition-colors duration-150',
       focused ? 'bg-focus-wash shadow-focused-bare' : 'bg-plate',
@@ -65,8 +79,11 @@ export const SettingsRow = ({
       from, and it is the SAME bar the rail beside it already uses for "you are here",
       so this screen has one vocabulary rather than two.
     */}
+    {/* `rounded-l-lg` matches the row's own radius, which is what the row's
+        `overflow-hidden` used to do for it. Losing that clip is what lets the value
+        list below escape the row and float. */}
     <span
-      className={`absolute inset-y-0 left-0 w-1.5 bg-focus transition-opacity duration-150 ${
+      className={`absolute inset-y-0 left-0 w-1.5 rounded-l-lg bg-focus transition-opacity duration-150 ${
         focused ? 'opacity-100' : 'opacity-0'
       }`}
     />
@@ -83,16 +100,16 @@ export const SettingsRow = ({
 
     {row.kind === 'toggle' && <Toggle on={settings[row.key]} />}
 
-    {row.kind === 'stepper' &&
-      (open ? (
-        <ValueList options={optionsFor(row.key)} current={settings[row.key]} />
-      ) : (
-        <span className="flex flex-none items-center gap-3.5 rounded-full bg-chip-strong px-4.5 py-2.75 text-lg font-semibold text-ink-2">
-          <span className="text-ink-faint">◀</span>
-          {labelFor(row.key, settings[row.key] as never)}
-          <span className="text-ink-faint">▶</span>
-        </span>
-      ))}
+    {row.kind === 'stepper' && (
+      <ValueSelect
+        options={optionsFor(row.key)}
+        current={settings[row.key]}
+        label={labelFor(row.key, settings[row.key] as never)}
+        focused={focused}
+        open={open}
+        cursor={cursor}
+      />
+    )}
 
     {row.kind === 'button' && (
       <span className="flex flex-none items-center rounded-full border border-hairline bg-chip-strong px-5 py-3 text-lg font-semibold text-ink">
@@ -103,48 +120,117 @@ export const SettingsRow = ({
 )
 
 /**
- * Every value at once, once A has opened the row.
+ * The stepper's control — design turn 10's dropdown.
  *
- * ⚠️ The ideology doc says a stepper "never opens a panel" and it was right about the
- * *reason* — "at ten feet, hidden state is broken state" — but wrong about the remedy.
- * A stepper that only steps forward on A dead-ends at the last value and then does
- * nothing, which is how this actually failed in use; the alternative, wrapping, reads
- * as one press undoing four.
+ * Closed it is a pill with a chevron. Open, a panel of every value hangs beneath it
+ * with a check on the COMMITTED value and a ring on wherever the dpad currently is.
  *
- * So the list is shown IN PLACE, not in a panel. Nothing is hidden: every value is on
- * screen with the current one lit, the row simply grows to hold them. That satisfies
- * the rule the doc was defending while giving A somewhere to go in both directions.
+ * ⚠️ Those two marks are separate on purpose, and it is the whole point of the turn:
+ * "moved to Gold, check stays on Silver". The previous version applied every value as
+ * you arrowed past it, which meant scrolling a five-item list fired four settings
+ * changes you did not want, and on the metered/offline rows those have side effects.
+ * Now nothing happens until A.
  *
- * ⚠️ Renders INSIDE the row rather than as an overlay, which is why it can grow the
- * column instead of floating over it. An anchored popover would have to escape the
- * row's `overflow-hidden` (there for the focus bar's square corners) and would then be
- * one more full-screen-ish layer to get the pointer-events right on.
+ * ⚠️ Rendered through a PORTAL, and it has to be. The settings grid is
+ * `overflow-y-auto`, so a panel positioned inside it is clipped the moment it extends
+ * past the bottom row — which is exactly the case that needs it most. Portalling to
+ * `body` and positioning from the pill's measured rect sidesteps every ancestor's
+ * clipping at once. Safe here because the list cannot outlive its row: focus is
+ * captured while it is open, so nothing can scroll underneath and strand it.
  */
-const ValueList = ({
+const ValueSelect = ({
   options,
   current,
+  label,
+  focused,
+  open,
+  cursor,
 }: {
   options: ReadonlyArray<{ value: unknown; label: string }>
   current: unknown
-}) => (
-  <span className="flex flex-none flex-col items-stretch gap-1">
-    {options.map((option) => {
-      const selected = option.value === current
-      return (
-        <span
-          key={String(option.value)}
-          className={[
-            'rounded-full px-4.5 py-1.75 text-right text-lg font-semibold whitespace-nowrap',
-            'transition-colors duration-100',
-            selected ? 'bg-focus text-ink-on-accent' : 'text-ink-2/60',
-          ].join(' ')}
-        >
-          {option.label}
-        </span>
-      )
-    })}
-  </span>
-)
+  label: string
+  focused: boolean
+  open: boolean
+  cursor?: number
+}) => {
+  /*
+   * ⚠️ An absent cursor means "wherever the value already is", NOT zero. Defaulting to
+   * the first option would open every list with the ring on the top entry while the
+   * check sat somewhere else — two marks disagreeing about where you are.
+   */
+  const at =
+    cursor ??
+    Math.max(
+      0,
+      options.findIndex((o) => o.value === current),
+    )
+  const pillRef = useRef<HTMLSpanElement>(null)
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setAnchor(null)
+      return
+    }
+    const rect = pillRef.current?.getBoundingClientRect()
+    if (rect) setAnchor({ left: rect.left, top: rect.bottom, width: rect.width })
+  }, [open])
+
+  return (
+    <>
+      <span
+        ref={pillRef}
+        className={[
+          'flex flex-none items-center gap-3.5 rounded-full border px-4.5 py-2.75',
+          'text-lg font-semibold transition-colors duration-150',
+          open
+            ? 'border-focus/65 bg-focus/25 text-ink'
+            : focused
+              ? 'border-hairline bg-chip-strong text-ink'
+              : 'border-transparent bg-chip-strong text-ink-2',
+        ].join(' ')}
+      >
+        {label}
+        <span className="text-sm text-ink-faint">{open ? '▴' : '▾'}</span>
+      </span>
+
+      {open &&
+        anchor !== null &&
+        createPortal(
+          <div
+            // 0.5rem below the pill, per the spec's `top: calc(100% + 8px)`.
+            style={{ left: anchor.left, top: anchor.top + 8, minWidth: anchor.width }}
+            className="fixed z-50 flex flex-col gap-0.5 rounded-xl border border-focus/40 bg-dropdown p-2 shadow-dropdown"
+          >
+            {options.map((option, index) => {
+              const committed = option.value === current
+              return (
+                <span
+                  key={String(option.value)}
+                  className={[
+                    'flex items-center gap-3 whitespace-nowrap rounded-md px-3.5 py-2.5',
+                    'text-lg font-semibold',
+                    index === at ? 'bg-focus/20 text-ink' : 'text-ink-2/72',
+                    // ⚠️ Inset, so the ring is drawn inside the option's own box and
+                    // cannot be shaved off by the panel's rounded corners.
+                    index === at ? 'outline-2 -outline-offset-2 outline-focus' : '',
+                  ].join(' ')}
+                >
+                  {/* The column is always present, so a check appearing does not shift
+                      the label sideways. */}
+                  <span className={`w-4 text-focus ${committed ? 'opacity-100' : 'opacity-0'}`}>
+                    ✓
+                  </span>
+                  {option.label}
+                </span>
+              )
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
 
 /**
  * ⚠️ 70x38 with the word beside it, per the design — and the word is the load-bearing

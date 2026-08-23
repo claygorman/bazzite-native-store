@@ -25,6 +25,8 @@ export type SettingsFocus = {
   row: number
   /** A has opened the focused stepper's list of values. */
   open: boolean
+  /** Where the dpad sits inside that list — not the committed value. */
+  cursor?: number
 }
 
 type Props = {
@@ -168,6 +170,7 @@ export const SettingsView = ({
               actionLabel={actionLabel}
               focusedRow={!onRail && focus.col === 0 ? focus.row : -1}
               openRow={focus.open}
+              cursorRow={focus.cursor}
               focusedRef={focusedRef}
               onActivate={(i) => onActivate(0, i)}
             />
@@ -178,6 +181,7 @@ export const SettingsView = ({
               actionLabel={actionLabel}
               focusedRow={!onRail && focus.col === 1 ? focus.row : -1}
               openRow={focus.open}
+              cursorRow={focus.cursor}
               focusedRef={focusedRef}
               onActivate={(i) => onActivate(1, i)}
             />
@@ -200,6 +204,7 @@ const Column = ({
   actionLabel,
   focusedRow,
   openRow,
+  cursorRow,
   focusedRef,
   onActivate,
 }: {
@@ -209,6 +214,7 @@ const Column = ({
   actionLabel?: Partial<Record<RowAction, string>>
   focusedRow: number
   openRow: boolean
+  cursorRow?: number
   focusedRef: RefObject<HTMLButtonElement | null>
   onActivate: (index: number) => void
 }) => (
@@ -222,6 +228,7 @@ const Column = ({
         actionLabel={row.kind === 'button' ? actionLabel?.[row.action] : undefined}
         focused={i === focusedRow}
         open={i === focusedRow && openRow}
+        cursor={cursorRow}
         elementRef={i === focusedRow ? focusedRef : undefined}
         onActivate={() => onActivate(i)}
       />

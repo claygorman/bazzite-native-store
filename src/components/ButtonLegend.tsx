@@ -155,11 +155,15 @@ const ACTIONS: Record<LegendScreen, LegendHint[]> = {
     { action: 'back', label: 'BACK TO STORE' },
   ],
   'settings-picker': [
-    { action: 'accept', label: 'DONE' },
+    // ⚠️ SELECT, not DONE — design turn 10 made A the commit. Moving the dpad only
+    // moves a ring; until A is pressed the setting is untouched, so a tray that said
+    // "DONE" would be claiming the work was already finished.
+    { action: 'accept', label: 'SELECT' },
     { action: 'search', label: 'RESET ROW' },
-    // ⚠️ CANCEL, not BACK. The value is applied live as you move — you are choosing by
-    // looking at the result — so B has to put back what was there when the list opened,
-    // and the tray has to say which of the two it does.
+    // ⚠️ CANCEL, not BACK. On the two live-preview rows (Interface scale, Safe area)
+    // the value really has been moving as you scrolled, so B puts back what was there
+    // when the list opened. On every other row there is nothing to undo and B simply
+    // closes — one word covers both, and it is the honest one for the destructive case.
     { action: 'back', label: 'CANCEL' },
   ],
 }

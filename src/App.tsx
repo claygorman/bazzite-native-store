@@ -16,7 +16,24 @@ import { WishlistView, WISHLIST_COLS, WISHLIST_PAGE } from './components/Wishlis
 import { useWishlist } from './hooks/useWishlist'
 import { useSettings } from './hooks/useSettings'
 import { useSystemStatus } from './hooks/useSystemStatus'
-import { stepSetting, type Settings } from './platform/settings'
+import {
+  DEFAULT_SETTINGS,
+  indexOfValue,
+  optionsFor,
+  stepSetting,
+  type Settings,
+  type SteppableKey,
+} from './platform/settings'
+
+/**
+ * The only two settings whose value applies as the dpad moves rather than on A.
+ *
+ * ⚠️ Not a general capability, and it should stay two. Both are chosen by LOOKING at
+ * the result — you cannot pick a type size for a television by committing blind,
+ * squinting at it, reopening the list and committing again. Every other row waits for
+ * A, per design turn 10, so walking a list no longer fires a change per step.
+ */
+const LIVE_PREVIEW = new Set<SteppableKey>(['uiScalePercent', 'safeAreaPercent'])
 import {
   checkForUpdate,
   describeUpdate,
@@ -116,6 +133,15 @@ type View =
        * input handler's business, not the renderer's.
        */
       open?: boolean
+      /**
+       * Which option the dpad sits on inside an open list.
+       *
+       * ⚠️ Separate from the committed value on purpose — design turn 10 draws the ring
+       * and the check apart, "moved to Gold, check stays on Silver", so moving previews
+       * without changing anything. `undefined` means "wherever the current value is",
+       * resolved on read so opening a list never has to write state first.
+       */
+      cursor?: number
     }
 
 const SEARCH_ACTION_ROW = 4
@@ -902,30 +928,53 @@ export const App = () => {
          * the one modal state on this screen. A press that reached the rows underneath
          * would move a focus hidden behind an open list.
          *
-         * The value applies as you move rather than on commit, which is the doc's own
-         * rule ("nothing needs a Save; every change applies on press") and is what
-         * makes Interface scale and Safe area usable at all — you are choosing by
-         * looking at the result. B therefore has to restore, or live preview would be
-         * a one-way door.
+         * ⚠️ The cursor is NOT the value — design turn 10, "moved to Gold, check stays
+         * on Silver". Moving previews; only A commits. The version before this applied
+         * every value you arrowed past, so walking a five-item list fired four changes
+         * nobody asked for, and on rows like Region and Request timeout those are not
+         * free — each one refetches.
+         *
+         * ⚠️ Two rows are exempt and MUST stay exempt: Interface scale and Safe area
+         * are chosen by LOOKING at the result, so they apply as the cursor moves and B
+         * puts them back. Committing blind, squinting, reopening and committing again
+         * is not a way to pick a type size. `LIVE_PREVIEW` below is that exception, and
+         * it is deliberately two entries rather than a general capability.
          */
         if (view.open && row?.kind === 'stepper') {
+          const options = optionsFor(row.key)
+          const at = view.cursor ?? indexOfValue(row.key, settings[row.key])
+          const moveTo = (next: number) => {
+            const clamped = Math.min(options.length - 1, Math.max(0, next))
+            setView({ ...view, cursor: clamped })
+            // Live-preview rows follow the cursor; everything else waits for A.
+            if (LIVE_PREVIEW.has(row.key)) {
+              set(row.key, options[clamped]!.value as never)
+            }
+          }
           switch (action) {
             case 'up':
+              moveTo(at - 1)
+              return
             case 'down':
-              set(row.key, stepSetting(row.key, settings[row.key], action === 'up' ? -1 : 1))
+              moveTo(at + 1)
               return
             case 'accept':
-              setView({ ...view, open: false })
+              set(row.key, options[at]!.value as never)
+              setView({ ...view, open: false, cursor: undefined })
               setPickerUndo(null)
               return
             case 'back':
+              // Only the live-preview rows have anything to undo — the rest were never
+              // touched, which is the point.
               if (pickerUndo) set(row.key, pickerUndo[row.key])
-              setView({ ...view, open: false })
+              setView({ ...view, open: false, cursor: undefined })
               setPickerUndo(null)
               return
             case 'search':
-              // Y still resets the row, and the list stays open showing where it landed.
+              // Y resets the row, and the cursor follows it to the default so the ring
+              // and the check agree about where you just landed.
               reset(row.key)
+              setView({ ...view, cursor: indexOfValue(row.key, DEFAULT_SETTINGS[row.key]) })
               return
             default:
               // Left/right, the shoulders and the triggers are all deliberately inert:
@@ -1046,7 +1095,9 @@ export const App = () => {
              * have read as one press undoing four.
              */
             if (row?.kind === 'stepper') {
-              setPickerUndo(settings)
+              // Only the live-preview rows can be changed before A, so they are the
+              // only ones with anything for B to restore.
+              setPickerUndo(LIVE_PREVIEW.has(row.key) ? settings : null)
               setView({ ...view, open: true })
               return
             }
@@ -1793,6 +1844,7 @@ export const App = () => {
                   col: view.col,
                   row: view.row,
                   open: view.open === true,
+                  cursor: view.cursor,
                 } satisfies SettingsFocus
               }
               settings={settings}
@@ -1805,7 +1857,7 @@ export const App = () => {
               onActivate={(col, row) => {
                 // ⚠️ `open: false` — clicking a different row must not leave the
                 // previous one's list open behind the new focus.
-                setView({ ...view, zone: 'rows', col, row, open: false })
+                setView({ ...view, zone: 'rows', col, row, open: false, cursor: undefined })
                 const page = SETTINGS_PAGES[view.page]!
                 const target = (col === 0 ? page.colA.rows : page.colB.rows)[row]
                 if (target) activateRow(target)
