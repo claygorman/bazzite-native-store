@@ -640,6 +640,15 @@ async fn latest_snapshot_name(timeout_ms: u64) -> Result<String, String> {
 /// Fetch the newest snapshot and rebuild the index, skipping the work if we already
 /// have that exact snapshot.
 pub async fn refresh(dir: PathBuf, timeout_ms: u64) -> Result<serde_json::Value, String> {
+    refresh_with_progress(dir, timeout_ms, |_, _| {}).await
+}
+
+/// As `refresh`, reporting `(downloaded, total)` as the body arrives.
+pub async fn refresh_with_progress(
+    dir: PathBuf,
+    timeout_ms: u64,
+    on_progress: impl Fn(u64, Option<u64>),
+) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::builder()
         // ⚠️ Generous, and it has to be: this is a ~66 MB body. The Network page's
         // Request timeout is tuned for a JSON endpoint answering in milliseconds, so
@@ -682,16 +691,42 @@ pub async fn refresh(dir: PathBuf, timeout_ms: u64) -> Result<serde_json::Value,
         return Ok(status);
     }
 
-    let bytes = client
+    /*
+     * ⚠️ Streamed with a progress callback rather than `.bytes()`.
+     *
+     * `.bytes()` waits for all 66 MB and hands over one blob, which means the UI can
+     * only draw a spinner and hope. The design draws a real bar — "41 of 66 MB · about
+     * 30 seconds left" — and a bar that is not backed by real numbers is worse than a
+     * spinner, because it invites people to trust it. `content-length` is present on
+     * GitHub's release CDN, but treat it as optional: `None` there must degrade to an
+     * indeterminate state, not to a division by zero.
+     */
+    let response = client
         .get(format!(
             "https://github.com/{REPO}/raw/master/reports/{newest}"
         ))
         .send()
         .await
-        .map_err(|e| e.to_string())?
-        .bytes()
-        .await
         .map_err(|e| e.to_string())?;
+    let total = response.content_length();
+    let mut bytes: Vec<u8> = Vec::with_capacity(total.unwrap_or(70_000_000) as usize);
+    {
+        use futures_util::StreamExt;
+        let mut stream = response.bytes_stream();
+        let mut last_reported = 0u64;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| e.to_string())?;
+            bytes.extend_from_slice(&chunk);
+            // ⚠️ Report at most once per MB. A callback per chunk is thousands of IPC
+            // messages for a bar that moves in whole percent — the reporting would cost
+            // more than the download.
+            if bytes.len() as u64 - last_reported >= 1_048_576 {
+                last_reported = bytes.len() as u64;
+                on_progress(last_reported, total);
+            }
+        }
+    }
+    on_progress(bytes.len() as u64, total);
 
     let records = parse_archive(&bytes).map_err(|e| e.to_string())?;
     let inserted = build_index(records, &dir, &newest).map_err(|e| e.to_string())?;

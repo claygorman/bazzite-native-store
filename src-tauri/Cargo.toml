@@ -24,13 +24,19 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # rustls rather than native-tls: one less system library to satisfy inside a Flatpak
 # sandbox, which is the intended shipping route (README §4).
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip"] }
+# ⚠️ `stream` is what provides `Response::bytes_stream`, and its absence reads as
+# "no method named `bytes_stream`" — a missing-feature error that looks like a version
+# problem. Needed so the 66 MB ProtonDB download can report progress rather than
+# arriving as one opaque blob. (`json` is still deliberately absent; we parse text.)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "stream"] }
 # `net` is for the CDP WebSocket below; the rest were already here.
 tokio = { version = "1", features = ["time", "rt", "net"] }
 # Steam's CEF debugger. `Runtime.evaluate` is only reachable over the WebSocket — CDP's
 # HTTP endpoints cannot evaluate — and this is ws:// to 127.0.0.1, so no TLS feature.
 tokio-tungstenite = "0.24"
-futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# `sink` is the CDP WebSocket; `std` brings StreamExt, which is what lets the ProtonDB
+# download report progress instead of arriving as one opaque 66 MB blob.
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 gilrs = "0.11"
 thiserror = "2"
 serde_urlencoded = "0.7"
