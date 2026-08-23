@@ -34,6 +34,11 @@ futures-util = { version = "0.3", default-features = false, features = ["sink"] 
 gilrs = "0.11"
 thiserror = "2"
 serde_urlencoded = "0.7"
+# ProtonDB's open data dump ships as .tar.gz. `reqwest`'s `gzip` feature only handles
+# HTTP content-encoding, which is a different thing from a gzipped file body — so the
+# archive has to be decompressed and untarred here.
+flate2 = "1"
+tar = "0.4"
 
 [dev-dependencies]
 # The live CEF test is async; the app itself never needs the macros.

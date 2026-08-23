@@ -1,6 +1,7 @@
 mod auth;
 mod display;
 mod input;
+mod protondb;
 mod steam;
 mod steamclient;
 mod sysinfo;
@@ -21,8 +22,57 @@ async fn steam_get(
     ttl_seconds: u64,
     timeout_ms: u64,
 ) -> Result<String, String> {
-    steam::get(cache_dir(&app)?, &host, &path, query, ttl_seconds, timeout_ms)
+    steam::get(
+        cache_dir(&app)?,
+        &host,
+        &path,
+        query,
+        ttl_seconds,
+        timeout_ms,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// One game's ProtonDB reports, read from the local index.
+///
+/// Empty is a normal answer — the game may have no reports, or the index may not have
+/// been built yet. The UI distinguishes those two with `proton_index_status`, because
+/// "nobody has reported this" and "we have not downloaded the data" are different
+/// sentences and only one of them is about the game.
+#[tauri::command]
+async fn proton_reports(
+    app: tauri::AppHandle,
+    appid: u32,
+) -> Result<Vec<protondb::Report>, String> {
+    Ok(protondb::reports_for(&proton_dir(&app)?, appid))
+}
+
+/// Whether the dump has been indexed, and from which snapshot.
+#[tauri::command]
+async fn proton_index_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let dir = proton_dir(&app)?;
+    Ok(protondb::index_status(&dir))
+}
+
+/// Download the newest snapshot and rebuild the index.
+///
+/// ⚠️ Long — a ~66 MB download and roughly half a gigabyte of JSON to walk. The caller
+/// is expected to treat this as a background job and not block a screen on it.
+#[tauri::command]
+async fn proton_refresh(
+    app: tauri::AppHandle,
+    timeout_ms: u64,
+) -> Result<serde_json::Value, String> {
+    protondb::refresh(proton_dir(&app)?, timeout_ms)
         .await
+        .map_err(|e| e.to_string())
+}
+
+fn proton_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_cache_dir()
+        .map(|dir| dir.join("protondb"))
         .map_err(|e| e.to_string())
 }
 
@@ -61,7 +111,10 @@ fn updater_configured(app: tauri::AppHandle) -> bool {
     let has_endpoint = updater
         .get("endpoints")
         .and_then(|v| v.as_array())
-        .is_some_and(|list| list.iter().any(|e| e.as_str().is_some_and(|s| !s.is_empty())));
+        .is_some_and(|list| {
+            list.iter()
+                .any(|e| e.as_str().is_some_and(|s| !s.is_empty()))
+        });
     let has_key = updater
         .get("pubkey")
         .and_then(|v| v.as_str())
@@ -90,7 +143,10 @@ pub fn run() {
             display::steam_ui_scale,
             input::pad_info,
             sysinfo::host_info,
-            steamclient::steam_session_get
+            steamclient::steam_session_get,
+            proton_reports,
+            proton_index_status,
+            proton_refresh
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
