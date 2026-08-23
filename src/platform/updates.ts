@@ -40,6 +40,15 @@ export type UpdateState =
    * button that fails every time.
    */
   | { status: 'managed' }
+  /**
+   * A Flatpak that CAN update itself, asked, and was told nothing.
+   *
+   * ⚠️ Deliberately not `current`. The portal's monitor announces updates; there is no
+   * "you are up to date" signal and no way to make it check on demand — so silence
+   * means "nothing was announced", which covers both "there is nothing" and "it has
+   * not looked yet". Only `current` may claim currency, and this cannot.
+   */
+  | { status: 'unannounced'; checkedAt: number }
   | { status: 'idle' }
   | { status: 'checking' }
   /** Asked, and there is nothing newer. The only state that may claim currency. */
@@ -93,6 +102,30 @@ export const isFlatpak = async (): Promise<boolean> => {
 }
 
 /** True only when both a feed URL and a public key are configured. Read from Rust. */
+/**
+ * What the Flatpak build can do about updating itself.
+ *
+ * `portalVersion` is `null` when `org.freedesktop.portal.Flatpak` is not on the
+ * session bus at all — an old host, or a sandbox without portals. That is a different
+ * sentence from "the portal said nothing", so the two are kept apart here rather than
+ * collapsed into a boolean.
+ */
+export const flatpakUpdateSupport = async (): Promise<{
+  sandboxed: boolean
+  portalVersion: number | null
+}> => {
+  if (!isTauri()) return { sandboxed: false, portalVersion: null }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const raw = await invoke<{ sandboxed: boolean; portalVersion: number | null }>(
+      'flatpak_update_supported',
+    )
+    return { sandboxed: raw.sandboxed === true, portalVersion: raw.portalVersion ?? null }
+  } catch {
+    return { sandboxed: false, portalVersion: null }
+  }
+}
+
 export const updaterConfigured = async (): Promise<boolean> => {
   if (!isTauri()) return false
   try {
@@ -108,7 +141,33 @@ export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateStat
   // ⚠️ Before the feed check, not after. A Flatpak install has a perfectly valid feed
   // configured and still cannot use it, so asking "is it configured" first would answer
   // the wrong question and report `unconfigured`.
-  if (await isFlatpak()) return { status: 'managed' }
+  if (await isFlatpak()) {
+    /*
+     * ⚠️ The portal, NOT `tauri-plugin-updater`, and not `flatpak-spawn --host`.
+     * `/app` is read-only so there is nothing for the plugin to swap, and spawning
+     * would need a manifest permission that lets the sandbox run any host command.
+     * `CreateUpdateMonitor` is bound to this app's own ref — updating anything else is
+     * not expressible. See src-tauri/src/flatpakupdate.rs.
+     */
+    const support = await flatpakUpdateSupport()
+    // No portal: nothing this app can do, so say so and name what does work.
+    if (support.portalVersion === null) return { status: 'managed' }
+    const checkedAt = Date.now()
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const commit = await invoke<string | null>('flatpak_update_check')
+      // ⚠️ A commit, not a version — the portal deals in ostree commits and does not
+      // know what we call this build. Short-form so it fits a card at ten feet.
+      if (!commit) return { status: 'unannounced', checkedAt }
+      return { status: 'available', version: commit.slice(0, 7), checkedAt }
+    } catch (err) {
+      return {
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+        checkedAt,
+      }
+    }
+  }
   if (!(await updaterConfigured())) return { status: 'unconfigured' }
 
   const checkedAt = Date.now()
@@ -146,6 +205,30 @@ export const installUpdate = async (
   onProgress: (state: UpdateState) => void,
 ): Promise<UpdateState> => {
   if (!isTauri()) return { status: 'unsupported' }
+
+  if (await isFlatpak()) {
+    /*
+     * ⚠️ No progress percentage here, and that is not laziness. The portal reports
+     * progress as an operation COUNT plus a per-operation percent, which does not
+     * compose into one honest bar — and a bar that invents its own number is worse
+     * than a spinner, the same rule the download branch below already follows.
+     */
+    onProgress({ status: 'downloading', version: 'the new build' })
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('flatpak_update_install')
+      // ⚠️ The running deployment stays mounted, so nothing has changed under this
+      // process. `ready` is the honest state: it applies on restart.
+      return { status: 'ready', version: 'the new build' }
+    } catch (err) {
+      return {
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+        checkedAt: Date.now(),
+      }
+    }
+  }
+
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     const update = (await check({ headers: { [CHANNEL_HEADER]: channel } })) as TauriUpdate | null
@@ -197,6 +280,9 @@ export const describeUpdate = (state: UpdateState): string => {
       return 'Update feed not configured'
     case 'managed':
       return 'Managed by Flatpak · flatpak update'
+    case 'unannounced':
+      // ⚠️ Not "Up to date". Nothing confirmed that; see the state's own comment.
+      return 'No update waiting'
     case 'idle':
       return 'Not checked yet'
     case 'checking':

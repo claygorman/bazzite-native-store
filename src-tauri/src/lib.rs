@@ -2,6 +2,7 @@ mod auth;
 mod debuglog;
 mod debugserver;
 mod display;
+mod flatpakupdate;
 mod input;
 pub mod protondb;
 mod steam;
@@ -134,7 +135,8 @@ async fn proton_variant_split(
 /// the same binary ships in the Flatpak and (for now) in the AppImage.
 #[tauri::command]
 fn is_flatpak() -> bool {
-    std::env::var_os("FLATPAK_ID").is_some()
+    // ⚠️ Delegated, not duplicated. See `flatpakupdate::in_flatpak`.
+    flatpakupdate::in_flatpak()
 }
 
 fn proton_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -238,6 +240,9 @@ pub fn run() {
             sysinfo::host_info,
             steamclient::steam_session_get,
             steamclient::steam_client_identity,
+            flatpakupdate::flatpak_update_supported,
+            flatpakupdate::flatpak_update_check,
+            flatpakupdate::flatpak_update_install,
             proton_reports,
             proton_index_status,
             proton_refresh,

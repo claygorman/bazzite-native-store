@@ -34,6 +34,12 @@ REPO="${REPO:-claygorman/bazzite-native-store}"
 APP_NAME="bazzite-store"
 # Must match `identifier` in src-tauri/tauri.conf.json and the Flatpak manifest id.
 APP_ID="com.claygorman.bazzite-store"
+
+# The ostree repo the release workflow publishes to GitHub Pages. Installing from here
+# rather than from a bundle is what gives the deployment an origin, and therefore what
+# makes `flatpak update` and the in-app updater work at all.
+REMOTE_NAME="bazzite-store"
+REMOTE_URL="https://claygorman.github.io/bazzite-native-store/repo/"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 # ⚠️ No `.AppImage` suffix any more: this path holds the AppImage on a plain Linux box
 # and a three-line `flatpak run` shim on Bazzite. It stays version-free either way, so
@@ -173,6 +179,28 @@ retire_legacy() {
 }
 
 if [ "$FORMAT" = "flatpak" ]; then
+  # ⚠️ The REMOTE first, and this is not just tidiness — it is what makes the app
+  # updatable at all.
+  #
+  # An app installed from a single-file bundle has no origin to pull from, so
+  # `flatpak update` has nothing to check and the in-app updater's portal monitor
+  # never announces anything. Both look identical to "there are no updates", forever.
+  # Installing from the ostree repo instead gives the deployment a real origin, and
+  # after that `flatpak update`, uupd, Game Mode's system update and the app's own
+  # Updates page all work without this script ever running again.
+  #
+  # The bundle stays as the fallback below, for a box that cannot reach the remote.
+  if flatpak remote-add --user --if-not-exists "$REMOTE_NAME" "$REMOTE_URL" >/dev/null 2>&1 \
+     && flatpak install --user -y --noninteractive "$REMOTE_NAME" "$APP_ID" >/dev/null 2>&1; then
+    info "Installed from the update remote — future updates need no script."
+    FROM_REMOTE=1
+  else
+    info "Remote unavailable; falling back to the release bundle (no auto-update)."
+    FROM_REMOTE=0
+  fi
+fi
+
+if [ "$FORMAT" = "flatpak" ] && [ "${FROM_REMOTE:-0}" = "0" ]; then
   BUNDLE="$TMP/app.flatpak"
   curl -fsSL --proto '=https' --tlsv1.2 -o "$BUNDLE" "$ASSET_URL" \
     || die "Download failed: $ASSET_URL"
@@ -203,8 +231,12 @@ if [ "$FORMAT" = "flatpak" ]; then
     flatpak install --user -y flathub org.gnome.Platform//50"
   fi
 
+fi
+
+if [ "$FORMAT" = "flatpak" ]; then
   # ⚠️ Verify before anything destructive happens. `flatpak install` exiting 0 is not by
-  # itself proof the app is deployed and runnable.
+  # itself proof the app is deployed and runnable. Runs for BOTH routes — the remote
+  # install is no more trustworthy than the bundle one.
   flatpak info "$APP_ID" >/dev/null 2>&1 \
     || die "flatpak reported success but $APP_ID is not installed. Nothing was changed."
 

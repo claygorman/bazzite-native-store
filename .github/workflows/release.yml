@@ -384,10 +384,62 @@ jobs:
             org.freedesktop.Sdk.Extension.rust-stable//25.08 \
             org.freedesktop.Sdk.Extension.node24//25.08
 
+      # ⚠️ The ostree repo is PERSISTENT, and that is the entire point of it.
+      #
+      # ostree is content-addressed: building release N+1 into the repo that already
+      # holds N lets `build-update-repo` compute static deltas between them, so a client
+      # updating downloads the CHANGED objects rather than the whole 17 MB app. Starting
+      # from an empty repo each release still produces a working remote — which is why
+      # getting this wrong looks fine — but every client re-downloads everything, every
+      # time, forever.
+      #
+      # Absent on the very first run, and that is not an error.
+      - name: Fetch the published repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory '*' || true
+          if git clone --quiet --depth 1 --branch gh-pages \
+               "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" pages; then
+            echo "reusing published repo: $(du -sh pages/repo 2>/dev/null | cut -f1 || echo empty)"
+          else
+            echo "no gh-pages branch yet - starting a fresh ostree repo"
+            mkdir -p pages
+          fi
+
       - name: Build
         run: |
-          flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
+          flatpak-builder --disable-rofiles-fuse --repo=pages/repo --force-clean \
             build flatpak/com.claygorman.bazzite-store.yml
+
+      # `build-update-repo` is what actually makes the directory a SERVABLE remote: it
+      # writes the summary clients read to discover refs. Without it the repo has the
+      # objects and no index, and `flatpak remote-add` finds nothing.
+      #
+      # ⚠️ `--prune-depth=3` bounds history. Without it every release's objects are kept
+      # forever, and GitHub Pages has a 1 GB limit that a 17 MB app reaches in well under
+      # a hundred releases. Three deep keeps rollback possible.
+      - name: Index and prune the repo
+        run: |
+          set -euo pipefail
+          flatpak build-update-repo pages/repo \
+            --generate-static-deltas --prune --prune-depth=3
+          owner="${GITHUB_REPOSITORY%%/*}"
+          name="${GITHUB_REPOSITORY##*/}"
+          base="https://${owner}.github.io/${name}"
+          # ⚠️ Jekyll is on by default for Pages and silently drops paths beginning with
+          # an underscore or a dot. ostree does not currently use any, but a single
+          # dropped object is an unrecoverable remote that still looks published.
+          touch pages/.nojekyll
+          printf '%s\n' \
+            '[Flatpak Repo]' \
+            'Title=Bazzite Native Store' \
+            "Url=${base}/repo/" \
+            "Homepage=https://github.com/${GITHUB_REPOSITORY}" \
+            'Comment=Controller-first Steam store client for Bazzite Game Mode' \
+            > "pages/bazzite-store.flatpakrepo"
+          echo "remote will be served from ${base}/repo/"
 
       # ⚠️ `--runtime-repo` is not optional, and 0.5.1 proved it. Without it the bundle
       # says which runtime it needs but not WHERE that runtime comes from, so installing
@@ -397,7 +449,7 @@ jobs:
       # flathub repo definition so resolution is answerable offline-ish and instant.
       - name: Bundle
         run: |
-          flatpak build-bundle repo \
+          flatpak build-bundle pages/repo \
             --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             "bazzite-store_${{ needs.release.outputs.version }}_linux-x86_64.flatpak" \
             com.claygorman.bazzite-store
@@ -408,12 +460,35 @@ jobs:
         run: |
           set -euo pipefail
           bundle=$(ls *.flatpak | head -1)
-          flatpak --user remote-add --no-gpg-verify --if-not-exists ci-check repo
+          flatpak --user remote-add --no-gpg-verify --if-not-exists ci-check pages/repo
           flatpak --user install -y --noninteractive --bundle "$bundle"
           test -x "/var/lib/flatpak/app/com.claygorman.bazzite-store/current/active/files/bin/bazzite-store" \
             || test -x "$HOME/.local/share/flatpak/app/com.claygorman.bazzite-store/current/active/files/bin/bazzite-store" \
             || { echo "::error::no bazzite-store binary inside $bundle"; exit 1; }
           echo "$bundle contains bazzite-store"
+
+      # ⚠️ Published only AFTER the bundle assertion above. A repo is what clients pull
+      # from automatically, so shipping one that installs to a missing binary is worse
+      # than shipping nothing — the bundle check is the gate.
+      #
+      # ⚠️ Squashed to a single orphan commit every time. The ostree history that matters
+      # lives INSIDE these files, not in git; keeping git history too would accumulate
+      # ~20 MB of binary objects per release in a branch nobody reads.
+      - name: Publish the repo to Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd pages
+          rm -rf .git
+          git init --quiet -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit --quiet -m "repo: ${{ needs.release.outputs.version }}"
+          git push --force --quiet \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          echo "published $(du -sh . | cut -f1) to gh-pages"
 
       # ⚠️ `--repo` explicitly, and safe.directory first. This job runs in a container
       # as a different uid than the checkout, so git refuses the working tree with

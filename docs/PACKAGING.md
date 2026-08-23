@@ -147,7 +147,7 @@ March 2026.
 | --- | --- |
 | Runs **beside** the AppImage job | `merge-latest-json.mjs` refuses a feed with no `linux-x86_64`, and the in-app updater stays meaningful off Flatpak. Dropping the AppImage is a separate decision. |
 | Network allowed during the build | `flatpak-node-generator` supports npm and yarn, **not pnpm**. Vendoring would cost a pnpm workaround plus regeneration on every lockfile change and buys nothing while we self-distribute. Revisit for Flathub. |
-| Single-file bundle, not an ostree repo | An ostree repo on GitHub Pages would give real `flatpak update` and is the eventual answer; the bundle gets a working app on the box first. |
+| **Ostree repo on GitHub Pages**, bundle kept alongside | Done 2026-08-23, once the repo went public. The repo is what gives a deployment an *origin*, which is what `flatpak update` and the in-app updater both need. The bundle stays as the fallback for a box that cannot reach the remote. |
 | App id keeps its hyphen | `com.claygorman.bazzite-store` also drives `app_cache_dir()`. Renaming to the Flathub-preferred `com.claygorman.BazziteStore` silently orphans every user's cache, so it waits for a migration. |
 
 ### ⚠️ Two sandbox facts that are invisible until someone looks at the box
@@ -174,11 +174,61 @@ it and has to be re-added.
 
 ### Updates
 
-A Flatpak cannot update itself — `/app` is read-only, so `tauri-plugin-updater` has no
-file to swap. The app detects `FLATPAK_ID` in Rust (`is_flatpak`) and the Updates page
-reports **"Managed by Flatpak"** with the command that does work, rather than offering an
-Install button that fails every time. That is the same honesty rule `unconfigured`
-already enforces.
+`tauri-plugin-updater` cannot work here — `/app` is read-only, so there is no file to
+swap however well signed the download is. That is not fixable with a key or a feed URL,
+which is what `docs/SETTINGS.md` §4 asks for; those two things are for the AppImage.
+
+**What works instead is an ostree repo plus the Flatpak portal**, and the two halves need
+each other.
+
+**The remote.** The release job already built an ostree repo and threw it away after
+making the bundle. It now builds into the *previously published* repo, indexes it with
+`build-update-repo --generate-static-deltas`, and force-pushes it to `gh-pages`:
+
+    https://claygorman.github.io/bazzite-native-store/repo/
+
+⚠️ **Build into the previous repo, not a fresh one.** ostree is content-addressed, so
+reusing it lets deltas be computed between releases and an update downloads only what
+changed. A fresh repo each time still produces a working remote — which is exactly why
+this is easy to get wrong — but every client re-downloads the whole app every time.
+
+⚠️ **The git history is squashed to one orphan commit per publish.** The ostree history
+that matters lives inside the files; keeping git history too would add ~20 MB of binary
+objects per release to a branch nobody reads. `--prune-depth=3` bounds the ostree side
+against Pages' 1 GB limit.
+
+**The in-app button.** `org.freedesktop.portal.Flatpak.CreateUpdateMonitor`
+(`src-tauri/src/flatpakupdate.rs`), *not* `flatpak-spawn --host flatpak update`.
+
+⚠️ Spawning needs `--talk-name=org.freedesktop.Flatpak`, which lets the sandbox run
+**any** host command — "we only update ourselves" would then be a property of our code.
+The portal's monitor is bound to the caller's own ref, so touching anything else is not
+expressible, and it needs no `finish-args` at all. Same rule as `ALLOWED_PATHS` in
+`steamclient.rs`.
+
+⚠️ **The monitor is a watcher, not a request.** There is no "check now" method and no
+"you are up to date" signal — it announces updates and is otherwise silent. So a check
+that hears nothing yields `unannounced`, never `current`: silence covers both "there is
+nothing" and "it has not polled yet", and only `current` may claim currency.
+
+⚠️ **None of it works for an app installed from a bundle.** A bundle has no origin to
+pull from, so both `flatpak update` and the portal find nothing, forever, and it looks
+exactly like being up to date. `scripts/install.sh` therefore installs from the remote
+and keeps the bundle only as a fallback. **One reinstall from the remote is required
+once**, on any box that was installed from a bundle.
+
+### ⚠️ Nothing on the target box runs updates on a schedule
+
+Verified 2026-08-23 on `bazzite-clay`: `uupd` is installed but **`uupd.timer` is
+`disabled` and inactive**, there is no `ublue-update`, and KDE Discover is not installed.
+So publishing a remote does not by itself mean the box updates. What consumes it:
+
+| route | works |
+|---|---|
+| the app's own Updates page | yes, via the portal |
+| `flatpak update` over SSH | yes |
+| `uupd`, Game Mode's system update | yes, when run |
+| automatically, unattended | only if `uupd.timer` is enabled — it is not |
 
 ---
 

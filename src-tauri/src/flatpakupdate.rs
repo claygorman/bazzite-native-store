@@ -1,0 +1,258 @@
+//! Self-update for the Flatpak build, through the Flatpak portal.
+//!
+//! ⭐ **Why not `tauri-plugin-updater` here.** That plugin replaces the running binary
+//! in place, which is exactly right for the AppImage route (README §4) and impossible
+//! inside a Flatpak: `/app` is read-only, so there is no file to swap however well
+//! signed the download is. `updates.ts` models that as `status: 'managed'`.
+//!
+//! ⭐ **Why the portal and not `flatpak-spawn --host flatpak update`.** Spawning needs
+//! `--talk-name=org.freedesktop.Flatpak` in `finish-args`, which grants the sandbox the
+//! ability to run *arbitrary* host commands — "we only update ourselves" would then be
+//! a property of this file rather than of the system. `CreateUpdateMonitor` returns a
+//! monitor bound to the CALLER's own ref, so updating anything else is not expressible.
+//! Same reasoning as `ALLOWED_PATHS` in `steamclient.rs`: it cannot beats we promise not
+//! to. It also needs no `finish-args` at all — portals are reachable from every sandbox.
+//!
+//! ⚠️ **It only works when the app was installed from a REMOTE.** A single-file
+//! `.flatpak` bundle has no origin to pull from, so the monitor has nothing to check and
+//! reports nothing forever. That is not a failure state to display; it is why the CI job
+//! publishes an ostree repo.
+
+#[cfg(target_os = "linux")]
+mod imp {
+    use std::collections::HashMap;
+    use std::time::Duration;
+
+    use futures_util::StreamExt;
+    use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
+    use zbus::{proxy, Connection};
+
+    /// How long to wait for the portal to say something.
+    ///
+    /// ⚠️ The monitor is a *watcher*, not a request/response call — there is no "check
+    /// now" method in the interface. It decides when to poll, so a bounded wait is the
+    /// only shape available and a silent timeout means "nothing was announced", NOT "you
+    /// are up to date". `updates.ts` must phrase it accordingly: a client that has not
+    /// been told cannot claim currency.
+    const ANNOUNCE_WAIT: Duration = Duration::from_secs(25);
+
+    /// Installing is a download; give it room but never forever.
+    const INSTALL_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+    #[proxy(
+        interface = "org.freedesktop.portal.Flatpak",
+        default_service = "org.freedesktop.portal.Flatpak",
+        default_path = "/org/freedesktop/portal/Flatpak"
+    )]
+    trait FlatpakPortal {
+        fn create_update_monitor(
+            &self,
+            options: HashMap<&str, Value<'_>>,
+        ) -> zbus::Result<OwnedObjectPath>;
+
+        #[zbus(property)]
+        fn version(&self) -> zbus::Result<u32>;
+    }
+
+    #[proxy(
+        interface = "org.freedesktop.portal.Flatpak.UpdateMonitor",
+        default_service = "org.freedesktop.portal.Flatpak"
+    )]
+    trait UpdateMonitor {
+        fn update(
+            &self,
+            parent_window: &str,
+            options: HashMap<&str, Value<'_>>,
+        ) -> zbus::Result<()>;
+
+        fn close(&self) -> zbus::Result<()>;
+
+        /// `running_commit` / `local_commit` / `remote_commit`, all optional.
+        #[zbus(signal)]
+        fn update_available(&self, info: HashMap<String, OwnedValue>) -> zbus::Result<()>;
+
+        /// `n_ops` `op` `progress` `status` `error` `error_message`, all optional.
+        #[zbus(signal)]
+        fn progress(&self, info: HashMap<String, OwnedValue>) -> zbus::Result<()>;
+    }
+
+    /// `status` values the portal reports on `Progress`.
+    const STATUS_DONE: u32 = 2;
+    const STATUS_FAILED: u32 = 3;
+
+    fn as_u32(info: &HashMap<String, OwnedValue>, key: &str) -> Option<u32> {
+        info.get(key).and_then(|v| u32::try_from(v).ok())
+    }
+
+    fn as_string(info: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
+        info.get(key).and_then(|v| String::try_from(v.clone()).ok())
+    }
+
+    /// Open a monitor bound to this app. The caller must `close()` it.
+    async fn monitor(connection: &Connection) -> zbus::Result<UpdateMonitorProxy<'static>> {
+        let portal = FlatpakPortalProxy::new(connection).await?;
+        let path = portal.create_update_monitor(HashMap::new()).await?;
+        UpdateMonitorProxy::builder(connection)
+            .path(path)?
+            .build()
+            .await
+    }
+
+    /// The remote commit, if the portal announces one inside `ANNOUNCE_WAIT`.
+    ///
+    /// `Ok(None)` means nothing was announced — which is the ordinary answer when there
+    /// is no update AND the ordinary answer when the portal simply has not polled yet.
+    /// The two are not distinguishable through this interface, so they must not be
+    /// displayed differently.
+    pub async fn check() -> Result<Option<String>, String> {
+        let connection = Connection::session().await.map_err(|e| e.to_string())?;
+        let monitor = monitor(&connection).await.map_err(|e| e.to_string())?;
+
+        // ⚠️ Subscribe BEFORE awaiting. The portal may announce as soon as the monitor
+        // exists, and a stream opened after that point misses the signal entirely —
+        // which presents as "never any updates", the least debuggable outcome here.
+        let mut announcements = monitor
+            .receive_update_available()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let announced = tokio::time::timeout(ANNOUNCE_WAIT, announcements.next()).await;
+        let _ = monitor.close().await;
+
+        let Ok(Some(signal)) = announced else { return Ok(None) };
+        let info = signal.args().map_err(|e| e.to_string())?.info;
+        // Prefer the remote commit; it is the thing we would move to.
+        Ok(as_string(&info, "remote_commit").or_else(|| as_string(&info, "local_commit")))
+    }
+
+    /// Install the pending update for THIS app.
+    ///
+    /// ⚠️ Takes effect on next launch. The running deployment stays mounted, so nothing
+    /// changes under the process — the UI must say "restart to finish" rather than
+    /// implying it already happened.
+    pub async fn install() -> Result<(), String> {
+        let connection = Connection::session().await.map_err(|e| e.to_string())?;
+        let monitor = monitor(&connection).await.map_err(|e| e.to_string())?;
+
+        let mut progress = monitor.receive_progress().await.map_err(|e| e.to_string())?;
+
+        // An empty parent window: we have no XDG window handle to hand over, and this
+        // update needs no dialog. The portal accepts "" for exactly this case.
+        let started = monitor.update("", HashMap::new()).await;
+        if let Err(error) = started {
+            let _ = monitor.close().await;
+            return Err(error.to_string());
+        }
+
+        let outcome = tokio::time::timeout(INSTALL_TIMEOUT, async {
+            while let Some(signal) = progress.next().await {
+                let Ok(args) = signal.args() else { continue };
+                let info = args.info;
+                match as_u32(&info, "status") {
+                    Some(STATUS_DONE) => return Ok(()),
+                    Some(STATUS_FAILED) => {
+                        // ⚠️ `error_message` is the human half; `error` is a D-Bus error
+                        // name. Reporting only the name gives the user a sentence they
+                        // cannot act on and cannot search for.
+                        return Err(as_string(&info, "error_message")
+                            .or_else(|| as_string(&info, "error"))
+                            .unwrap_or_else(|| "the update failed".into()));
+                    }
+                    _ => continue,
+                }
+            }
+            Err("the portal stopped reporting before the update finished".to_string())
+        })
+        .await;
+
+        let _ = monitor.close().await;
+        outcome.map_err(|_| "the update timed out".to_string())?
+    }
+
+    /// Whether the portal is present at all, so the UI can tell "no portal" from
+    /// "portal says nothing".
+    pub async fn portal_version() -> Option<u32> {
+        let connection = Connection::session().await.ok()?;
+        FlatpakPortalProxy::new(&connection).await.ok()?.version().await.ok()
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod imp {
+    pub async fn check() -> Result<Option<String>, String> {
+        Err("the Flatpak portal exists only on Linux".into())
+    }
+    pub async fn install() -> Result<(), String> {
+        Err("the Flatpak portal exists only on Linux".into())
+    }
+    pub async fn portal_version() -> Option<u32> {
+        None
+    }
+}
+
+/// Are we running inside a Flatpak sandbox?
+///
+/// ⚠️ THE one definition — `lib.rs`'s `is_flatpak` command delegates here. It briefly
+/// had its own, testing `FLATPAK_ID` alone, and two answers to "are we sandboxed" is
+/// how a UI ends up offering the updater on one screen and refusing it on the next.
+///
+/// Both signals, because they fail differently: `FLATPAK_ID` is set for the app's own
+/// process but is not inherited reliably by everything it spawns, while
+/// `/.flatpak-info` is part of the sandbox filesystem and is always present.
+pub fn in_flatpak() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some() || std::path::Path::new("/.flatpak-info").exists()
+}
+
+/// What this build can do about updating itself.
+///
+/// Returned as a small JSON object rather than a bool, because the three states need
+/// three different sentences: not sandboxed (the updater plugin's problem), sandboxed
+/// with no portal (nothing we can do), sandboxed with a portal (a real button).
+#[tauri::command]
+pub async fn flatpak_update_supported() -> Result<serde_json::Value, String> {
+    let sandboxed = in_flatpak();
+    let version = if sandboxed { imp::portal_version().await } else { None };
+    Ok(serde_json::json!({ "sandboxed": sandboxed, "portalVersion": version }))
+}
+
+/// ⚠️ `Ok(None)` is "nothing announced", NOT "up to date". See `ANNOUNCE_WAIT`.
+#[tauri::command]
+pub async fn flatpak_update_check() -> Result<Option<String>, String> {
+    if !in_flatpak() {
+        return Err("not running inside a Flatpak".into());
+    }
+    imp::check().await
+}
+
+#[tauri::command]
+pub async fn flatpak_update_install() -> Result<(), String> {
+    if !in_flatpak() {
+        return Err("not running inside a Flatpak".into());
+    }
+    imp::install().await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::in_flatpak;
+
+    /// The one thing testable without a session bus and a sandbox: the detection is a
+    /// filesystem check, so it must answer false on a developer machine rather than
+    /// panicking or guessing from an environment variable that may be inherited.
+    #[test]
+    fn a_developer_machine_is_not_a_flatpak() {
+        assert!(!in_flatpak());
+    }
+
+    /// The commands must REFUSE off-sandbox rather than reaching for a session bus that
+    /// is not there. Guards the case where the Updates page is opened in a dev build.
+    #[tokio::test]
+    async fn the_commands_refuse_outside_a_sandbox() {
+        assert!(super::flatpak_update_check().await.is_err());
+        assert!(super::flatpak_update_install().await.is_err());
+        // Reporting capability must still succeed — it is what the UI reads to decide
+        // which sentence to show, so an error there blanks the page.
+        let supported = super::flatpak_update_supported().await.expect("should report");
+        assert_eq!(supported["sandboxed"], serde_json::Value::Bool(false));
+    }
+}

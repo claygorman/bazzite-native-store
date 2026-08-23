@@ -300,6 +300,11 @@ const UPDATE_TONE: Record<UpdateState['status'], StatusTone> = {
   unconfigured: 'warn',
   // Not a problem — it is how a Flatpak is supposed to work.
   managed: 'info',
+  // ⚠️ `info`, not `ok`. The green tone is the visual half of "you are up to date",
+  // and nothing confirmed that — the portal announces updates and never announces
+  // their absence. Colouring this like `current` would tell the lie the wording is
+  // carefully avoiding.
+  unannounced: 'info',
   idle: 'info',
   checking: 'info',
   current: 'ok',

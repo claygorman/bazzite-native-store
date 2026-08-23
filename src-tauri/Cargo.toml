@@ -87,3 +87,9 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 [dev-dependencies]
 # The live CEF test is async; the app itself never needs the macros.
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+# Self-update through the Flatpak portal (src/flatpakupdate.rs). NOT a new dependency:
+# zbus is already compiled into the Linux build as a transitive dep of
+# tauri-plugin-opener — this only declares the use, and pins the tokio backend so it
+# shares Tauri's runtime instead of starting a second async executor beside it.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5", default-features = false, features = ["tokio"] }
