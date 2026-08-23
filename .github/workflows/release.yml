@@ -439,7 +439,14 @@ jobs:
             "Homepage=https://github.com/${GITHUB_REPOSITORY}" \
             'Comment=Controller-first Steam store client for Bazzite Game Mode' \
             > "pages/bazzite-store.flatpakrepo"
+          # ⚠️ A plain version file, read by the app on a fifteen-minute loop.
+          # The portal's update monitor cannot answer "am I out of date right now" —
+          # it announces on its own schedule and never announces the NEGATIVE, so it
+          # can neither be asked nor confirm currency. Two version strings can do both.
+          printf '{"version":"%s","commit":"%s"}\n' \
+            "${{ needs.release.outputs.version }}" "${GITHUB_SHA}" > pages/version.json
           echo "remote will be served from ${base}/repo/"
+          echo "version feed: $(cat pages/version.json)"
 
       # ⚠️ `--runtime-repo` is not optional, and 0.5.1 proved it. Without it the bundle
       # says which runtime it needs but not WHERE that runtime comes from, so installing

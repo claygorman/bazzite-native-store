@@ -38,11 +38,13 @@ import {
 const LIVE_PREVIEW = new Set<SteppableKey>(['uiScalePercent', 'safeAreaPercent'])
 import {
   checkForUpdate,
+  isFlatpak,
   describeUpdate,
   installUpdate,
   relaunchApp,
   updaterConfigured,
   type UpdateState,
+  UPDATE_POLL_MS,
 } from './platform/updates'
 import { isTauri } from './platform/index'
 import { clearCache } from './platform/systemInfo'
@@ -662,15 +664,52 @@ export const App = () => {
    * ⚠️ `autoUpdate` only fires a real check when the feed IS configured. Without the
    * guard every launch would spend a request on a 404.
    */
+  /**
+   * The running status, for the poll below to read without re-arming its interval.
+   *
+   * ⚠️ A ref, not the state value. Closing over `update` would put it in the effect's
+   * dependencies, and re-running the effect on every status change would tear down and
+   * rebuild the timer mid-download.
+   */
+  const updateRef = useRef<UpdateState>(update)
+  updateRef.current = update
+
   useEffect(() => {
     let cancelled = false
-    void (async () => {
+    const run = async () => {
       if (!isTauri()) return void setUpdate({ status: 'unsupported' })
-      if (!(await updaterConfigured())) {
+      /*
+       * ⚠️ The Flatpak check comes FIRST, before the feed question. A Flatpak build has
+       * a perfectly valid updater feed configured and still cannot use it — it updates
+       * through the portal — so asking "is the feed configured" first answers the wrong
+       * question and reports `unconfigured` on a build that updates fine.
+       */
+      const flatpak = await isFlatpak()
+      if (!flatpak && !(await updaterConfigured())) {
         if (!cancelled) setUpdate({ status: 'unconfigured' })
         return
       }
-      if (!settings.autoUpdate) return
+      /*
+       * ⚠️ Never re-check on top of work in progress. The poll runs every fifteen
+       * minutes; firing a check mid-download would replace a `downloading` state with a
+       * fresh `available`, and the auto-install below would then start a SECOND install
+       * of the same version. `ready` is excluded for the same reason — the update is
+       * already staged and only a restart applies it.
+       */
+      const busy = updateRef.current.status
+      if (busy === 'downloading' || busy === 'ready') return
+
+      if (!settings.autoUpdate) {
+        /*
+         * ⚠️ Still CHECKED, just not installed. `autoUpdate` means "download it for
+         * me"; someone who turned it off still wants to be told they are out of date,
+         * which is the whole point of the badge. This used to return before checking,
+         * so with the setting off the app never once noticed a new version.
+         */
+        const noticed = await checkForUpdate(settings.updateChannel)
+        if (!cancelled) setUpdate(noticed)
+        return
+      }
       const result = await checkForUpdate(settings.updateChannel)
       if (cancelled) return
       setUpdate(result)
@@ -698,9 +737,19 @@ export const App = () => {
        * Install and is watching. Restarting the app from under someone seconds after
        * they launched it is a different act entirely, and not one they consented to.
        */
-    })()
+    }
+    void run()
+    /*
+     * ⚠️ A repeating poll, because nothing else will tell us. The Flatpak portal's
+     * monitor announces on its own schedule and cannot be asked; the box has no update
+     * timer enabled (`uupd.timer` ships disabled — see docs/PACKAGING.md); and this is
+     * a couch app that stays open for hours. Without this, a build published while the
+     * store is running is invisible until someone restarts it.
+     */
+    const timer = setInterval(() => void run(), UPDATE_POLL_MS)
     return () => {
       cancelled = true
+      clearInterval(timer)
     }
     // Launch only. Re-checking on every channel flip would fire a request per dpad
     // press while someone was stepping the row.

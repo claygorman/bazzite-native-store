@@ -1,5 +1,15 @@
 import { isTauri } from './index'
 import type { UpdateChannel } from './settings'
+import { isNewerVersion } from './version.ts'
+
+/**
+ * The running build's version.
+ *
+ * ⚠️ Wrapped rather than referenced inline: `__APP_VERSION__` is a Vite `define`, so it
+ * does not exist under bare Node — and `updates.test.ts` runs there.
+ */
+const installedVersion = (): string =>
+  typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
 
 /**
  * Client updates.
@@ -110,6 +120,27 @@ export const isFlatpak = async (): Promise<boolean> => {
  * sentence from "the portal said nothing", so the two are kept apart here rather than
  * collapsed into a boolean.
  */
+/**
+ * How often the app re-asks the remote whether it is out of date.
+ *
+ * ⚠️ This is a VERSION-FEED poll, not a portal check. The portal's monitor announces on
+ * its own schedule and offers no way to ask it now, so it cannot answer "am I current"
+ * on demand — and it never announces the negative, so it can never confirm that you
+ * ARE current. Comparing two version strings does both, immediately.
+ */
+export const UPDATE_POLL_MS = 15 * 60_000
+
+/** The newest version the published remote advertises, or `undefined` if unreachable. */
+export const publishedVersion = async (): Promise<string | undefined> => {
+  if (!isTauri()) return undefined
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return (await invoke<string | null>('published_version')) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const flatpakUpdateSupport = async (): Promise<{
   sandboxed: boolean
   portalVersion: number | null
@@ -153,6 +184,22 @@ export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateStat
     // No portal: nothing this app can do, so say so and name what does work.
     if (support.portalVersion === null) return { status: 'managed' }
     const checkedAt = Date.now()
+
+    /*
+     * The version feed FIRST, and the portal only as a fallback. The feed is a plain
+     * comparison of two strings, so it answers immediately and — unlike the monitor —
+     * can honestly report `current`. The portal is what INSTALLS; asking it whether an
+     * update exists means waiting on a signal that may simply not come yet.
+     */
+    const published = await publishedVersion()
+    if (published !== undefined) {
+      return isNewerVersion(published, installedVersion())
+        ? { status: 'available', version: published, checkedAt }
+        : { status: 'current', checkedAt }
+    }
+
+    // Feed unreachable — offline, or Pages is down. Ask the monitor instead, which may
+    // already know from an earlier poll.
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       const commit = await invoke<string | null>('flatpak_update_check')
@@ -301,3 +348,5 @@ export const describeUpdate = (state: UpdateState): string => {
       return `Check failed · ${state.message}`
   }
 }
+
+export { isNewerVersion }

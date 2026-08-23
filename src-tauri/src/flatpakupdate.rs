@@ -190,6 +190,43 @@ mod imp {
     }
 }
 
+/// The version feed published beside the ostree repo on GitHub Pages.
+///
+/// ⚠️ Why this exists when the portal already reports updates: the portal's monitor is
+/// a WATCHER on its own schedule, with no way to ask it to look now. That is fine for
+/// installing and useless for "tell me within fifteen minutes that I am out of date".
+/// A static file we control answers that question immediately and, unlike the portal,
+/// can honestly confirm the NEGATIVE — comparing two version strings proves currency in
+/// a way that a signal which never arrives cannot.
+const VERSION_FEED: &str = "https://claygorman.github.io/bazzite-native-store/version.json";
+
+/// The newest version the remote advertises.
+///
+/// ⚠️ In Rust rather than `fetch` in the webview, like every other request this app
+/// makes — the backend dodges CORS and the webview's cache both (README §2).
+///
+/// ⚠️ `no-cache` and a short timeout. This runs on a fifteen-minute loop behind a
+/// television; a cached answer would make the check report stale news indefinitely, and
+/// a slow one must never pile up.
+#[tauri::command]
+pub async fn published_version() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+    let body = client
+        .get(VERSION_FEED)
+        .header("cache-control", "no-cache")
+        .send()
+        .await
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+    let parsed: serde_json::Value = serde_json::from_str(&body).ok()?;
+    parsed.get("version")?.as_str().map(str::to_owned)
+}
+
 /// Are we running inside a Flatpak sandbox?
 ///
 /// ⚠️ THE one definition — `lib.rs`'s `is_flatpak` command delegates here. It briefly

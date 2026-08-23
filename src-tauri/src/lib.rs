@@ -243,6 +243,7 @@ pub fn run() {
             flatpakupdate::flatpak_update_supported,
             flatpakupdate::flatpak_update_check,
             flatpakupdate::flatpak_update_install,
+            flatpakupdate::published_version,
             proton_reports,
             proton_index_status,
             proton_refresh,
