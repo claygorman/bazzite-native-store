@@ -63,7 +63,22 @@ export type UpdateState =
   | { status: 'checking' }
   /** Asked, and there is nothing newer. The only state that may claim currency. */
   | { status: 'current'; checkedAt: number }
-  | { status: 'available'; version: string; notes?: string; date?: string; checkedAt: number }
+  | {
+      status: 'available'
+      version: string
+      notes?: string
+      date?: string
+      checkedAt: number
+      /**
+       * An install we tried and could not finish.
+       *
+       * ⚠️ Carried ON `available` rather than replacing it with `error`. A failed
+       * install does not make the update stop existing, and collapsing to `error` threw
+       * away the one true fact on the page — the screen went from "Update ready ·
+       * 0.10.0" to "Check failed", losing the version and the badge with it.
+       */
+      installError?: string
+    }
   | { status: 'downloading'; version: string; percent?: number }
   /** Downloaded and verified; the binary swaps on relaunch. */
   | { status: 'ready'; version: string }
@@ -359,7 +374,11 @@ export const describeUpdate = (state: UpdateState): string => {
     case 'current':
       return 'Up to date'
     case 'available':
-      return `Update ready · ${state.version}`
+      // ⚠️ The version stays FIRST. The failure is the qualifier, not the headline —
+      // there is still an update and you can still press Install.
+      return state.installError === undefined
+        ? `Update ready · ${state.version}`
+        : `Update ready · ${state.version} · install failed: ${state.installError}`
     case 'downloading':
       return state.percent === undefined
         ? `Downloading ${state.version}…`

@@ -13,7 +13,7 @@ import {
   pageIndexById,
   type SettingsRow as SettingsRowType,
 } from './components/settings/pages'
-import { WishlistView, WISHLIST_COLS, WISHLIST_PAGE } from './components/WishlistView'
+import { WishlistView, WISHLIST_COLS } from './components/WishlistView'
 import { useWishlist } from './hooks/useWishlist'
 import { useSettings } from './hooks/useSettings'
 import { useSystemStatus } from './hooks/useSystemStatus'
@@ -697,6 +697,9 @@ export const App = () => {
     })
   }, [])
 
+  /** Cleared once an install has failed — see the auto-install branch below. */
+  const autoInstallRef = useRef(true)
+
   const updateRef = useRef<UpdateState>(update)
   updateRef.current = update
 
@@ -751,11 +754,28 @@ export const App = () => {
        * reasoning as trailer and artwork prefetch.
        */
       if (result.status !== 'available' || settings.meteredConnection) return
+      if (!autoInstallRef.current) return
 
       const installed = await installUpdate(settings.updateChannel, (progress) => {
         if (!cancelled) setUpdate(progress)
       })
-      if (!cancelled) setUpdate(installed)
+      if (cancelled) return
+      /*
+       * ⚠️ A failed install keeps the update AVAILABLE. It used to overwrite the state
+       * with `error`, which deleted the version, the badge and the Install button —
+       * so a box that merely could not install automatically looked like a box that
+       * could not check, and the one correct fact on the screen was the one that got
+       * thrown away.
+       */
+      if (installed.status === 'error') {
+        setUpdate({ ...result, installError: installed.message })
+        // ⚠️ And stop trying. On a platform where the install cannot work — Game Mode
+        // has no portal backend to show the confirmation dialog — retrying every
+        // fifteen minutes is a guaranteed failure on a loop, for nobody's benefit.
+        autoInstallRef.current = false
+        return
+      }
+      setUpdate(installed)
       /*
        * ⚠️ It stops at `ready` and never relaunches itself here, even with
        * `notifyBeforeRestart` off. That setting means "do not make me confirm the
@@ -1481,19 +1501,19 @@ export const App = () => {
       // --- The wishlist ---
       if (view.screen === 'wishlist') {
         const count = wishlist.items.length
-        const pages = Math.max(1, Math.ceil(count / WISHLIST_PAGE))
         switch (action) {
           case 'back':
             setView({ screen: 'home' })
             return
+          /*
+           * ⚠️ No paging here any more — the wishlist scrolls. The triggers used to
+           * turn a page of ten while the bottom half of the screen sat empty. Left as
+           * an explicit no-op rather than deleted so a held trigger does not fall
+           * through to whatever the default branch grows into later.
+           */
           case 'pagePrev':
-          case 'pageNext': {
-            const next = view.page + (action === 'pagePrev' ? -1 : 1)
-            if (next < 0 || next > pages - 1) return
-            setWishlistFocus(next * WISHLIST_PAGE)
-            setView({ ...view, page: next })
+          case 'pageNext':
             return
-          }
           case 'left':
           case 'right':
           case 'up':
@@ -1506,12 +1526,13 @@ export const App = () => {
                   : action === 'up'
                     ? -WISHLIST_COLS
                     : WISHLIST_COLS
+            /*
+             * ⚠️ Clamped, not wrapped, and up/down moves a whole ROW. The view scrolls
+             * the focused card into place, so walking down past the last visible row
+             * pulls the page along instead of stopping or jumping to a new screen.
+             */
             const next = Math.min(count - 1, Math.max(0, wishlistFocus + delta))
             setWishlistFocus(next)
-            // The grid is two rows of five; walking off it turns the page rather than
-            // stopping, the same as the tag results.
-            const nextPage = Math.floor(next / WISHLIST_PAGE)
-            if (nextPage !== view.page) setView({ ...view, page: nextPage })
             return
           }
           case 'accept': {
@@ -2484,8 +2505,6 @@ export const App = () => {
             <WishlistView
               state={wishlist}
               focusedIndex={wishlistFocus}
-              page={view.page}
-              source={inputSource}
               onActivate={openDetails}
             />
           </motion.div>

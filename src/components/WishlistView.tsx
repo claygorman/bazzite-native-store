@@ -1,19 +1,30 @@
+import { useEffect, useRef } from 'react'
+
 import { StoreCard, type CardAttention } from './StoreCard'
-import { Prompt } from './ButtonLegend'
 import { formatPrice, type StoreItem } from '../types/steam'
 import type { WishlistState } from '../hooks/useWishlist'
-import type { InputSource } from '../platform/glyphs'
 import { useSetting } from '../hooks/useSettings'
 
-/** Two rows of five — the same card and the same grid as the tag results. */
-export const WISHLIST_COLS = 5
-export const WISHLIST_PAGE = WISHLIST_COLS * 2
+/**
+ * Three across, scrolling — not a page of ten.
+ *
+ * ⚠️ The grid used to be two rows of five and paginate at ten, which left the entire
+ * bottom half of a 4K screen empty while announcing "Page 1 / 3". A wishlist is a list
+ * you scan, not a deck you deal, so the page scrolls and every item is on it.
+ *
+ * Three columns of the SIDE card rather than five of the stacked one: five squeezed the
+ * caption below the width its own text needs, so "Deck Playable" rendered as "Deck
+ * Playabl" on every tile whose verdict was longer than "Deck". The side layout gives the
+ * text its own column instead of sharing the tile's width with nothing.
+ */
+export const WISHLIST_COLS = 3
+
+/** Art width for the side card, in rem. Its height is derived from Steam's ratio. */
+const ART_WIDTH_REM = 14
 
 type Props = {
   state: WishlistState
   focusedIndex: number
-  page: number
-  source: InputSource
   onActivate: (appid: number) => void
 }
 
@@ -29,11 +40,22 @@ type Props = {
  * and an empty grid because the wishlist is empty are completely different facts, and
  * only one of them is about the user.
  */
-export const WishlistView = ({ state, focusedIndex, page, source, onActivate }: Props) => {
+export const WishlistView = ({ state, focusedIndex, onActivate }: Props) => {
   const { items, status, loading } = state
-  const pageCount = Math.max(1, Math.ceil(items.length / WISHLIST_PAGE))
-  const onScreen = items.slice(page * WISHLIST_PAGE, page * WISHLIST_PAGE + WISHLIST_PAGE)
   const onSale = items.filter((i) => i.discounted && i.discountPercent > 0).length
+
+  /*
+   * ⚠️ Keep the focused card in view, and do it INSTANTLY.
+   *
+   * `block: 'nearest'` scrolls only when the card is actually off screen, so walking
+   * along a visible row does not drag the page around under the cursor. No smooth
+   * behaviour: a held direction moves focus faster than smooth scrolling can service,
+   * which is the same reason the shelves move by transform rather than scroll.
+   */
+  const focusedRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    focusedRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [focusedIndex])
 
   return (
     <div className="absolute inset-x-0 bottom-18.5 top-0 flex flex-col gap-5 px-14 py-9">
@@ -57,39 +79,32 @@ export const WishlistView = ({ state, focusedIndex, page, source, onActivate }: 
                   <span className="text-sale">{onSale} on sale right now</span>
                 </>
               )}
-              {pageCount > 1 && (
-                <>
-                  <span className="h-5 w-px bg-hairline" />
-                  <span className="tabular-nums">
-                    Page {page + 1} / {pageCount}
-                  </span>
-                  <span className="flex items-center gap-2.5">
-                    <Prompt action="pagePrev" source={source} />
-                    <Prompt action="pageNext" source={source} />
-                  </span>
-                </>
-              )}
             </>
           )}
         </div>
       </header>
 
       {/* ⚠️ `-mx-6 -my-6 px-6 py-6` — the focus ring and glow are painted outside the
-          card, and this grid is otherwise flush with the screen gutter. */}
-      <div className="-mx-6 -my-6 grid shrink-0 grid-cols-5 gap-x-5 gap-y-6 px-6 py-6">
-        {onScreen.map((item, index) => (
-          <WishlistCard
-            key={item.appid}
-            item={item}
-            focused={focusedIndex === page * WISHLIST_PAGE + index}
-            onActivate={() => onActivate(item.appid)}
-          />
-        ))}
-        {status === 'ready' && !loading && items.length === 0 && (
-          <span className="col-span-5 text-xl font-medium text-ink-faint">
-            Nothing on your wishlist yet.
-          </span>
-        )}
+          card, and this grid is otherwise flush with the screen gutter. The padding is
+          also what stops `scrollIntoView` clipping a focused card's ring against the
+          scroll container's edge. */}
+      <div className="-mx-6 -my-6 min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="grid grid-cols-3 gap-x-5 gap-y-5">
+          {items.map((item, index) => (
+            <WishlistCard
+              key={item.appid}
+              item={item}
+              focused={focusedIndex === index}
+              cardRef={focusedIndex === index ? focusedRef : undefined}
+              onActivate={() => onActivate(item.appid)}
+            />
+          ))}
+          {status === 'ready' && !loading && items.length === 0 && (
+            <span className="col-span-3 text-xl font-medium text-ink-faint">
+              Nothing on your wishlist yet.
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -98,10 +113,12 @@ export const WishlistView = ({ state, focusedIndex, page, source, onActivate }: 
 const WishlistCard = ({
   item,
   focused,
+  cardRef,
   onActivate,
 }: {
   item: StoreItem
   focused: boolean
+  cardRef?: React.RefObject<HTMLDivElement | null>
   onActivate: () => void
 }) => {
   const showDeck = useSetting('deckVerified')
@@ -114,8 +131,20 @@ const WishlistCard = ({
     item.originalPriceCents !== undefined
 
   return (
+    <div ref={cardRef}>
     <StoreCard
-      artHeight={7.625}
+      /*
+       * ⚠️ Art at Steam's own header ratio, 460:215. It was 7.625rem tall against a
+       * tile whose width the grid decided, so the box was far wider than the source and
+       * `object-cover` cropped the top and bottom off every capsule — which is why the
+       * art read as a squashed strip rather than as cover art.
+       *
+       * Derived from `artWidth` rather than written as a second magic number, so the
+       * two cannot drift apart.
+       */
+      layout="side"
+      artWidth={ART_WIDTH_REM}
+      artHeight={(ART_WIDTH_REM * 215) / 460}
       density="compact"
       surface="boxed"
       title={item.name}
@@ -135,5 +164,6 @@ const WishlistCard = ({
       attention={(focused ? 'focused' : 'nearby') satisfies CardAttention}
       onActivate={onActivate}
     />
+    </div>
   )
 }
