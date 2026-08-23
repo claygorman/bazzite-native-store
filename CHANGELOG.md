@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/claygorman/bazzite-native-store/compare/0.4.0...0.4.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* ship the app, not the indexer ([d2690f6](https://github.com/claygorman/bazzite-native-store/commit/d2690f60ff0beb824823118e8396f22fbf7d7f01))
+
 # [0.4.0](https://github.com/claygorman/bazzite-native-store/compare/0.3.1...0.4.0) (2026-08-23)
 
 
