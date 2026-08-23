@@ -7,6 +7,8 @@ import { TAG_VIEW_SIZE, type TagBrowseState } from '../hooks/useTagBrowse'
 import type { InputSource } from '../platform/glyphs'
 import { useOwned } from '../hooks/useSteamLibrary'
 import { useSetting } from '../hooks/useSettings'
+import { TIER_STYLE } from '../platform/protondb'
+import { useProtonRating } from '../hooks/useProtonRating'
 
 /** 5 across, as the design draws it. */
 export const TAG_RESULT_COLS = TAG_VIEW_SIZE
@@ -98,8 +100,8 @@ export const TagResults = ({
           </span>
         </div>
 
-        {/* One row of five. No vertical scroll any more — the page IS the row. */}
-        <div className="-mx-6 -my-6 grid shrink-0 grid-cols-5 gap-x-5 px-6 py-6">
+        {/* One row of four. No vertical scroll any more — the page IS the row. */}
+        <div className="-mx-6 -my-6 grid shrink-0 grid-cols-4 gap-x-5 px-6 py-6">
           {state.items.map((item, index) => (
             <ResultCard
               key={item.appid}
@@ -109,7 +111,7 @@ export const TagResults = ({
             />
           ))}
           {!state.loading && state.items.length === 0 && (
-            <span className="col-span-5 text-xl font-medium text-ink-faint">
+            <span className="col-span-4 text-xl font-medium text-ink-faint">
               Nothing to show for this tag.
             </span>
           )}
@@ -137,6 +139,14 @@ const ResultCard = ({
 }) => {
   const owned = useOwned(item.appid)
   const showDeck = useSetting('deckVerified')
+  /*
+   * ⚠️ StoreCard has drawn a ProtonDB tier since the shelf tiles got one — this card
+   * just never passed it, so every result on the tag screen showed Valve's Deck
+   * verdict with the community tier beside it permanently blank. Same hook and same
+   * TIER_STYLE mapping as `Tile`, so the two can never disagree about a colour.
+   */
+  const proton = useProtonRating(item.appid)
+  const tier = proton.status === 'rated' ? TIER_STYLE[proton.rating.tier] : undefined
   const onSale =
     !item.comingSoon &&
     item.discounted &&
@@ -174,6 +184,7 @@ const ResultCard = ({
       wasPrice={onSale ? formatPrice(item.originalPriceCents, item.currency) : undefined}
       discount={onSale ? `-${item.discountPercent}%` : undefined}
       rating={item.comingSoon ? undefined : item.reviewPercent}
+      tier={tier}
       deck={showDeck ? item.deckCompat : undefined}
       flag={item.dealFlag}
       controllerSupport={item.controllerSupport === 'none' ? undefined : item.controllerSupport}

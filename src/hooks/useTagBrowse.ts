@@ -34,14 +34,28 @@ export const DEFAULT_TAG_SORT: TagSort = TAG_SORTS.find((s) => s.id === 'reviews
  * then 26–40, silently skipping ten games on every page while the header claimed a
  * complete catalogue.
  *
- * So the FETCH is what Steam actually serves. The 2026-08-21 revision shows five
- * results at a time, so a view page is a 5-slice of one fetch and only every fifth
- * page costs a request — which is also why paging feels instant four times out of five.
+ * So the FETCH is what Steam actually serves. The grid shows four results at a time,
+ * so a view page is a 4-slice of one fetch and only every fifth page costs a request —
+ * which is also why paging feels instant four times out of five.
  */
-export const TAG_FETCH_SIZE = 25
+/**
+ * ⚠️ Must stay an exact multiple of `TAG_VIEW_SIZE`. `VIEWS_PER_FETCH` divides these
+ * two, and the slice below multiplies by it — a fractional result silently walks the
+ * window off the fetched block and shows the wrong games for the page number on screen.
+ * Was 25 while the grid held five; the grid now holds four, so this is 20.
+ */
+export const TAG_FETCH_SIZE = 20
 
-/** What the grid shows at once: one row of five, per the artboard. */
-export const TAG_VIEW_SIZE = 5
+/**
+ * What the grid shows at once: one row of four.
+ *
+ * ⚠️ The artboard specifies five, and five is what shipped. At 4K on a television the
+ * fifth column squeezed each tile below the width its own caption needs — "Deck
+ * Playable" rendered as "Deck Playabl", clipped mid-word on every tile whose verdict
+ * was longer than "Deck". Four columns is a deliberate departure: a tile you can read
+ * beats a row that matches the artboard.
+ */
+export const TAG_VIEW_SIZE = 4
 
 const VIEWS_PER_FETCH = TAG_FETCH_SIZE / TAG_VIEW_SIZE
 
@@ -160,10 +174,10 @@ export const useTagBrowse = (
           // The authoritative pass, against GetItems rather than the markup.
           .filter((item) => !isAdultContent(item.contentDescriptors))
 
-        // Slice the fetched 25 down to the five on screen. Filtering happens first, so
-        // the slice is over what survived — the window compacts rather than leaving
-        // holes in a row of five, where a gap is very visible. The Compatibility page
-        // is part of that filtering for exactly the same reason.
+        // Slice the fetched block down to the four on screen. Filtering happens first,
+        // so the slice is over what survived — the window compacts rather than leaving
+        // holes in the row, where a gap is very visible. The Compatibility page is
+        // part of that filtering for exactly the same reason.
         const shown = applyCompatFilter(items, settings)
         const offset = (page % VIEWS_PER_FETCH) * TAG_VIEW_SIZE
         setState({
