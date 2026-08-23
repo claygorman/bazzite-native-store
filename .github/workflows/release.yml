@@ -482,6 +482,18 @@ jobs:
             "${{ needs.release.outputs.version }}" "${GITHUB_SHA}" > pages/version.json
           echo "remote will be served from ${base}/repo/"
           echo "version feed: $(cat pages/version.json)"
+          # ⚠️ Assert the DELTAS exist. Reusing the published repo is the entire reason
+          # this job clones anything, and a repo that lost them still serves a perfectly
+          # working remote — clients just re-download the whole app, forever, silently.
+          # There is no symptom to notice, so it has to be checked rather than observed.
+          # Skipped on the first release, which has no previous commit to diff against.
+          if [ -d pages/repo/deltas ]; then
+            count=$(find pages/repo/deltas -name superblock | wc -l)
+            echo "static deltas present: $count"
+            [ "$count" -gt 0 ] || { echo "::error::deltas directory exists but is empty"; exit 1; }
+          else
+            echo "no deltas yet - first publish into this repo"
+          fi
 
       # ⚠️ `--runtime-repo` is not optional, and 0.5.1 proved it. Without it the bundle
       # says which runtime it needs but not WHERE that runtime comes from, so installing
