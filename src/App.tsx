@@ -1660,7 +1660,7 @@ export const App = () => {
 
               Everything is rem, so clearing it once clears it at every ui scale.
             */
-            className="absolute inset-x-0 bottom-18.5 top-24 overflow-hidden px-14 pb-4 pt-4"
+            className="absolute inset-x-0 bottom-18.5 top-24 overflow-hidden pb-4 pt-4"
           >
             <motion.div
               ref={stackRef}

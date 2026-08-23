@@ -138,31 +138,29 @@ html {
    * The edge is a lighter tint of the bloom, not a second colour — edge and halo have
    * to read as one light source.
    *
-   * ⚠️ ⚠️ A BLUR RADIUS IS NOT A REACH. This is the whole reason the blur below is
-   * 2.25rem and not the design's 3.375rem, and getting it wrong cost a visible seam.
+   * ⚠️ A BLUR RADIUS IS NOT A REACH, and this bit an earlier attempt hard enough to be
+   * worth writing down. CSS approximates a `box-shadow` blur of B with a Gaussian of
+   * standard deviation **B/2**, and a Gaussian is still painting at 3 sigma — so the
+   * shadow lays down pixels out to roughly **1.5 x B**, not B. These blooms therefore
+   * reach ~5rem, not 3.375rem.
    *
-   * CSS defines a `box-shadow` blur of B as approximating a Gaussian with a standard
-   * deviation of **B/2**, and a Gaussian is still painting at 3σ. So the shadow keeps
-   * putting down pixels out to roughly **1.5 × B**, not B. Budgeting B and stopping
-   * there clips the tail — and a clipped Gaussian tail is a dead-straight line, which
-   * is precisely the "hard grey rectangle" artefact this file warns about elsewhere.
+   * That is far more than the page's 3.5rem side margin, and the first attempt at
+   * fixing it shrank the bloom to fit. Wrong lever: the bloom is fine, and the layout
+   * was the problem. `Shelf.tsx`'s clip box is now FULL WIDTH with the side margin as
+   * its own padding, so the cut happens at the display edge rather than inside the
+   * layout — and a cut at the display edge is not a seam, because there is nothing
+   * beyond it to compare it against. The design's own numbers survive intact.
    *
-   * The room available is 3.5rem, and it is not negotiable: it is the row stack's
-   * `px-14`, the page's own side margin, and past it is the physical screen edge. So
-   * the largest honest blur is 3.5 / 1.5 ≈ 2.33rem, and 2.25rem takes it with a little
-   * back. Verified against the FIRST tile of a row — the only one whose glow touches
-   * that margin. Mid-row tiles have neighbours and never show the problem.
-   *
-   * ⭐ To restore the design's 54px bloom you must first widen the page's side margin
-   * past 5rem. Changing this number alone re-opens the seam.
+   * ⚠️ Which means these values are only safe while that box stays full width. Narrow
+   * any ancestor to content width and the leftmost tile's bloom chops again.
    *
    * Vertical is not free either: see the `pt-4` on the row stack in App.tsx, which
    * exists solely to give this bloom its room upward.
    */
   --shadow-tile-glow-lo:
-    0 0 0 0.0625rem rgb(122 186 240 / 0.18), 0 0 1.625rem rgb(77 155 230 / 0.44);
+    0 0 0 0.0625rem rgb(122 186 240 / 0.18), 0 0 2.375rem rgb(77 155 230 / 0.44);
   --shadow-tile-glow-hi:
-    0 0 0 0.09375rem rgb(150 205 250 / 0.38), 0 0 2.25rem rgb(77 155 230 / 0.62);
+    0 0 0 0.09375rem rgb(150 205 250 / 0.38), 0 0 3.375rem rgb(77 155 230 / 0.62);
   --shadow-tile-drop: 0 1.25rem 2.875rem rgb(0 0 0 / 0.6);
   --shadow-flag: 0.125rem 0.0625rem 0.3125rem rgb(0 0 0 / 0.35);
   /*

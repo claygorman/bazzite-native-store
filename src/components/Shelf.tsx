@@ -83,7 +83,9 @@ export const Shelf = ({
     // its neighbours. Box-shadow takes no layout space, so without it a later
     // sibling's background quietly covers the focused tile's ring.
     <section className={`flex shrink-0 flex-col gap-3 ${active ? 'relative z-10' : ''}`}>
-      <div className="flex items-center gap-3.5">
+      {/* px-14 is the page's side margin, carried HERE rather than by an ancestor —
+          see the clip container below for why that distinction matters. */}
+      <div className="flex items-center gap-3.5 px-14">
         <h2 className="text-2xl font-bold tracking-display text-ink">{row.title}</h2>
         {/* "See more" belongs only on the row you are actually in — RT pages the
             focused shelf, so advertising it on every row would name a binding that
@@ -107,8 +109,17 @@ export const Shelf = ({
         no such coupling — `overflow-y` genuinely stays `visible`.
 
         `overflow-clip-margin` then lets the glow bleed past the horizontal clip, so the
-        leftmost and rightmost tiles keep theirs. Sized to the bloom's own reach:
-        `--shadow-tile-glow-hi` is a 3.375rem blur, and 3.5rem clears it.
+        leftmost and rightmost tiles keep theirs.
+
+        ⚠️ This box is FULL WIDTH and carries the page's side margin as its own padding —
+        the margin is deliberately NOT on an ancestor. A parent narrowed to content width
+        clips at that narrower edge, so the first tile's bloom died against the layout
+        instead of against the screen. Full width moves the clip out to the display edge,
+        where a cut is not a seam because there is nothing beyond it to compare against.
+        The same margin now appears on the title row above so the two stay aligned.
+
+        ⚠️ Do not "tidy" this by hoisting px-14 back up to the row stack. That is exactly
+        the arrangement this replaced.
 
         ⚠️ The previous fix here — negative margins plus matching padding to enlarge an
         `overflow-hidden` box — cannot be scaled to this glow, and the reason is worth
@@ -121,7 +132,7 @@ export const Shelf = ({
         this was verified in. Both properties are Baseline-era CSS, but if a Bazzite
         build shows a clipped glow, this line is the first place to look.
       */}
-      <div className="overflow-x-clip" style={{ overflowClipMargin: '3.5rem' }}>
+      <div className="overflow-x-clip px-14" style={{ overflowClipMargin: '3.5rem' }}>
         <motion.div
           ref={trackRef}
           className="flex items-start gap-5 will-change-transform"
