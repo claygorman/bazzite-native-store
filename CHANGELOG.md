@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/claygorman/bazzite-native-store/compare/0.5.0...0.5.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* a release guard that rejected a correct build ([3fb0b1e](https://github.com/claygorman/bazzite-native-store/commit/3fb0b1ebf7f34119ed7be1aa359816070209492c))
+
 # [0.5.0](https://github.com/claygorman/bazzite-native-store/compare/0.4.1...0.5.0) (2026-08-23)
 
 
