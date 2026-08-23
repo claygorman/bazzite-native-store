@@ -1,3 +1,17 @@
+# [0.7.0](https://github.com/claygorman/bazzite-native-store/compare/0.6.1...0.7.0) (2026-08-23)
+
+
+### Bug Fixes
+
+* four tag results per row, with the Proton tier they always could have had ([d8d1c6b](https://github.com/claygorman/bazzite-native-store/commit/d8d1c6bfd5936eec99aa268fb54417dd9c6d30b6))
+* the calendar heading missed the page's side margin ([23994a6](https://github.com/claygorman/bazzite-native-store/commit/23994a6997b8d97763d0107c298b32fadfd2765d))
+* the offers band lifted OVER the hero instead of into it ([5620fcc](https://github.com/claygorman/bazzite-native-store/commit/5620fcccfbf496e3c93fcfaf0af81ddfa751a2de))
+
+
+### Features
+
+* the store knows who you are, because Steam already does ([cc7d9ef](https://github.com/claygorman/bazzite-native-store/commit/cc7d9ef8ff4a32daffe4d89390598569b9dd16be))
+
 ## [0.6.1](https://github.com/claygorman/bazzite-native-store/compare/0.6.0...0.6.1) (2026-08-23)
 
 
