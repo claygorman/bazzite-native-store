@@ -362,7 +362,15 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
       options: --privileged
     steps:
+      # ⚠️ The RELEASE TAG, not the dispatch ref. semantic-release commits the version bump
+      # as part of the release, and a bare checkout here builds `main` as it was BEFORE
+      # that commit — so the Flatpak of release N was built from a different tree than its
+      # own AppImage and reported N-1. `__APP_VERSION__` comes from package.json at Vite
+      # build time, which is why the box showed 0.5.2 while running 0.6.0 code. The
+      # `bundles` job already does this; this job was simply missed.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
 
       # ⚠️ The manifest pins org.gnome.Platform 50, which the builder image may not
       # already carry. Installing it explicitly means a stale image degrades to a slower

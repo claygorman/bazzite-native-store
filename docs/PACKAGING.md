@@ -77,6 +77,21 @@ bundle with the Tauri updater key, and writes one fragment of the update manifes
 > a `_comment_*` key fails the build script with "unknown field", which reads like a
 > version mismatch between the CLI and `tauri-build`.
 
+## ⚠️ Every build job must check out the release TAG
+
+`semantic-release` commits the version bump as part of the release. A job that runs a bare
+`actions/checkout@v7` therefore builds `main` as it was *before* that commit.
+
+The `flatpak` job did exactly that until 2026-08-23, so the Flatpak of release N was built
+from a different tree than its own AppImage and reported N−1 — the box showed **0.5.2 while
+running 0.6.0 code**, because `__APP_VERSION__` comes from `package.json` at Vite build
+time.
+
+Every build job needs `ref: ${{ needs.release.outputs.version }}`. It is easy to miss when
+adding a job, and the symptom is a wrong version string rather than a failure.
+
+---
+
 ## Debugging the box from somewhere else
 
 Two independent toggles, both off by default, both on **Settings → Network**.
