@@ -1,3 +1,10 @@
+# [0.11.0](https://github.com/claygorman/bazzite-native-store/compare/0.10.1...0.11.0) (2026-08-23)
+
+
+### Features
+
+* the wishlist as design turn 15a, and glow that stops being clipped ([1ff8b07](https://github.com/claygorman/bazzite-native-store/commit/1ff8b0732a3883ca5ed8d555b8d556fc26f3aca6))
+
 ## [0.10.1](https://github.com/claygorman/bazzite-native-store/compare/0.10.0...0.10.1) (2026-08-23)
 
 
