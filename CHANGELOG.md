@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/claygorman/bazzite-native-store/compare/0.9.3...0.10.0) (2026-08-23)
+
+
+### Features
+
+* publish the portal's answer to the debug channel ([5ca0aa2](https://github.com/claygorman/bazzite-native-store/commit/5ca0aa264768e749cc479010dd1e2255f3397f16))
+
 ## [0.9.3](https://github.com/claygorman/bazzite-native-store/compare/0.9.2...0.9.3) (2026-08-23)
 
 
