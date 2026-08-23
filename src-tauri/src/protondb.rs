@@ -92,6 +92,25 @@ pub struct Report {
     /// ProtonDB thinks it is relevant, so absent and false are different facts and the
     /// UI must not merge them.
     pub anticheat: Option<bool>,
+
+    /*
+     * The questionnaire answers a tier is derived FROM.
+     *
+     * ⚠️ Kept so a reconstruction of ProtonDB's tier rule can be VALIDATED against the
+     * live summaries endpoint rather than guessed at. Nothing may display a tier
+     * computed from these until that validation says the reconstruction agrees with
+     * upstream — a grade nobody can reproduce on protondb.com is worse than none.
+     * Every one is `Option`: unanswered is not "no".
+     */
+    pub installs: Option<bool>,
+    pub opens: Option<bool>,
+    pub starts_play: Option<bool>,
+    pub verdict: Option<bool>,
+    pub significant_bugs: Option<bool>,
+    /// `type` upstream: `tinker` means they changed something to get there.
+    pub tinkered: Option<bool>,
+    /// How many of the seven fault questions were answered "yes".
+    pub faults: Option<u8>,
 }
 
 /* ─────────────────────────── parsing ─────────────────────────── */
@@ -106,6 +125,33 @@ fn s(v: &serde_json::Value, path: &[&str]) -> String {
         }
     }
     cur.as_str().unwrap_or_default().to_string()
+}
+
+/// The seven fault questions, counted.
+///
+/// ⚠️ `None` when the block is absent entirely — a report that never reached the fault
+/// questions (because it did not run at all) is different from one that answered "no" to
+/// all seven, and collapsing them would turn a Borked report into a Platinum one.
+fn fault_count(v: &serde_json::Value) -> Option<u8> {
+    const FAULTS: [&str; 7] = [
+        "audioFaults",
+        "graphicalFaults",
+        "performanceFaults",
+        "stabilityFaults",
+        "inputFaults",
+        "saveGameFaults",
+        "windowingFaults",
+    ];
+    let responses = v.get("responses")?;
+    if !FAULTS.iter().any(|f| responses.get(f).is_some()) {
+        return None;
+    }
+    Some(
+        FAULTS
+            .iter()
+            .filter(|f| responses.get(*f).and_then(|x| x.as_str()) == Some("yes"))
+            .count() as u8,
+    )
 }
 
 /// `yes`/`no` → bool. Anything else (including absent) stays `None`.
@@ -170,6 +216,17 @@ fn parse_record(v: &serde_json::Value) -> Option<(u32, Report)> {
                 }
             },
             anticheat: yes_no(v, &["responses", "isImpactedByAntiCheat"]),
+            installs: yes_no(v, &["responses", "installs"]),
+            opens: yes_no(v, &["responses", "opens"]),
+            starts_play: yes_no(v, &["responses", "startsPlay"]),
+            verdict: yes_no(v, &["responses", "verdict"]),
+            significant_bugs: yes_no(v, &["responses", "significantBugs"]),
+            tinkered: match s(v, &["responses", "type"]).as_str() {
+                "tinker" => Some(true),
+                "steamPlay" => Some(false),
+                _ => None,
+            },
+            faults: fault_count(v),
         }
     } else {
         Report {
@@ -190,6 +247,14 @@ fn parse_record(v: &serde_json::Value) -> Option<(u32, Report)> {
             variant: String::new(),
             note: s(v, &["notes"]),
             anticheat: None,
+            // The pre-2022 questionnaire did not ask any of these. Absent, not false.
+            installs: None,
+            opens: None,
+            starts_play: None,
+            verdict: None,
+            significant_bugs: None,
+            tinkered: None,
+            faults: None,
         }
     };
 
@@ -262,9 +327,17 @@ fn create_schema(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
              proton    TEXT NOT NULL,
              variant   TEXT NOT NULL,
              note      TEXT NOT NULL,
-             -- ⚠️ NULLABLE, and it must stay so. Absent means the question was never
-             -- asked, which is a different fact from a reported 'no'.
-             anticheat INTEGER
+             -- ⚠️ Every column below is NULLABLE and must stay so. Absent means the
+             -- question was never asked, which is a different fact from a reported
+             -- 'no' — and collapsing the two turns a Borked report into a Platinum one.
+             anticheat        INTEGER,
+             installs         INTEGER,
+             opens            INTEGER,
+             starts_play      INTEGER,
+             verdict          INTEGER,
+             significant_bugs INTEGER,
+             tinkered         INTEGER,
+             faults           INTEGER
          );
          -- (appid, ts DESC) so one game's newest page is a range scan, not a sort.
          CREATE INDEX IF NOT EXISTS ix_reports_appid ON reports(appid, ts DESC);
@@ -297,8 +370,10 @@ pub fn build_index(
     let mut per_game: BTreeMap<u32, usize> = BTreeMap::new();
     {
         let mut stmt = tx.prepare(
-            "INSERT INTO reports (appid, ts, gpu, cpu, os, kernel, proton, variant, note, anticheat)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO reports (appid, ts, gpu, cpu, os, kernel, proton, variant, note,
+                                  anticheat, installs, opens, starts_play, verdict,
+                                  significant_bugs, tinkered, faults)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         )?;
         for (appid, r) in records {
             // The per-game cap still applies — it bounds one game's page, and the
@@ -319,6 +394,13 @@ pub fn build_index(
                 r.variant,
                 r.note,
                 r.anticheat,
+                r.installs,
+                r.opens,
+                r.starts_play,
+                r.verdict,
+                r.significant_bugs,
+                r.tinkered,
+                r.faults,
             ])?;
             inserted += 1;
         }
@@ -338,7 +420,8 @@ pub fn reports_for(dir: &Path, appid: u32) -> Vec<Report> {
         return Vec::new();
     };
     let Ok(mut stmt) = conn.prepare(
-        "SELECT ts, gpu, cpu, os, kernel, proton, variant, note, anticheat
+        "SELECT ts, gpu, cpu, os, kernel, proton, variant, note, anticheat,
+                installs, opens, starts_play, verdict, significant_bugs, tinkered, faults
          FROM reports WHERE appid = ?1 ORDER BY ts DESC",
     ) else {
         return Vec::new();
@@ -354,6 +437,13 @@ pub fn reports_for(dir: &Path, appid: u32) -> Vec<Report> {
             variant: row.get(6)?,
             note: row.get(7)?,
             anticheat: row.get(8)?,
+            installs: row.get(9)?,
+            opens: row.get(10)?,
+            starts_play: row.get(11)?,
+            verdict: row.get(12)?,
+            significant_bugs: row.get(13)?,
+            tinkered: row.get(14)?,
+            faults: row.get(15)?,
         })
     });
     match rows {
@@ -685,6 +775,13 @@ mod tests {
             variant: String::new(),
             note: note.into(),
             anticheat: None,
+            installs: None,
+            opens: None,
+            starts_play: None,
+            verdict: None,
+            significant_bugs: None,
+            tinkered: None,
+            faults: None,
         }
     }
 
