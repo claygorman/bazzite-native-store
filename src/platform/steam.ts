@@ -230,7 +230,36 @@ export type TrailerPreview = {
   thumbnail?: string
 }
 
+/**
+ * Trailer assets already fetched by a `GetItems` hydration, keyed by appid.
+ *
+ * ⚠️ A plain module-level map rather than a cache with a TTL, because it holds no facts
+ * that expire: a trailer URL is content-addressed — the path carries a hash and a
+ * timestamp — so it either resolves forever or the app has published a new one, and a new
+ * one arrives with the next hydration anyway.
+ */
+const trailerByAppid = new Map<number, TrailerPreview>()
+
+/**
+ * The microtrailer, preferring what hydration already paid for.
+ *
+ * ⚠️ This function used to call `/api/appdetails` once per tile the user rested on. That
+ * is the single largest source of traffic this app generates, aimed at the one endpoint
+ * with a hard ~200 requests / 5 minutes per IP ceiling — and the shelf hydration was
+ * ALREADY asking `GetItems` about those same appids. The trailer now rides that batch.
+ *
+ * The `appdetails` path stays as a fallback for an appid nothing hydrated — opening a game
+ * straight from search or a bundle, where no shelf ever saw it.
+ */
 export const fetchMicrotrailer = async (appid: number): Promise<TrailerPreview> => {
+  const hydrated = trailerByAppid.get(appid)
+  // ⚠️ Only when it actually carries a video. An entry with just a thumbnail means the
+  // game has no trailer, which is worth honouring — but an EMPTY entry means we asked
+  // without `include_trailers`, and falling through to appdetails is right there.
+  if (hydrated && (hydrated.microUrl !== undefined || hydrated.hlsUrl !== undefined)) {
+    return hydrated
+  }
+
   const json = await steamGet({
     host: 'store',
     path: '/api/appdetails',
@@ -600,6 +629,74 @@ const assetUrl = (
   return undefined
 }
 
+/**
+ * Trailer assets live on a DIFFERENT CDN than store art.
+ *
+ * ⚠️ Store assets are `shared.akamai.steamstatic.com/store_item_assets/`; trailers are
+ * `video.akamai.steamstatic.com/store_trailers/`. Building a trailer URL on the asset base
+ * returns a 404 HTML page, not an error — verified 2026-08-23 by doing exactly that. The
+ * thumbnail is the exception and DOES live on the asset base, because it is a still.
+ *
+ * ⚠️ The PATH always comes from the response, never from the appid. Steam's asset paths
+ * carry a content hash and a timestamp (`1332010/480740/52e229bc…/1750673003/…`) and there
+ * is no rule that derives them — anything built as `/<appid>/<name>.jpg` is guessing and
+ * will be wrong for some apps. Only the BASE is ours, because `GetItems` hands back a
+ * relative `filename`/`cdn_path` for trailers with no base to go with it.
+ *
+ * ⚠️ Which makes the base the fragile part. If Valve moves the video CDN this returns 404s,
+ * so a failed load must degrade to the still — never to a blank tile. That rule already
+ * governs `TrailerPreview` and it is what keeps this safe to depend on.
+ */
+const TRAILER_BASE = 'https://video.akamai.steamstatic.com/store_trailers/'
+
+/** Record what a hydration learned, so the trailer never costs a second request. */
+const rememberTrailers = (appid: number, preview: TrailerPreview): TrailerPreview => {
+  if (preview.microUrl !== undefined || preview.hlsUrl !== undefined) {
+    trailerByAppid.set(appid, preview)
+  }
+  return preview
+}
+
+/**
+ * Pull the trailer set out of a `GetItems` item.
+ *
+ * ⚠️ This is what lets the microtrailer stop costing a request. `fetchMicrotrailer` used to
+ * call `/api/appdetails` once per tile the user rested on — the single largest source of
+ * traffic this app generates, against the one endpoint with a ~200 req / 5 min ceiling —
+ * while the shelf hydration was ALREADY calling `GetItems` for those same appids. The
+ * trailer now rides a batch that was happening anyway.
+ *
+ * Verified 2026-08-23: all three URLs resolve (206 video/webm, 206 mpegurl, 206 image/jpeg).
+ */
+const trailersFrom = (item: Record<string, unknown> | undefined): TrailerPreview => {
+  const highlights = asRecord(item?.trailers)?.highlights
+  const first = Array.isArray(highlights) ? asRecord(highlights[0]) : undefined
+  if (!first) return {}
+
+  // ⚠️ webm specifically. The array also carries an mp4, but the VP9 webm is the one a
+  // plain <video> plays progressively in WebKitGTK with no MSE involved.
+  const micro = Array.isArray(first.microtrailer)
+    ? asRecord(first.microtrailer.find((m) => asRecord(m)?.type === 'video/webm'))
+    : undefined
+
+  const adaptive = Array.isArray(first.adaptive_trailers) ? first.adaptive_trailers : []
+  // hls_h264 rather than dash: WebKitGTK plays it through hls.js, verified on the box.
+  const hls = asRecord(adaptive.find((a) => asRecord(a)?.encoding === 'hls_h264'))
+
+  const microFile = asString(micro?.filename)
+  const hlsPath = asString(hls?.cdn_path)
+  const still = asString(first.screenshot_medium)
+  const format = asString(first.trailer_url_format)
+
+  return {
+    microUrl: microFile ? `${TRAILER_BASE}${microFile}` : undefined,
+    hlsUrl: hlsPath ? `${TRAILER_BASE}${hlsPath}` : undefined,
+    // The still is a store asset, not a trailer asset — different base, same as art.
+    thumbnail:
+      still && format ? `${STORE_ASSET_BASE}${format.split('${FILENAME}').join(still)}` : undefined,
+  }
+}
+
 /** The subset of `GetItems` we actually consume, already normalized. */
 export type StoreItemFacts = Pick<
   StoreItem,
@@ -620,7 +717,16 @@ export type StoreItemFacts = Pick<
   | 'controllerSupport'
   | 'deckCompat'
   | 'linuxAvailable'
->
+> & {
+  /**
+   * Trailer assets, carried on the hydration that was already happening.
+   *
+   * ⚠️ Optional because `include_trailers` is only asked for where it is wanted; a caller
+   * that does not request it gets `undefined`, not an empty object pretending there is no
+   * trailer.
+   */
+  trailers?: TrailerPreview
+}
 
 export const fetchStoreItems = async (
   appids: readonly number[],
@@ -647,6 +753,13 @@ export const fetchStoreItems = async (
             include_platforms: true,
             include_basic_info: true,
             include_reviews: true,
+            /*
+             * ⚠️ The change that takes the microtrailer off `/api/appdetails`. It costs
+             * nothing here — the shelf already batches this call for these appids — and it
+             * removes one appdetails request per tile the user rests on, against the one
+             * endpoint with a hard ~200 req / 5 min ceiling.
+             */
+            include_trailers: true,
           },
         }),
       },
@@ -742,6 +855,7 @@ export const fetchStoreItems = async (
         // closes the gap the design's own notes record as "no verified endpoint yet".
         controllerSupport: controllerSupportFrom(o.categories),
         deckCompat: deckCompatFrom(o.platforms),
+        trailers: rememberTrailers(appid, trailersFrom(o)),
         // ⚠️ Was declared on StoreItem and hardcoded `false` at every call site since
         // the first commit — the field existed, nothing ever filled it. `platforms`
         // was already in this response.
