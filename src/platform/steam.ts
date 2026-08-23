@@ -130,12 +130,32 @@ const buildBudgetRow = (rows: StoreRow[]): StoreRow | undefined => {
  * Use this and NOT /api/featured, which is degraded: it still returns its shape but
  * `large_capsules` is empty (verified 2026-08-20).
  */
+/**
+ * How long a store answer stays good.
+ *
+ * ⚠️ Sized for a living-room store, not a live website. Clay's call, and it is the right
+ * one: nothing here changes more than once or twice a day, and the thing being optimised
+ * is not freshness — it is not re-spending the rate limit every time someone opens the app.
+ * A session lasts 15-45 minutes; the cache that matters is the one on DISK, which survives
+ * between launches.
+ *
+ * ⚠️ The homepage was FIVE MINUTES, which meant a second visit an hour later paid for the
+ * entire shelf set again. That is the single most-requested surface in the app.
+ *
+ * Prices ride along inside these payloads and are therefore up to `STORE_HOURS` stale.
+ * Accepted deliberately: Steam discounts change on sale boundaries, not continuously, and
+ * a stale price is corrected by the refresh the next launch performs anyway. Anything
+ * where being wrong actually costs money goes through a live call at the point of sale —
+ * which for this app is Steam itself, since checkout always happens there.
+ */
+const STORE_HOURS = 4 * 3_600
+
 export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
   const json = await steamGet({
     host: 'store',
     path: '/api/featuredcategories',
     query: { ...STORE_LOCALE },
-    ttlSeconds: 300, // home rows change slowly; 5 min keeps us far from the rate limit
+    ttlSeconds: STORE_HOURS,
   })
 
   const root = asRecord(json)
@@ -482,7 +502,8 @@ export const searchApps = async (term: string): Promise<StoreItem[]> => {
   const json = await steamGet({
     host: 'community',
     path: `/actions/SearchApps/${encodeURIComponent(query)}`,
-    ttlSeconds: 3_600,
+    // Typing re-issues this per keystroke-pause; a long TTL is what makes backspacing free.
+    ttlSeconds: STORE_HOURS,
   })
 
   if (!Array.isArray(json)) return []
@@ -890,7 +911,17 @@ export const fetchPlayerCount = async (appid: number): Promise<number | undefine
       host: 'api',
       path: '/ISteamUserStats/GetNumberOfCurrentPlayers/v1/',
       query: { appid },
-      ttlSeconds: 600, // it genuinely moves; 10 min is a fair compromise
+      /*
+       * ⚠️ The ONE thing here that is genuinely live, and the only short TTL left on a
+       * details page. The card says "right now", so an hours-old figure would be a lie
+       * rather than merely stale — and unlike a price, nobody spends money on it.
+       *
+       * 15 minutes rather than 10: reopening the same game twice in a browsing session
+       * must cost nothing, and 15 covers a session comfortably. Everything else on this
+       * page is on the four-hour store TTL, so a second visit within that window makes
+       * NO external request at all.
+       */
+      ttlSeconds: 900,
     })
     const count = asNumber(asRecord(asRecord(json)?.response)?.player_count)
     return count

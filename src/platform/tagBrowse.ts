@@ -299,9 +299,11 @@ export const browseByTag = async (req: TagBrowseRequest): Promise<SearchPage> =>
         l: 'english',
         ...req.sort.params,
       },
-      // Short: these lists are ranked and move. Long enough that paging back and forth
-      // through a tag does not re-spend the rate limit.
-      ttlSeconds: 900,
+      // ⚠️ Ranked lists DO move, but not within a browsing session — and paging back and
+      // forth through a tag is the normal way to use this screen. Four hours, matching the
+      // rest of the store: the ordering being a few hours old is invisible, and re-fetching
+      // a 100-item page because someone pressed B and A again is not.
+      ttlSeconds: 4 * 3_600,
     })
     return parseSearchResults(json)
   } catch {
