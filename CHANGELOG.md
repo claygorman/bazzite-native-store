@@ -1,3 +1,11 @@
+## [0.9.3](https://github.com/claygorman/bazzite-native-store/compare/0.9.2...0.9.3) (2026-08-23)
+
+
+### Bug Fixes
+
+* a broken portal probe silenced the out-of-date notice entirely ([8c2881f](https://github.com/claygorman/bazzite-native-store/commit/8c2881fca1dacf9d9718e64bb55321955f88c25d))
+* one 429 blanked the account chip permanently ([7301b5d](https://github.com/claygorman/bazzite-native-store/commit/7301b5d241a215c1c01dda29323da0ebbed3611a))
+
 ## [0.9.2](https://github.com/claygorman/bazzite-native-store/compare/0.9.1...0.9.2) (2026-08-23)
 
 
