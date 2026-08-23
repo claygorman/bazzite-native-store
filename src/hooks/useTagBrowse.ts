@@ -3,6 +3,11 @@ import { browseByTag, TAG_SORTS, type TagSort } from '../platform/tagBrowse'
 import { fetchStoreItems } from '../platform/steam'
 import { isAdultContent } from '../platform/contentFilter'
 import { applyCompatFilter } from '../platform/compatFilter'
+import {
+  fetchVariantSplit,
+  EMPTY_VARIANT_SPLIT,
+  type VariantSplit,
+} from '../platform/protonVariants'
 import { useSettings } from './useSettings'
 import type { DeckCompat, StoreItem } from '../types/steam'
 
@@ -207,10 +212,30 @@ export type TagPreview = {
   split: { verdict: DeckCompat; count: number }[]
   /** How many games the split is over — never the tag's size. */
   sampled: number
+  /**
+   * What the sample's ProtonDB reports were RUN under — turn 13c.
+   *
+   * ⚠️ A different question from `split`, deliberately, and the two must not be
+   * merged back together. `split` is Valve's verdict — a grade. This is the runtime:
+   * a native build, official Proton, GE-Proton or Experimental. The old single bar
+   * had "Native" standing beside Platinum and Gold, which asked the reader to compare
+   * a fact with an opinion.
+   *
+   * ⚠️ Zeroes in the browser build, and zeroes on a Tauri build whose dump has never
+   * been downloaded. Both mean "we did not ask", never "nobody has reported".
+   */
+  runtime: VariantSplit
   loading: boolean
 }
 
-const EMPTY_PREVIEW: TagPreview = { total: 0, top: [], split: [], sampled: 0, loading: false }
+const EMPTY_PREVIEW: TagPreview = {
+  total: 0,
+  top: [],
+  split: [],
+  sampled: 0,
+  runtime: EMPTY_VARIANT_SPLIT,
+  loading: false,
+}
 
 /**
  * What the focused tag looks like, without pretending to know the whole tag.
@@ -226,8 +251,15 @@ const EMPTY_PREVIEW: TagPreview = { total: 0, top: [], split: [], sampled: 0, lo
  * words. A sample described as a sample is honest; the same chart labelled "Roguelike"
  * would not be.
  *
- * Two requests per focused tag, so callers must debounce: holding a direction moves
- * focus every ~90ms and this must not fire eleven times a second.
+ * Turn 13c adds a second bar over the same sample — which runtime the reports were
+ * filed against — and that one IS aggregatable, because 13a put the report dump in a
+ * local SQLite table. It is a `GROUP BY` over an indexed `appid IN (…)`, not a
+ * network call, so it costs nothing upstream and answers zero when the dump has never
+ * been downloaded.
+ *
+ * Two network requests per focused tag (plus one local read), so callers must
+ * debounce: holding a direction moves focus every ~90ms and this must not fire eleven
+ * times a second.
  */
 export const useTagPreview = (tagid: number | undefined, delayMs = 260): TagPreview => {
   const [preview, setPreview] = useState<TagPreview>(EMPTY_PREVIEW)
@@ -265,10 +297,13 @@ export const useTagPreview = (tagid: number | undefined, delayMs = 260): TagPrev
 
           const counts = new Map<DeckCompat, number>()
           const top: StoreItem[] = []
+          /** The sample as this screen actually presents it — see below. */
+          const measured: number[] = []
 
           for (const appid of listing.appids) {
             const extra = facts.get(appid)
             if (!extra || isAdultContent(extra.contentDescriptors)) continue
+            measured.push(appid)
             if (extra.deckCompat !== undefined && extra.deckCompat !== 'unknown') {
               counts.set(extra.deckCompat, (counts.get(extra.deckCompat) ?? 0) + 1)
             }
@@ -300,7 +335,30 @@ export const useTagPreview = (tagid: number | undefined, delayMs = 260): TagPrev
             .filter((bar) => bar.count > 0)
           const sampled = split.reduce((n, bar) => n + bar.count, 0)
 
-          setPreview({ tagid, total: listing.total, top, split, sampled, loading: false })
+          /*
+           * ⚠️ `measured`, not `listing.appids`. The runtime bar has to be over the
+           * SAME set the Deck bar and the game list are over, or the pane carries two
+           * samples under one heading — and the difference is the games this screen
+           * declined to show, so the reports it counted would be for titles that are
+           * nowhere on it.
+           *
+           * ⚠️ Local read, but still awaited before the commit rather than merged in
+           * afterwards: a second `setPreview` would repaint the pane a beat later and
+           * the block would pop in under the reader's eye, which is the thing
+           * `BazziteSplit`'s held height exists to prevent.
+           */
+          const runtime = await fetchVariantSplit(measured)
+          if (cancelled) return
+
+          setPreview({
+            tagid,
+            total: listing.total,
+            top,
+            split,
+            sampled,
+            runtime,
+            loading: false,
+          })
         } catch {
           if (!cancelled) setPreview({ ...EMPTY_PREVIEW, tagid, total: listing.total })
         }

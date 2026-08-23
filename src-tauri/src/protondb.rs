@@ -452,6 +452,110 @@ pub fn reports_for(dir: &Path, appid: u32) -> Vec<Report> {
     }
 }
 
+/// How many appids one `variant_split` call will look at.
+///
+/// ⚠️ A defensive bound, not a page size. The IN list is one bound parameter per
+/// appid, so an unbounded caller hands SQLite a statement with tens of thousands of
+/// them — past `SQLITE_MAX_VARIABLE_NUMBER` the prepare simply fails and the bar
+/// silently reads zero. The tag preview passes 100. Anything beyond the cap is dropped
+/// rather than made an error: the answer is a sample either way, and the UI says so.
+const MAX_SPLIT_APPIDS: usize = 128;
+
+/// What people RAN a set of games under — turn 13c.
+///
+/// ⚠️ A runtime fact, not a grade. `native` belongs beside `official`/`ge`/
+/// `experimental` because all four answer "what did this run on"; none of them answers
+/// "how well did it run". The Deck verdict bar answers the second question, and having
+/// "Native" stand next to Platinum and Gold in one bar was exactly the ambiguity 13c
+/// exists to remove.
+///
+/// ⚠️ This question has no live answer at any price — ProtonDB serves one appid per
+/// request with no aggregation — and it is cheap here only because the dump is already
+/// a local table.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VariantSplit {
+    pub native: u64,
+    pub official: u64,
+    pub ge: u64,
+    pub experimental: u64,
+    /// `notListed`, `older`, and whatever a later dump invents. Counted so `total`
+    /// stays true, never drawn: a segment labelled "other" teaches the reader to
+    /// distrust the four that mean something.
+    pub other: u64,
+    /// Every report row these appids have, `other` included.
+    pub total: u64,
+    /// Distinct appids with at least one report.
+    ///
+    /// ⚠️ The honest denominator, and the reason this is a second query rather than a
+    /// `COUNT(DISTINCT appid)` in the GROUP BY: a game reported under both Proton and
+    /// GE-Proton would be counted twice there, and a game nobody has reported at all
+    /// must not be counted once.
+    pub games: u64,
+}
+
+/// Group one set of appids' reports by the runtime they were filed against.
+///
+/// Filtering on `appid` first is what keeps this off a table scan: `IN (…)` on the
+/// leading column of `ix_reports_appid` is a handful of range seeks, so no new index is
+/// needed and none should be added.
+pub fn variant_split(dir: &Path, appids: &[u32]) -> VariantSplit {
+    let mut out = VariantSplit::default();
+    /*
+     * ⚠️ Empty means empty, and must return before the database is opened. `WHERE
+     * appid IN ()` is not valid SQLite, and the tempting repair — drop the WHERE when
+     * there is nothing to filter on — answers with the WHOLE dump: a tag preview that
+     * claims three million reports for a tag it never measured.
+     */
+    if appids.is_empty() {
+        return out;
+    }
+    let ids = &appids[..appids.len().min(MAX_SPLIT_APPIDS)];
+    let Ok(conn) = open_db(dir) else {
+        return out;
+    };
+
+    // Built from the LENGTH of the slice, never from its contents — the appids
+    // themselves travel as bound parameters below.
+    let placeholders = (1..=ids.len())
+        .map(|i| format!("?{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    if let Ok(mut stmt) = conn.prepare(&format!(
+        "SELECT variant, COUNT(*) FROM reports WHERE appid IN ({placeholders}) GROUP BY variant"
+    )) {
+        let rows = stmt.query_map(rusqlite::params_from_iter(ids.iter().copied()), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        });
+        if let Ok(iter) = rows {
+            for (variant, count) in iter.filter_map(Result::ok) {
+                let n = count.max(0) as u64;
+                match variant.as_str() {
+                    "native" => out.native += n,
+                    "official" => out.official += n,
+                    "ge" => out.ge += n,
+                    "experimental" => out.experimental += n,
+                    // `notListed`, `older`, and the empty string a pre-2022 row leaves
+                    // behind. Real reports, so they count; just not drawable ones.
+                    _ => out.other += n,
+                }
+                out.total += n;
+            }
+        }
+    }
+
+    out.games = conn
+        .query_row(
+            &format!("SELECT COUNT(DISTINCT appid) FROM reports WHERE appid IN ({placeholders})"),
+            rusqlite::params_from_iter(ids.iter().copied()),
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap_or(0)
+        .max(0) as u64;
+
+    out
+}
+
 /// Which snapshot the database was built from, if any.
 fn stored_snapshot(dir: &Path) -> Option<String> {
     if !db_path(dir).exists() {
@@ -1069,6 +1173,104 @@ mod tests {
         assert_eq!(reports_for(&dir, 20).len(), 1);
         // An unrated game is empty, not an error.
         assert!(reports_for(&dir, 999).is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /* ─────────────────── the runtime split (turn 13c) ─────────────────── */
+
+    fn mkv(variant: &str) -> Report {
+        let mut r = mk("");
+        r.variant = variant.into();
+        r
+    }
+
+    /// One index holding three games, one of which nobody has reported.
+    fn split_fixture(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("pdb-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        build_index(
+            vec![
+                (10, mkv("native")),
+                (10, mkv("official")),
+                (10, mkv("official")),
+                (20, mkv("ge")),
+                (20, mkv("experimental")),
+                // Real reports that are not drawable — they must land in `other` and
+                // still count towards `total`, or the bar's percentages lie.
+                (20, mkv("notListed")),
+                (20, mkv("older")),
+                // A game outside the sample: never counted, never a denominator.
+                (99, mkv("native")),
+            ],
+            &dir,
+            "snap",
+        )
+        .unwrap();
+        dir
+    }
+
+    #[test]
+    fn variant_split_groups_by_runtime_and_bounds_it_to_the_sample() {
+        let dir = split_fixture("split");
+        let got = variant_split(&dir, &[10, 20]);
+        assert_eq!(got.native, 1);
+        assert_eq!(got.official, 2);
+        assert_eq!(got.ge, 1);
+        assert_eq!(got.experimental, 1);
+        assert_eq!(got.other, 2, "notListed and older are counted, not dropped");
+        assert_eq!(got.total, 7, "every row for the sample, `other` included");
+        assert_eq!(got.games, 2, "appid 99 is outside the sample");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_game_with_no_reports_does_not_inflate_the_denominator() {
+        // The whole point of the counted line: "43 of 812" has to mean 812 games that
+        // actually have reports, not 812 games we happened to ask about.
+        let dir = split_fixture("denom");
+        let got = variant_split(&dir, &[10, 20, 4_000_000, 4_000_001]);
+        assert_eq!(got.games, 2, "two of the four have any reports at all");
+        assert_eq!(got.total, 7);
+
+        // And a sample where NOTHING has been reported is zero, not an error.
+        let none = variant_split(&dir, &[4_000_000]);
+        assert_eq!(none, VariantSplit::default());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_empty_sample_answers_zero_rather_than_scanning_the_table() {
+        /*
+         * ⚠️ The failure this guards is not a crash. `WHERE appid IN ()` is a syntax
+         * error, so the "fix" is to drop the filter — at which point the preview
+         * reports the entire dump under whichever tag happened to have no appids.
+         */
+        let dir = split_fixture("empty");
+        assert_eq!(variant_split(&dir, &[]), VariantSplit::default());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn variant_split_survives_an_index_that_was_never_built() {
+        // The browser build never gets here, but a Tauri user who has not downloaded
+        // the dump does. Zeroes, not a panic — the block simply does not render.
+        let dir = std::env::temp_dir().join(format!("pdb-nodb-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(variant_split(&dir, &[10]), VariantSplit::default());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn variant_split_caps_the_appid_list() {
+        // One bound parameter per appid; past SQLite's variable limit the prepare
+        // fails and the bar silently reads zero. Truncating keeps it merely a sample.
+        let dir = split_fixture("cap");
+        let mut many: Vec<u32> = (1_000..1_000 + MAX_SPLIT_APPIDS as u32 * 4).collect();
+        many[0] = 10;
+        many[1] = 20;
+        let got = variant_split(&dir, &many);
+        assert_eq!(got.total, 7, "the head of the list is what gets measured");
+        assert_eq!(got.games, 2);
         let _ = fs::remove_dir_all(&dir);
     }
 }

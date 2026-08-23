@@ -121,6 +121,28 @@ html {
   --color-bad-wash: rgb(208 104 95 / 0.18);
 
   /*
+   * The runtime split — "what people ran it under", design 13c. See
+   * docs/DESIGN-PORT.md §6 for the whole four-colour map and why it is a map rather
+   * than four ad-hoc fills.
+   *
+   * Only two tokens because the other two already exist and one colour with two names
+   * is worse than a lookup: a native Linux build is `ok` (#9ec97f) and official Proton
+   * is `focus` (#4d9be6), which is the same rule §3 of DESIGN-PORT applies to `page`
+   * and `accent`.
+   *
+   * ⚠️ These are the FIRST oklch values in this file and that is deliberate, not a
+   * stray paste from somewhere else. They are the accent's cooler and warmer
+   * neighbours at IDENTICAL lightness and chroma — the one thing hex cannot express,
+   * because equal-looking hex triples are not equal-lightness ones. Four runtimes have
+   * to read as one family of answers to one question; hand-picked hexes drifted in
+   * brightness and the bar read as a ranking, which is exactly the grade/runtime
+   * confusion this bar exists to end. Convert either of these to hex and the family
+   * breaks.
+   */
+  --color-runtime-ge: oklch(0.72 0.11 210);
+  --color-runtime-experimental: oklch(0.72 0.11 285);
+
+  /*
    * ⚠️ A shelf clips horizontally in order to scroll, so anything painted on a tile has
    * to fit its escape hatch or it comes back as a hard rectangular seam — a bug now
    * fixed four separate times. That hatch is `overflow-clip-margin: 3.5rem` in

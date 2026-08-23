@@ -3,6 +3,11 @@ import { Prompt } from './ButtonLegend'
 import { formatPrice, DECK_COMPAT_LABEL, type DeckCompat } from '../types/steam'
 import type { StoreTagInfo } from '../platform/tagBrowse'
 import { PREVIEW_SAMPLE, type TagPreview } from '../hooks/useTagBrowse'
+import {
+  RUNTIME_VARIANTS,
+  attributedReports,
+  type RuntimeVariant,
+} from '../platform/protonVariants'
 import type { InputSource } from '../platform/glyphs'
 import { SHELF_SPRING } from '../platform/motion'
 
@@ -151,6 +156,8 @@ export const TagPicker = ({
 
               <BazziteSplit preview={preview} ready={ready} />
 
+              <RuntimeSplit preview={preview} ready={ready} />
+
               <div className="flex min-h-0 flex-col gap-3">
                 <Heading>Most reviewed in this tag</Heading>
                 <div className="flex flex-col gap-2">
@@ -293,6 +300,147 @@ const BazziteSplit = ({ preview, ready }: { preview: TagPreview; ready: boolean 
           `${preview.sampled} of this tag’s ${PREVIEW_SAMPLE} most-reviewed games have a Deck verdict`
         ) : (
           <Bar className="h-3 w-96" />
+        )}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * The four runtimes, as one family of answers to one question.
+ *
+ * ⚠️ Native is `ok` and official Proton is `focus` — colours this app already has —
+ * and the other two are the accent's neighbours in oklch at identical lightness and
+ * chroma. That is the point: four fills of equal weight say "four kinds of the same
+ * thing". Four hand-picked hexes drift in brightness and the bar starts reading as a
+ * ranking, which is the exact confusion this bar exists to end. See index.css and
+ * docs/DESIGN-PORT.md §6.
+ */
+const RUNTIME_COLOR: Record<RuntimeVariant, string> = {
+  native: 'var(--color-ok)',
+  official: 'var(--color-focus)',
+  ge: 'var(--color-runtime-ge)',
+  experimental: 'var(--color-runtime-experimental)',
+}
+
+const RUNTIME_LABEL: Record<RuntimeVariant, string> = {
+  native: 'Native Linux build',
+  official: 'Proton (official)',
+  ge: 'GE-Proton',
+  experimental: 'Proton Experimental',
+}
+
+/**
+ * "What people ran it under" — design 13c's second bar, and NOT a second opinion on
+ * the first one.
+ *
+ * ⚠️ The bar above grades: Verified, Playable, Unsupported. This one does not grade at
+ * all — it says which runtime the reports were filed against. The old single bar put
+ * "Native" beside Platinum and Gold, asking the reader to compare a fact about how a
+ * game was launched with a judgement about how well it went. Two questions, two bars,
+ * and the headings are what keep them apart. Never merge them back.
+ *
+ * ⚠️ Silent when there is nothing to say, and that covers three different situations
+ * on purpose: the browser build has no local index, a fresh install has not downloaded
+ * the dump, and some tags genuinely have no reported games. All three are "we have not
+ * got this", none of them is a claim about the tag, and none may render as an empty
+ * bar — a drawn chart with nothing in it reads as zero, not as absent.
+ *
+ * ⚠️ Holds its height while loading, for the same reason `BazziteSplit` does: this now
+ * sits ABOVE the game list, so collapsing it would drag six rows up and back down on
+ * every tag focus passes through.
+ */
+const RuntimeSplit = ({ preview, ready }: { preview: TagPreview; ready: boolean }) => {
+  const { runtime } = preview
+  /*
+   * ⚠️ The denominator is the reports the four segments can account for, not
+   * `runtime.total`. `notListed` and `older` are real reports with no drawable
+   * runtime, so dividing by the total would leave the bar visibly short of full with
+   * nothing on screen explaining the gap — and adding an "Other" segment to close it
+   * teaches the reader to distrust the four that mean something.
+   */
+  const attributed = attributedReports(runtime)
+  if (ready && attributed === 0) return null
+
+  const bars = RUNTIME_VARIANTS.filter((variant) => runtime[variant] > 0)
+  const percent = (variant: RuntimeVariant) => (runtime[variant] / attributed) * 100
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex h-5 items-baseline gap-3.5">
+        <Heading>What people ran it under</Heading>
+        {/* The report count is the weight behind the bar, so it belongs beside the
+            heading rather than in the caption — a 12-report split and a 12,000-report
+            split are the same picture and very different facts. */}
+        {ready ? (
+          <span className="text-sm font-medium leading-5 tabular-nums text-ink-faint">
+            {attributed.toLocaleString()} reports
+          </span>
+        ) : (
+          <Bar className="h-3 w-20" />
+        )}
+      </div>
+      <div
+        className={`flex h-3 overflow-hidden rounded-full bg-chip ${ready ? '' : 'animate-pulse'}`}
+      >
+        {ready &&
+          bars.map((variant) => (
+            <span
+              key={variant}
+              style={{ width: `${percent(variant)}%`, background: RUNTIME_COLOR[variant] }}
+            />
+          ))}
+      </div>
+      <div className="flex h-6 flex-wrap items-center gap-x-5 gap-y-1">
+        {ready
+          ? bars.map((variant) => (
+              <span
+                key={variant}
+                className="flex items-center gap-2 text-base font-semibold leading-6 text-ink-mute"
+              >
+                <span
+                  className="size-3 rounded-full"
+                  style={{ background: RUNTIME_COLOR[variant] }}
+                />
+                {RUNTIME_LABEL[variant]} {Math.round(percent(variant))}%
+              </span>
+            ))
+          : ['w-44', 'w-36', 'w-28', 'w-44'].map((width, i) => (
+              <Bar key={i} className={`h-3.5 ${width}`} />
+            ))}
+      </div>
+      {/*
+        ⚠️ A COUNTED LINE, and it must never become a bar. The count is per-game
+        coverage of the local report index, and the tiers it mentions arrive one game
+        at a time from the live API as you browse — so a tier distribution drawn over
+        a 13,912-game tag would start near-empty and fill in invisibly over weeks. A
+        count degrades honestly ("we know this much"); a chart drawn from the same data
+        would claim a shape it does not have.
+
+        ⚠️ And the denominator is the SAMPLE, phrased exactly the way the Deck bar
+        above phrases it. We hold 100 appids because `browseByTag` pages at 25 minimum;
+        printing a bare "of 812" against a tag of 13,912 would imply whole-tag coverage
+        we have never measured.
+
+        ⚠️ The artboard's numerator counts TIERS ("real ProtonDB tiers for 43 of 812");
+        this one counts games with REPORTS. Nothing in this client keeps a queryable
+        record of which tiers it has fetched — they live in the transport's caches,
+        keyed by URL and never enumerated — so a tier numerator here would have been a
+        number we cannot actually produce. The line below names which is which rather
+        than leaving the count to be read as the other.
+      */}
+      <span className="flex h-5 items-center text-sm font-medium leading-5 text-ink-faint">
+        {ready ? (
+          `${runtime.games} of this tag’s ${PREVIEW_SAMPLE} most-reviewed games have reports here`
+        ) : (
+          <Bar className="h-3 w-96" />
+        )}
+      </span>
+      <span className="flex h-5 items-center text-sm font-medium leading-5 text-ink-faint">
+        {ready ? (
+          'Real ProtonDB tiers are fetched per game as you browse, so they climb with use. Too thin to draw as a distribution.'
+        ) : (
+          <Bar className="h-3 w-80" />
         )}
       </span>
     </div>

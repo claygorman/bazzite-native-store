@@ -152,6 +152,57 @@ shipped once:
 | `tags`                                            | `GetLocalizedNameForTags`                                  | `GetItems` returns tagids, never names                                                                             |
 | `owned`                                           | **no anonymous source**                                    | `dynamicstore/userdata` fails _silently_ (HTTP 200, empty arrays). The badge does not render rather than guessing. |
 
+## 6. The runtime map — the third data map, and where §1.1 went
+
+This app has three places where a **value in the data picks a colour**, and they are the only
+three. Two were already written down: the ProtonDB tier dots (`TIER_STYLE` in
+`src/platform/protondb.ts`, ProtonDB's own colours so the badge reads the way protondb.com
+trained people to read it) and the deal-flag gradients (§3 of `design/Store Card - Tailwind
+port.md`). Turn 13c adds the third.
+
+⚠️ **`DESIGN-PORT.md §1.1` gets cited as the home of this kind of table, and was never
+written** — there is no §1.1 in this file and never has been (nothing in this repo's tree
+links to it either; the reference comes from outside). The map lives here instead. §1.1 stays
+empty rather than being retro-fitted, because renumbering sections other files already point
+at is worse than one dangling reference.
+
+**"What people ran it under"** — the second bar on the tag picker (`TagPicker.tsx`'s
+`RuntimeSplit`), fed by `proton_variant_split` over the local ProtonDB dump:
+
+| Segment             | Colour                 | Token                             |
+| ------------------- | ---------------------- | --------------------------------- |
+| Native Linux build  | `#9ec97f`              | `--color-ok` (already existed)    |
+| Proton (official)   | `#4d9be6`              | `--color-focus` (already existed) |
+| GE-Proton           | `oklch(0.72 0.11 210)` | `--color-runtime-ge`              |
+| Proton Experimental | `oklch(0.72 0.11 285)` | `--color-runtime-experimental`    |
+
+Three things about it that are load-bearing:
+
+1. **It is a map of a RUNTIME, not of a grade.** The bar directly above it is Valve's Deck
+   verdict — Verified / Playable / Unsupported, which are judgements. This one says which
+   runtime the reports were filed against, which is a fact. The design's own words: this
+   settles an ambiguity the old bar had, where "Native" was a runtime fact standing beside
+   Platinum and Gold. Two questions, two bars, and the headings are what keep them apart.
+   Merging them back is not a simplification, it is the bug.
+
+2. **The two new values are oklch, and they are the first in the codebase.** That is
+   deliberate. They are the accent's cooler and warmer neighbours at _identical lightness and
+   chroma_, which is the one thing hex cannot express — equal-looking hex triples are not
+   equal-lightness ones, and four hand-picked hexes drift in brightness until the bar reads as
+   a ranking. Converting either to hex "for consistency" breaks the family and re-opens the
+   grade/runtime confusion. The other two segments reuse `ok` and `focus` under §3's rule:
+   one colour with two names is worse than a lookup.
+
+3. **The line under it is a count, and must never become a bar.** Real ProtonDB tiers arrive
+   one game at a time from the live API as you browse, so a tier distribution over a
+   13,912-game tag would start near-empty and fill in invisibly over weeks. A count degrades
+   honestly; a chart drawn from the same data claims a shape it does not have. Same family of
+   reasoning as §5's `owned` row.
+
+⚠️ Both captions name the **sample**, not the tag — `of this tag’s 100 most-reviewed games`.
+The picker only ever holds 100 appids (`search/results` pages at 25 minimum), so a bare "of
+812" against a 13,912-game tag would imply whole-tag coverage nothing here has measured.
+
 ---
 
 ## The Xbox glyph kit
