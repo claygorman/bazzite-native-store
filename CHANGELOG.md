@@ -1,3 +1,15 @@
+# [0.8.0](https://github.com/claygorman/bazzite-native-store/compare/0.7.0...0.8.0) (2026-08-23)
+
+
+### Bug Fixes
+
+* Reviews & More is two columns, so left and right now mean columns ([79b3043](https://github.com/claygorman/bazzite-native-store/commit/79b3043a7f03b3d7d0fd18c8a713d8768f7b0215))
+
+
+### Features
+
+* the Flatpak updates itself, and only itself ([ead814b](https://github.com/claygorman/bazzite-native-store/commit/ead814baf883e098fc4b069a0eac9534de838aeb)), closes [#pages](https://github.com/claygorman/bazzite-native-store/issues/pages)
+
 # [0.7.0](https://github.com/claygorman/bazzite-native-store/compare/0.6.1...0.7.0) (2026-08-23)
 
 
