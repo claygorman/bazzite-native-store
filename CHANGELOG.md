@@ -1,3 +1,20 @@
+# [0.6.0](https://github.com/claygorman/bazzite-native-store/compare/0.5.2...0.6.0) (2026-08-23)
+
+
+### Bug Fixes
+
+* log the requests that succeed and answer nothing ([d2e6d00](https://github.com/claygorman/bazzite-native-store/commit/d2e6d0094449ac09b3232d331e6ec7267e1a5199))
+* stop driving the store while Steam's menu is over it ([234f580](https://github.com/claygorman/bazzite-native-store/commit/234f5802e534cf7d140bef1dc6d313b1d4a84b17))
+* the metainfo version was a fourth version file nobody synced ([7b32627](https://github.com/claygorman/bazzite-native-store/commit/7b32627a8fe551e657df9ecec2e715ef9e8c8182))
+* the page showed one game's name over another game's facts ([b8db2ca](https://github.com/claygorman/bazzite-native-store/commit/b8db2cadb7cb1f2b294b98abee3b184697198e4d))
+
+
+### Features
+
+* a debug log you can actually read over SSH ([92cf58d](https://github.com/claygorman/bazzite-native-store/commit/92cf58df208c21c54eb62fdeadd5a276da2ab7dd))
+* debug state and a loopback control channel ([1ce7e6d](https://github.com/claygorman/bazzite-native-store/commit/1ce7e6d5d928367a8a66b88151c8adcfa9e38755))
+* the F2 HUD says which game the page thinks it is ([d00076b](https://github.com/claygorman/bazzite-native-store/commit/d00076b4f766764ea9dfeb29df2f159949515be4))
+
 ## [0.5.2](https://github.com/claygorman/bazzite-native-store/compare/0.5.1...0.5.2) (2026-08-23)
 
 
