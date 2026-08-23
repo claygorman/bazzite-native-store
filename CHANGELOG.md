@@ -1,3 +1,15 @@
+# [0.9.0](https://github.com/claygorman/bazzite-native-store/compare/0.8.0...0.9.0) (2026-08-23)
+
+
+### Bug Fixes
+
+* the metainfo version was never committed, so every Flatpak shipped 0.5.2 ([bab955d](https://github.com/claygorman/bazzite-native-store/commit/bab955dc61eebbb04ffe69bff54eb8b39df9f1d3))
+
+
+### Features
+
+* notice a new version within fifteen minutes, without being told ([c3e9fcd](https://github.com/claygorman/bazzite-native-store/commit/c3e9fcd0fb8903130ca92e550e2c68e9461eea47))
+
 # [0.8.0](https://github.com/claygorman/bazzite-native-store/compare/0.7.0...0.8.0) (2026-08-23)
 
 
