@@ -122,7 +122,13 @@ export const SettingsView = ({
         <h1 className="text-display font-extrabold tracking-display text-ink">{page.title}</h1>
         <span className="text-xl font-medium text-ink-3/55">
           {session.status === 'signed-in'
-            ? `Signed in as ${session.player?.personaname ?? session.steamid}`
+            ? `${session.player?.personaname ?? session.steamid}${
+                session.origin === 'steam-client'
+                  ? session.offline
+                    ? ' · from Steam (offline)'
+                    : ' · from Steam'
+                  : ' · signed in'
+              }`
             : 'Not signed in'}
         </span>
       </div>

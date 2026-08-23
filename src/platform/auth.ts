@@ -1,5 +1,6 @@
 import { isTauri } from './index'
 import { fetchSteamProfile } from './profile'
+import { steamClientIdentity } from './steamSession'
 
 /**
  * Steam sign-in.
@@ -42,6 +43,18 @@ export type SessionState =
       player?: SteamPlayer
       /** Steam's own wording, e.g. 'public'. Private profiles hide library/wishlist. */
       privacy?: string
+      /**
+       * How we know who this is.
+       *
+       * `openid` — the user deliberately signed in through Steam's own page.
+       * `steam-client` — borrowed from the Steam client running on this box; nobody
+       * signed into anything. The UI should say which, because "sign out" means
+       * something different for each: one forgets a session we own, the other cannot
+       * do anything at all short of the user signing out of Steam itself.
+       */
+      origin: 'openid' | 'steam-client'
+      /** Only meaningful for `steam-client`: the client has no connection. */
+      offline?: boolean
     }
 
 export const signIn = async (): Promise<string | undefined> => {
@@ -64,26 +77,42 @@ export const signOut = async (): Promise<void> => {
   window.location.href = '/auth/steam/logout'
 }
 
-const steamidOf = async (): Promise<string | typeof DISABLED | undefined> => {
+type Identity = {
+  steamid: string
+  origin: 'openid' | 'steam-client'
+  offline?: boolean
+}
+
+const steamidOf = async (): Promise<Identity | typeof DISABLED | undefined> => {
   if (isTauri()) {
     const { invoke } = await import('@tauri-apps/api/core')
-    return (await invoke<string | null>('steam_session')) ?? undefined
+    // ⚠️ An explicit sign-in outranks the borrowed one, always. If the two disagree —
+    // the app signed into one account while the client runs another — the deliberate
+    // act is the one to honour. Silently preferring whoever Steam happens to be running
+    // would make signing in look broken.
+    const explicit = (await invoke<string | null>('steam_session')) ?? undefined
+    if (explicit) return { steamid: explicit, origin: 'openid' }
+
+    const borrowed = await steamClientIdentity()
+    return borrowed && { ...borrowed, origin: 'steam-client' }
   }
   const session = (await (await fetch('/auth/steam/session')).json()) as {
     steamid: string | null
     loginDisabled?: boolean
   }
   if (session.loginDisabled === true) return DISABLED
-  return session.steamid ?? undefined
+  // No Steam client to borrow from in a browser, so this route is always deliberate.
+  return session.steamid ? { steamid: session.steamid, origin: 'openid' } : undefined
 }
 
 /** Sentinel so `steamidOf` can report "not offered" through a string-or-undefined return. */
 const DISABLED = Symbol('login-disabled')
 
 export const loadSession = async (): Promise<SessionState> => {
-  const steamid = await steamidOf()
-  if (steamid === DISABLED) return { status: 'unavailable' }
-  if (!steamid) return { status: 'signed-out' }
+  const identity = await steamidOf()
+  if (identity === DISABLED) return { status: 'unavailable' }
+  if (!identity) return { status: 'signed-out' }
+  const { steamid, origin, offline } = identity
 
   // Name and avatar come from the KEYLESS community profile XML, so the chip is
   // complete the moment someone signs in — nothing to register. A Web API key is
@@ -93,6 +122,8 @@ export const loadSession = async (): Promise<SessionState> => {
   return {
     status: 'signed-in',
     steamid,
+    origin,
+    offline,
     player: profile
       ? {
           steamid,

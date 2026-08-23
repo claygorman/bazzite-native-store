@@ -237,6 +237,7 @@ pub fn run() {
             debugserver::debug_state_set,
             sysinfo::host_info,
             steamclient::steam_session_get,
+            steamclient::steam_client_identity,
             proton_reports,
             proton_index_status,
             proton_refresh,

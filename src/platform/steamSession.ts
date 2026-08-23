@@ -34,3 +34,38 @@ export const steamSessionGet = async (
     return undefined
   }
 }
+
+/**
+ * Who the Steam client on this box is signed in as.
+ *
+ * ⭐ The reason the store can know you without a second sign-in: on a machine where
+ * Steam is already logged in, the answer is three feet away and asking for OpenID
+ * again is busywork. `auth.ts` uses this as the fallback behind an explicit sign-in.
+ *
+ * ⚠️ Reads Steam's `SharedJSContext`, which is where the client's own UI lives — NOT a
+ * store page. A `store.steampowered.com` tab is anonymous even on a fully logged-in
+ * client; see the table in `steamclient.rs`. This distinction cost a night.
+ *
+ * ⚠️ Enhancement layer: `undefined` in the browser, off Bazzite, without Steam
+ * running, or with its debugger closed. Every caller must work without it.
+ */
+export type SteamClientIdentity = {
+  steamid: string
+  /** The client is signed in but has no connection — its data is last-known, not live. */
+  offline: boolean
+}
+
+export const steamClientIdentity = async (): Promise<SteamClientIdentity | undefined> => {
+  if (!isTauri()) return undefined
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const body = await invoke<string | null>('steam_client_identity')
+    if (!body) return undefined
+    const parsed = JSON.parse(body) as Partial<SteamClientIdentity>
+    // A SteamID64 is 17 digits. Anything else did not come from where we think.
+    if (typeof parsed.steamid !== 'string' || !/^\d{17}$/.test(parsed.steamid)) return undefined
+    return { steamid: parsed.steamid, offline: parsed.offline === true }
+  } catch {
+    return undefined
+  }
+}

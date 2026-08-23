@@ -797,18 +797,30 @@ export const App = () => {
    * buried at the furthest point on the page because that placement is right for Reset
    * and wrong for the only way in.
    */
-  const sessionActionLabel = useMemo(
-    () =>
-      session.status === 'signed-in'
-        ? {}
-        : {
-            'sign-out': {
-              label: 'Sign in',
-              desc: 'Opens Steam in a browser to confirm it is you',
-            },
-          },
-    [session.status],
-  )
+  const sessionActionLabel = useMemo(() => {
+    if (session.status !== 'signed-in') {
+      return {
+        'sign-out': {
+          label: 'Sign in',
+          desc: 'Opens Steam in a browser to confirm it is you',
+        },
+      }
+    }
+    // ⚠️ A borrowed identity cannot be signed OUT of. It comes from the Steam client
+    // running on this box, we hold nothing, and `steam_logout` would clear an empty
+    // session and change nothing on screen — a button that visibly does nothing, which
+    // is the exact failure this row already has a comment about. Offer the one thing
+    // that does work: signing in deliberately, as whoever you like.
+    if (session.origin === 'steam-client') {
+      return {
+        'sign-out': {
+          label: 'Use a different account',
+          desc: 'Currently using the account this box is signed into',
+        },
+      }
+    }
+    return {}
+  }, [session])
 
   const updateActionLabel = useMemo(
     () => ({
@@ -923,7 +935,9 @@ export const App = () => {
           resetAll()
           return
         case 'sign-out':
-          if (session.status === 'signed-in') void signOut()
+          // Only an OpenID session is ours to end; a borrowed one falls through to
+          // sign-in, matching the label above.
+          if (session.status === 'signed-in' && session.origin === 'openid') void signOut()
           else void signIn()
           return
       }

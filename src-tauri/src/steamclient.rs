@@ -24,6 +24,31 @@ const STEAM_UA_MARKER: &str = "Valve Steam Client";
 /// Every step is bounded. A hung socket must never leave the UI waiting.
 const TIMEOUT: Duration = Duration::from_secs(8);
 
+/// The origin every allowlisted read is aimed at.
+const STORE_ORIGIN: &str = "https://store.steampowered.com";
+
+/// Steam's own UI origin — where the `SharedJSContext` target lives.
+///
+/// ⭐ **This is the target that is actually signed in, and it is not the obvious one.**
+/// Measured against a logged-in client on Bazzite 44, 2026-08-23, same account, same
+/// second, calling `/dynamicstore/userdata/` from each:
+///
+/// | target                              | rgOwnedApps | rgWishlist |
+/// |-------------------------------------|-------------|------------|
+/// | a `store.steampowered.com` page      | 0           | 0          |
+/// | `SharedJSContext` (this origin)      | 71          | 27         |
+///
+/// Big Picture's store tab is **not** a `store.steampowered.com` CEF page. It is a
+/// SteamUI view whose CEF url is `about:blank`, rendered from this shared context — so
+/// selecting by store origin finds nothing at all while Steam is running normally.
+/// Opening a real store page (`steam://store/`) does create such a target, and it is
+/// **anonymous**: it carries a `steamLoginSecure` cookie the server rejects and answers
+/// 200 with empty arrays, which is indistinguishable from an account that owns nothing.
+/// An earlier version of this file preferred that target and could never have worked.
+///
+/// ⚠️ Reads from here MUST use an absolute url — see `build_url`.
+const LOOPBACK_ORIGIN: &str = "https://steamloopback.host";
+
 /// ⚠️ **The safety mechanism, and the reason this is a list rather than a free path.**
 ///
 /// Evaluating a `fetch` inside Steam's logged-in browser can reach anything that
@@ -39,6 +64,26 @@ const ALLOWED_PATHS: &[&str] = &[
     // ~300 upcoming releases with per-item bIsOwned / bIsWishlisted / eReviewScore
     "/personalcalendardata",
 ];
+
+/// The one property read this module performs, verbatim.
+///
+/// ⚠️ The allowlist above exists because `fetch` inside a signed-in browser can reach
+/// anything that session can reach. That argument does not apply here, because this
+/// takes **no caller input at all** — it is a constant. There is nothing to point
+/// somewhere else, which is a stronger guarantee than validating a parameter.
+///
+/// ⚠️ Returns `""` rather than throwing when `App` is absent or has no user yet. A
+/// thrown exception comes back as a CDP error object with no string value, which is
+/// indistinguishable from a transport failure; an empty string is unambiguous.
+const IDENTITY_EXPRESSION: &str = r#"(() => {
+  try {
+    const u = App.m_CurrentUser;
+    if (!u || !u.strSteamID) return "";
+    return JSON.stringify({ steamid: u.strSteamID, offline: !!u.bIsOfflineMode });
+  } catch (e) {
+    return "";
+  }
+})()"#;
 
 /// One read, performed inside the Steam client's own logged-in browser.
 ///
@@ -72,15 +117,89 @@ pub async fn steam_session_get(path: String, query: HashMap<String, String>) -> 
     session_get(&path, &query).await.ok()
 }
 
+/// Who the running Steam client is signed in as, if we can tell.
+///
+/// ⭐ The point of the whole module in one call: on a box where Steam is already logged
+/// in, the store should know who you are without a second sign-in. `auth.rs` remains the
+/// route for everywhere else — a desktop without Steam running, or a client whose
+/// debugger is closed.
+///
+/// ⚠️ Enhancement layer, like everything else here. `None` off Bazzite, without Steam
+/// running, without the debugging marker, if something else owns the port, on timeout,
+/// or while the client is between users. Nothing may depend on it.
+#[tauri::command]
+pub async fn steam_client_identity() -> Option<String> {
+    client_identity().await.ok().filter(|body| !body.is_empty())
+}
+
 async fn session_get(
     path: &str,
     query: &HashMap<String, String>,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    let targets = steam_targets().await?;
+    let expression = format!(
+        "fetch({}, {{ credentials: 'include' }}).then(r => r.text())",
+        serde_json::to_string(&build_url(path, query))?
+    );
+
+    // ⚠️ Try every candidate origin, do not just pick the best one.
+    //
+    // Steam's CORS allowlist is PER ENDPOINT, which is not something you would guess.
+    // Measured 2026-08-23 from `SharedJSContext`:
+    //
+    // | endpoint                  | from steamloopback.host        |
+    // |---------------------------|--------------------------------|
+    // | `/dynamicstore/userdata/` | 200, 3.2 KB, real account data |
+    // | `/personalcalendardata`   | `TypeError: Failed to fetch`   |
+    //
+    // Steam's own UI reads userdata, so that one is allowed; the calendar is not. A
+    // blocked fetch rejects rather than returning a status, so the only way to know is
+    // to try — and a store-origin target, when one happens to be attached, has no CORS
+    // problem at all. Shared context first because when both exist it is the signed-in
+    // one; the store page is a fallback that is usually anonymous but never worse than
+    // nothing.
+    let mut last: Option<String> = None;
+    for origin in [LOOPBACK_ORIGIN, STORE_ORIGIN] {
+        let Some(socket_url) = ws_url(&targets, &[origin]) else { continue };
+        match evaluate(&socket_url, &expression).await {
+            Ok(body) => return Ok(body),
+            // ⚠️ The MESSAGE, not the error. `Box<dyn Error>` is not `Send`, and holding
+            // one across the next loop iteration's await makes this future non-`Send`,
+            // which `tauri::generate_handler` rejects with an error pointing at the macro
+            // rather than at this line.
+            Err(e) => last = Some(e.to_string()),
+        }
+    }
+    Err(last.unwrap_or_else(|| "no signed-in Steam target attached".into()).into())
+}
+
+/// Who the Steam client is logged in as.
+///
+/// ⭐ This is the piece that makes the app know you without asking you to sign in again.
+/// `auth.rs` can obtain a SteamID64 by OpenID, but that is a browser round-trip for
+/// something the client running three feet away already knows.
+///
+/// ⚠️ Only `SharedJSContext` has `App` — a store page does not — so there is no fallback
+/// origin here. `None` rather than a guess when it is missing.
+///
+/// Returns `{"steamid": "...", "offline": bool}`, or `None`. Deliberately just the id:
+/// persona name and avatar already come from `profile.ts`, and an account name read out
+/// of the client would be a second source of the same truth with worse provenance.
+async fn client_identity() -> Result<String, Box<dyn std::error::Error>> {
+    let targets = steam_targets().await?;
+    let socket_url =
+        ws_url(&targets, &[LOOPBACK_ORIGIN]).ok_or("no shared js context attached")?;
+    evaluate(&socket_url, IDENTITY_EXPRESSION).await
+}
+
+/// Confirm the debugger really is Steam, then list its targets.
+///
+/// ⚠️ Port 8080 is a common one, so the identity of whatever answers is checked before a
+/// single byte of its response is believed.
+async fn steam_targets() -> Result<Value, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder().timeout(TIMEOUT).build()?;
     let base = debugger();
 
-    // 1. Is this actually Steam?
-    //
     // ⚠️ `.text()` + `serde_json`, not `.json()`. reqwest is configured
     // `default-features = false` so one fewer system library has to be satisfied inside
     // the Flatpak sandbox (README §4), which leaves its `json` feature off.
@@ -96,40 +215,39 @@ async fn session_get(
         return Err("that debugger is not the Steam client".into());
     }
 
-    // 2. Find the store tab.
-    //
-    // ⚠️ Selected by ORIGIN, not by title. Steam also exposes a `SharedJSContext` on
-    // `steamloopback.host` and several `about:blank` popups; a relative fetch in any of
-    // those carries no store cookies and quietly returns anonymous data — which for
-    // this family of endpoints means HTTP 200 with empty arrays rather than an error.
-    let targets: Value = serde_json::from_str(
+    Ok(serde_json::from_str(
         &client.get(format!("{base}/json/list")).send().await?.text().await?,
-    )?;
-    let socket_url = targets
-        .as_array()
-        .and_then(|list| {
-            list.iter().find(|t| {
-                t.get("url")
-                    .and_then(Value::as_str)
-                    .is_some_and(|u| u.starts_with("https://store.steampowered.com"))
-            })
-        })
-        .and_then(|t| t.get("webSocketDebuggerUrl"))
-        .and_then(Value::as_str)
-        .ok_or("no store target attached")?
-        .to_owned();
+    )?)
+}
 
-    // 3. Evaluate the read there.
-    let (mut socket, _) =
-        tokio::time::timeout(TIMEOUT, tokio_tungstenite::connect_async(socket_url)).await??;
+/// The first attached target whose url starts with one of `origins`, in that order.
+fn ws_url(targets: &Value, origins: &[&str]) -> Option<String> {
+    let list = targets.as_array()?;
+    origins.iter().find_map(|origin| {
+        list.iter()
+            .find(|t| {
+                t.get("url").and_then(Value::as_str).is_some_and(|u| u.starts_with(origin))
+            })
+            .and_then(|t| t.get("webSocketDebuggerUrl"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    })
+}
+
+/// Run one expression in a target and return its string result.
+async fn evaluate(
+    socket_url: &str,
+    expression: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let (mut socket, _) = tokio::time::timeout(
+        TIMEOUT,
+        tokio_tungstenite::connect_async(socket_url.to_owned()),
+    )
+    .await??;
 
     // `awaitPromise` is what makes `fetch` usable here — without it the evaluation
     // returns the pending Promise itself. `returnByValue` serialises the string rather
-    // than handing back a remote object handle.
-    let expression = format!(
-        "fetch({}, {{ credentials: 'include' }}).then(r => r.text())",
-        serde_json::to_string(&build_url(path, query))?
-    );
+    // than handing back a remote object handle. Both are harmless for a plain expression.
     let request = serde_json::json!({
         "id": 1,
         "method": "Runtime.evaluate",
@@ -149,20 +267,28 @@ async fn session_get(
         if message.get("id").and_then(Value::as_u64) != Some(1) {
             continue;
         }
-        return message
-            .pointer("/result/result/value")
+        if let Some(body) = message.pointer("/result/result/value").and_then(Value::as_str) {
+            return Ok(body.to_owned());
+        }
+        // ⚠️ A rejected `fetch` and a dead socket both used to arrive here as "no string
+        // body", which sent a real diagnosis (Steam blocks this origin for this endpoint)
+        // looking for a transport bug. The exception text is the answer, so say it.
+        let reason = message
+            .pointer("/result/exceptionDetails/exception/description")
+            .or_else(|| message.pointer("/result/exceptionDetails/text"))
             .and_then(Value::as_str)
-            .map(str::to_owned)
-            .ok_or_else(|| "no string body in evaluate result".into());
+            .unwrap_or("no string body in evaluate result");
+        return Err(reason.into());
     }
 }
 
-/// ⚠️ Relative, so the fetch inherits the store origin — and its cookies. An absolute
-/// URL would work only by accident of being the same origin; a relative one cannot
-/// drift off it.
+/// ⚠️ **Absolute, and it has to be.** The signed-in target is on `steamloopback.host`, so
+/// a relative fetch resolves against Steam's own UI origin and 404s. Steam serves the
+/// store's CORS headers to that origin — this is how its own UI calls these endpoints —
+/// so a cross-origin `credentials: 'include'` fetch from there carries the session cookie.
 fn build_url(path: &str, query: &HashMap<String, String>) -> String {
     if query.is_empty() {
-        return path.to_owned();
+        return format!("{STORE_ORIGIN}{path}");
     }
     // Sorted so the string is stable: the browser cache keys on it.
     let mut pairs: Vec<_> = query.iter().collect();
@@ -172,7 +298,7 @@ fn build_url(path: &str, query: &HashMap<String, String>) -> String {
         .map(|(k, v)| format!("{}={}", urlencode(k), urlencode(v)))
         .collect::<Vec<_>>()
         .join("&");
-    format!("{path}?{encoded}")
+    format!("{STORE_ORIGIN}{path}?{encoded}")
 }
 
 fn urlencode(s: &str) -> String {
@@ -188,25 +314,74 @@ fn urlencode(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_url, session_get, steam_session_get};
+    use super::{
+        build_url, client_identity, session_get, steam_client_identity, steam_session_get,
+        ws_url, LOOPBACK_ORIGIN, STORE_ORIGIN,
+    };
     use std::collections::HashMap;
 
     fn query(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
     }
 
+    /// ⚠️ Absolute. A relative url resolves against `steamloopback.host` — the origin of
+    /// the only target that is signed in — and 404s. This assertion is the guard on the
+    /// single change that made the feature work at all.
     #[test]
-    fn builds_a_relative_url_with_sorted_query() {
-        assert_eq!(build_url("/personalcalendardata", &HashMap::new()), "/personalcalendardata");
+    fn builds_an_absolute_store_url_with_sorted_query() {
+        assert_eq!(
+            build_url("/personalcalendardata", &HashMap::new()),
+            "https://store.steampowered.com/personalcalendardata"
+        );
         assert_eq!(
             build_url("/personalcalendardata", &query(&[("tag", "0"), ("days_forward", "8")])),
-            "/personalcalendardata?days_forward=8&tag=0"
+            "https://store.steampowered.com/personalcalendardata?days_forward=8&tag=0"
         );
     }
 
     #[test]
     fn encodes_values_that_would_otherwise_break_the_query() {
-        assert_eq!(build_url("/x", &query(&[("q", "a b&c=d")])), "/x?q=a%20b%26c%3Dd");
+        assert_eq!(
+            build_url("/x", &query(&[("q", "a b&c=d")])),
+            "https://store.steampowered.com/x?q=a%20b%26c%3Dd"
+        );
+    }
+
+    /// The ordering property, which is the whole bug: when a client has both an
+    /// anonymous store page and the signed-in shared context attached, the shared
+    /// context must win. Preferring the store page is what made this silently return
+    /// "you own nothing" on a fully logged-in machine.
+    #[test]
+    fn the_shared_context_outranks_a_store_page() {
+        let targets = serde_json::json!([
+            { "url": "https://store.steampowered.com/", "webSocketDebuggerUrl": "ws://store" },
+            { "url": "https://steamloopback.host/routes/steamweb", "webSocketDebuggerUrl": "ws://shared" },
+        ]);
+        assert_eq!(
+            ws_url(&targets, &[LOOPBACK_ORIGIN, STORE_ORIGIN]).as_deref(),
+            Some("ws://shared")
+        );
+        // ...and the store page is still usable when it is all there is.
+        let only_store = serde_json::json!([
+            { "url": "https://store.steampowered.com/", "webSocketDebuggerUrl": "ws://store" },
+        ]);
+        assert_eq!(
+            ws_url(&only_store, &[LOOPBACK_ORIGIN, STORE_ORIGIN]).as_deref(),
+            Some("ws://store")
+        );
+        // Identity has no fallback: only the shared context defines `App`.
+        assert_eq!(ws_url(&only_store, &[LOOPBACK_ORIGIN]), None);
+    }
+
+    /// `about:blank` popups and notification toasts are attached at all times and would
+    /// answer an evaluation perfectly happily — with anonymous data.
+    #[test]
+    fn unrelated_targets_are_never_selected() {
+        let targets = serde_json::json!([
+            { "url": "about:blank", "webSocketDebuggerUrl": "ws://toast" },
+            { "url": "devtools://devtools/bundled/x.html", "webSocketDebuggerUrl": "ws://devtools" },
+        ]);
+        assert_eq!(ws_url(&targets, &[LOOPBACK_ORIGIN, STORE_ORIGIN]), None);
     }
 
     /// The safety property: a path off the allowlist never reaches the network, whatever
@@ -228,6 +403,7 @@ mod tests {
         assert!(steam_session_get("/dynamicstore/userdata/".into(), HashMap::new())
             .await
             .is_none());
+        assert!(steam_client_identity().await.is_none());
         unsafe { std::env::remove_var("STEAM_CEF_DEBUGGER") }
     }
 
@@ -255,5 +431,33 @@ mod tests {
         // The only honest signal this endpoint gives — it answers 200 either way.
         assert!(calendar.contains("\"success\""), "no session: {calendar:.160}");
         println!("userdata {} bytes · calendar {} bytes", userdata.len(), calendar.len());
+    }
+
+    /// The regression this module was rewritten for. A borrowed session that is not
+    /// actually signed in answers 200 with empty arrays, so "it returned JSON" proves
+    /// nothing — only a non-empty owned list does.
+    ///
+    /// ⚠️ Prints COUNTS, never ids. This repo is public and the output of an `--ignored`
+    /// test run ends up pasted into issues.
+    #[tokio::test]
+    #[ignore = "needs a running Steam client with its CEF debugger open"]
+    async fn live_session_is_signed_in_and_knows_who_it_is() {
+        let userdata = session_get("/dynamicstore/userdata/", &HashMap::new())
+            .await
+            .expect("userdata read failed");
+        let owned = userdata.matches("\"rgOwnedApps\"").count();
+        assert_eq!(owned, 1, "not the userdata shape");
+        assert!(
+            !userdata.contains("\"rgOwnedApps\":[]"),
+            "owned list is EMPTY — the borrowed session is anonymous, which is exactly \
+             the bug this test exists to catch"
+        );
+
+        let identity = client_identity().await.expect("identity read failed");
+        assert!(!identity.is_empty(), "client reports no signed-in user");
+        let parsed: serde_json::Value = serde_json::from_str(&identity).unwrap();
+        let steamid = parsed["steamid"].as_str().unwrap_or_default();
+        assert_eq!(steamid.len(), 17, "not a SteamID64");
+        println!("signed in: yes · steamid: {} digits · offline: {}", steamid.len(), parsed["offline"]);
     }
 }
