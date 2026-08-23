@@ -38,6 +38,7 @@ import {
 const LIVE_PREVIEW = new Set<SteppableKey>(['uiScalePercent', 'safeAreaPercent'])
 import {
   checkForUpdate,
+  flatpakUpdateSupport,
   isFlatpak,
   describeUpdate,
   installUpdate,
@@ -671,6 +672,31 @@ export const App = () => {
    * dependencies, and re-running the effect on every status change would tear down and
    * rebuild the timer mid-download.
    */
+  /**
+   * What the Flatpak portal said when asked, published to the debug channel.
+   *
+   * ⚠️ Purely diagnostic, and it earned its place. The portal is the mechanism that
+   * INSTALLS an update, and its availability is now invisible in normal operation
+   * because the version feed answers first and never needs it — so a portal that is
+   * quietly broken would only surface at the moment someone pressed Install. Asking
+   * once at startup and publishing the answer means the box can be interrogated over
+   * SSH instead of by driving the UI to a settings page, which is how the last one
+   * had to be found.
+   */
+  const [portalState, setPortalState] = useState('unknown')
+
+  useEffect(() => {
+    void flatpakUpdateSupport().then((support) => {
+      setPortalState(
+        !support.sandboxed
+          ? 'not sandboxed'
+          : support.portalVersion !== null
+            ? `portal v${support.portalVersion}`
+            : `portal UNAVAILABLE: ${support.portalError ?? 'no reason given'}`,
+      )
+    })
+  }, [])
+
   const updateRef = useRef<UpdateState>(update)
   updateRef.current = update
 
@@ -2210,6 +2236,7 @@ export const App = () => {
       // thing `/state` could not tell us — it took driving the UI to a settings page
       // over the control channel to read a string the app already knew.
       update: describeUpdate(update),
+      portal: portalState,
     })
   }, [
     view,
@@ -2226,6 +2253,7 @@ export const App = () => {
     // last changed — which on an idle home screen is "never", i.e. exactly the case
     // this was added to diagnose.
     update,
+    portalState,
   ])
 
   const onHome = view.screen === 'home'
