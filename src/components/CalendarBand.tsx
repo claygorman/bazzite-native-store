@@ -137,7 +137,13 @@ export const CalendarBand = ({
 
   return (
     <section className="flex shrink-0 flex-col gap-7">
-      <header className="flex flex-col gap-2.5">
+      {/* px-14 is the page's side margin, carried on the HEADING rather than by an
+          ancestor — the same rule `Shelf` follows, and for the same reason: the band
+          below deliberately runs edge to edge, so an ancestor with padding would pull
+          it back in. Without this the calendar title sat flush against the screen edge
+          while every section heading under it was inset, which read as a broken row
+          rather than as a hero. */}
+      <header className="flex flex-col gap-2.5 px-14">
         <div className="flex items-center gap-3.5">
           <span className="rounded-sm bg-focus-deep px-3 py-1.5 text-sm font-extrabold leading-none tracking-[0.08em] text-ink">
             NEW
