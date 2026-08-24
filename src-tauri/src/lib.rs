@@ -1,3 +1,4 @@
+mod apps;
 mod auth;
 mod debuglog;
 mod debugserver;
@@ -65,6 +66,31 @@ async fn proton_reports(
 }
 
 /// Whether the dump has been indexed, and from which snapshot.
+/// Write-through for the per-app index — phase 1 of the `apps` table.
+///
+/// ⚠️ **Fire and forget, and it must stay that way.** Nothing reads this back yet, so a
+/// failure here has no user-visible consequence and must not be allowed to acquire one: the
+/// caller does not await the result into a render path. If this ever starts failing loudly
+/// it will be because someone wired a read to it, which is phase 2 and comes with its own
+/// fallback.
+///
+/// ⚠️ Returns the row count rather than `()` so the debug channel can tell "wrote nothing"
+/// apart from "was never called" — two states that look identical from a stats query.
+#[tauri::command]
+async fn apps_put(
+    app: tauri::AppHandle,
+    source: apps::Source,
+    records: Vec<apps::AppRecord>,
+) -> Result<usize, String> {
+    apps::upsert(&apps_dir(&app)?, source, &records).map_err(|e| e.to_string())
+}
+
+/// Counts only — see `apps::stats` for why it must never carry names or appids.
+#[tauri::command]
+async fn apps_stats(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    Ok(apps::stats(&apps_dir(&app)?))
+}
+
 #[tauri::command]
 async fn proton_index_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let dir = proton_dir(&app)?;
@@ -138,6 +164,13 @@ async fn proton_variant_split(
 fn is_flatpak() -> bool {
     // ⚠️ Delegated, not duplicated. See `flatpakupdate::in_flatpak`.
     flatpakupdate::in_flatpak()
+}
+
+fn apps_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_cache_dir()
+        .map(|dir| dir.join("apps"))
+        .map_err(|e| e.to_string())
 }
 
 fn proton_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -251,7 +284,9 @@ pub fn run() {
             proton_index_status,
             proton_refresh,
             proton_check,
-            proton_variant_split
+            proton_variant_split,
+            apps_put,
+            apps_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

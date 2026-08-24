@@ -1,6 +1,7 @@
 import { forgetSteam, steamGet } from './transport'
 import { logEmpty } from './debugLog'
 import { isAdultContent } from './contentFilter'
+import { putApps } from './appsIndex'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
 import type { AppDetails, ReviewSummary, StoreItem, StoreRow, StoreTag } from '../types/steam'
 
@@ -1049,6 +1050,36 @@ export const fetchStoreItems = async (
   } catch {
     // Hydration is additive: a failure leaves tiles showing what the shelf already
     // knew rather than blanking them.
+  }
+
+  /*
+   * Write-through to the per-app index — phase 1 of the `apps` table.
+   *
+   * ⚠️ **Not awaited, on purpose.** Nothing reads this back yet, so a failure must cost
+   * nothing, and awaiting it would add latency and a failure mode to the path every shelf
+   * goes through in exchange for no behaviour today. `putApps` never throws for the same
+   * reason — an un-awaited rejection cannot be caught.
+   *
+   * ⚠️ Records what we PARSED, not the raw response. The raw batch is one blob covering
+   * many apps and is already in the HTTP cache; what has no home anywhere is the per-app
+   * view, which is the entire point of keying on appid.
+   */
+  if (out.size > 0) {
+    void putApps(
+      'getitems',
+      [...out.entries()].map(([appid, f]) => ({
+        appid,
+        name: f.name,
+        header_url: f.headerUrl,
+        review_pct: f.reviewPercent,
+        deck_compat: f.deckCompat,
+        // ⚠️ `finalPriceCents === 0` is this codebase's word for free (see `formatPrice`),
+        // but only when a price was actually reported — `undefined` stays `undefined`
+        // rather than becoming `false`, which would be a claim we cannot make.
+        is_free: f.finalPriceCents === undefined ? undefined : f.finalPriceCents === 0,
+        blob: JSON.stringify(f),
+      })),
+    )
   }
 
   return out

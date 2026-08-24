@@ -36,6 +36,7 @@ import {
  * A, per design turn 10, so walking a list no longer fires a change per step.
  */
 const LIVE_PREVIEW = new Set<SteppableKey>(['uiScalePercent', 'safeAreaPercent'])
+import { appsStats } from './platform/appsIndex'
 import {
   checkForUpdate,
   flatpakUpdateSupport,
@@ -714,6 +715,33 @@ export const App = () => {
    * app and watching. Whether a staged payload exists, and whether the previous one
    * failed to start, are otherwise invisible from outside the box entirely.
    */
+  /**
+   * What the per-app index holds — phase 1 of the `apps` table.
+   *
+   * ⚠️ **Re-read on an interval, unlike `payloadInfo` above.** That one is read once at
+   * startup, which is fine for a value that only changes across a restart and is the
+   * documented reason it can read stale. This one changes constantly as shelves hydrate,
+   * and the entire question it answers is "is the table actually filling?" — a number
+   * frozen at zero from before the first fetch would answer it wrong.
+   *
+   * 30s: slow enough to be free, fast enough that a person driving the control channel
+   * sees the effect of what they just did.
+   */
+  const [appsInfo, setAppsInfo] = useState('unknown')
+  useEffect(() => {
+    const read = () =>
+      void appsStats().then((s) => {
+        setAppsInfo(
+          s === undefined
+            ? 'n/a'
+            : `${s.apps ?? 0} apps · ${s.withGetItems ?? 0} getitems · ${Math.round(Number(s.bytes ?? 0) / 1024)}kb`,
+        )
+      })
+    read()
+    const timer = setInterval(read, 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
   const [payloadInfo, setPayloadInfo] = useState('unknown')
   useEffect(() => {
     void payloadState().then((state) => {
@@ -2355,6 +2383,7 @@ export const App = () => {
       update: describeUpdate(update),
       portal: portalState,
       payload: payloadInfo,
+      apps: appsInfo,
     })
   }, [
     view,
