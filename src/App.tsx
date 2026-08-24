@@ -174,7 +174,15 @@ type View =
   | {
       screen: 'settings'
       page: number
-      zone: 'rail' | 'rows'
+      /**
+       * `status` is the card at the top of the right-hand column.
+       *
+       * ⚠️ It is a focus target even though pressing A on it does nothing. The right
+       * side scrolls as one column now, so the card scrolls out of sight — and focus is
+       * the ONLY thing that moves a scroll container with a controller. Without a stop
+       * here, the card became unreachable the moment you walked down past it.
+       */
+      zone: 'rail' | 'status' | 'rows'
       col: number
       row: number
       /**
@@ -1456,6 +1464,37 @@ export const App = () => {
           }
         }
 
+        // --- The status card ---
+        //
+        // Reachable, but not actionable: per Settings ideology.md §4 the card carries
+        // STATUS and the rows carry controls, so A here would have nothing to do. It
+        // exists as a stop so up can bring the card back on screen.
+        if (view.zone === 'status') {
+          switch (action) {
+            case 'down':
+              setView({ ...view, zone: 'rows', row: 0 })
+              return
+            case 'left':
+              setView({ ...view, zone: 'rail' })
+              return
+            case 'back':
+              setView({ screen: 'home' })
+              return
+            case 'shelfPrev':
+            case 'shelfNext':
+              goToPage(
+                (view.page + (action === 'shelfPrev' ? -1 : 1) + SETTINGS_PAGES.length) %
+                  SETTINGS_PAGES.length,
+              )
+              return
+            default:
+              // ⚠️ Up and right included. There is nothing above the card and the card
+              // spans both columns, so both would be presses that appear to do nothing
+              // wherever they landed.
+              return
+          }
+        }
+
         // --- The rows ---
         switch (action) {
           case 'back':
@@ -1473,7 +1512,10 @@ export const App = () => {
           case 'up':
           case 'down': {
             const next = view.row + (action === 'up' ? -1 : 1)
-            if (next < 0 || next > rows.length - 1) return
+            // Up off the top of a column lands on the status card rather than stopping
+            // dead — which is also the only way to scroll it back into view.
+            if (next < 0) return setView({ ...view, zone: 'status' })
+            if (next > rows.length - 1) return
             setView({ ...view, row: next })
             return
           }

@@ -22,7 +22,7 @@ import type { SessionState } from '../platform/auth'
  */
 export type SettingsFocus = {
   page: number
-  zone: 'rail' | 'rows'
+  zone: 'rail' | 'status' | 'rows'
   col: number
   row: number
   /** A has opened the focused stepper's list of values. */
@@ -91,6 +91,14 @@ export const SettingsView = ({
 }: Props) => {
   const page = SETTINGS_PAGES[focus.page] ?? SETTINGS_PAGES[0]!
   const onRail = focus.zone === 'rail'
+  const onStatus = focus.zone === 'status'
+  /*
+   * ⚠️ Tested POSITIVELY, not as "not the rail". The zones were a pair, so `!onRail`
+   * meant "the rows"; adding a third made it mean "the rows OR the status card", and
+   * both lit at once — two focus rings on screen, which says nothing about where the
+   * next press goes.
+   */
+  const onRows = focus.zone === 'rows'
 
   /*
    * Keep the focused row on screen.
@@ -105,6 +113,16 @@ export const SettingsView = ({
    * column; instant because a scroll animation here would fight `Reduce motion` and,
    * at ten feet, arriving is worth more than travelling.
    */
+  /*
+   * ⚠️ The card needs its own ref. `focusedRef` is a `HTMLButtonElement` on the focused
+   * ROW, and the card is not a row and not a button — but it is the thing that has to be
+   * scrolled back into view, since walking down past it is what pushed it off screen.
+   */
+  const statusRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (onStatus) statusRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [onStatus, focus.page])
+
   const focusedRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     focusedRef.current?.scrollIntoView({ block: 'nearest' })
@@ -232,6 +250,18 @@ export const SettingsView = ({
                    boundary; 2rem is comfort rather than correctness.
         */}
         <div className="-mr-8 -my-8 -ml-18 flex min-h-0 min-w-0 flex-1 flex-col gap-6.5 overflow-y-auto py-8 pl-18 pr-18">
+          {/*
+            ⚠️ `relative z-10` with the ring, same as every other focused surface: a
+            box-shadow paints OUTSIDE the element's box but takes no layout space, so a
+            later sibling's background paints straight over it and the ring looks
+            clipped along one edge.
+          */}
+          <div
+            ref={statusRef}
+            className={`shrink-0 rounded-xl transition-shadow ${
+              onStatus ? 'relative z-10 shadow-focused-bare' : ''
+            }`}
+          >
           <PageStatus
             page={page}
             settings={settings}
@@ -240,6 +270,7 @@ export const SettingsView = ({
             version={version}
             dump={dump}
           />
+          </div>
 
           {/* Natural height now: the column above owns the scrolling. */}
           <div className="grid shrink-0 grid-cols-2 content-start gap-x-7 gap-y-3">
@@ -248,7 +279,7 @@ export const SettingsView = ({
               rows={page.colA.rows}
               settings={settings}
               actionLabel={actionLabel}
-              focusedRow={!onRail && focus.col === 0 ? focus.row : -1}
+              focusedRow={onRows && focus.col === 0 ? focus.row : -1}
               openRow={focus.open}
               cursorRow={focus.cursor}
               focusedRef={focusedRef}
@@ -259,7 +290,7 @@ export const SettingsView = ({
               rows={page.colB.rows}
               settings={settings}
               actionLabel={actionLabel}
-              focusedRow={!onRail && focus.col === 1 ? focus.row : -1}
+              focusedRow={onRows && focus.col === 1 ? focus.row : -1}
               openRow={focus.open}
               cursorRow={focus.cursor}
               focusedRef={focusedRef}
