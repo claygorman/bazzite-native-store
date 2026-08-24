@@ -1,3 +1,17 @@
+# [0.14.0](https://github.com/claygorman/bazzite-native-store/compare/0.13.1...0.14.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* balance the settings rail against the gap ([746dbe6](https://github.com/claygorman/bazzite-native-store/commit/746dbe6c87f19cf92cc69d1a98ddd72ba8884d90))
+* scroll the whole right side, and stop guessing at the glow ([8e0b1bf](https://github.com/claygorman/bazzite-native-store/commit/8e0b1bfa7ce8d4a341cf70fe0fe11dd6e12dc07b))
+* the last clipped edge — above the status card ([312d5a3](https://github.com/claygorman/bazzite-native-store/commit/312d5a344b22be87f0bea3c98c8e0c77b78e879a))
+
+
+### Features
+
+* the status card is a focus stop, so up can reach it again ([195f92e](https://github.com/claygorman/bazzite-native-store/commit/195f92ee3a75308c03a88d0774afc491a00eb0a9))
+
 ## [0.13.1](https://github.com/claygorman/bazzite-native-store/compare/0.13.0...0.13.1) (2026-08-24)
 
 
