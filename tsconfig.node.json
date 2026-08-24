@@ -1,10 +1,25 @@
 {
+  /*
+   * Vite's own config and the dev-server plugins it loads — Node code, not app code.
+   *
+   * ⚠️ `vite-plugins/` is listed even though `vite.config.ts` already imports it.
+   * A transitive import is enough for `tsc` and NOT enough for the editor: tsserver
+   * resolves a file by walking up for a tsconfig whose `include` matches it, so a file
+   * that is only ever reached through another project's import falls back to
+   * TypeScript's built-in defaults and reports errors that no gate can see.
+   */
   "compilerOptions": {
+    /* ⚠️ Explicit. With no `target` this defaulted to ES5, and iterating a
+       URLSearchParams in steam-auth.ts reported TS2802 — an error about the config,
+       dressed up as an error about the code. */
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "composite": true,
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "types": ["node"],
     "allowSyntheticDefaultImports": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "vite-plugins/**/*.ts"]
 }

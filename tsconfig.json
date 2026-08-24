@@ -20,7 +20,15 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
+  /*
+   * ⚠️ The tests are INCLUDED, not excluded.
+   *
+   * They used to be excluded, which meant no project covered them: the editor fell back
+   * to TypeScript's defaults (module: commonjs, an old target) and reported TS1378 and
+   * friends on files `pnpm typecheck` never looked at — green in the terminal, red in
+   * the IDE. Checking them is also the point: they are the only consumers of some of
+   * these modules, so a signature they no longer match should fail here.
+   */
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

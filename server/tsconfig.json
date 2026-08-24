@@ -1,0 +1,30 @@
+{
+  /*
+   * The demo server is Node, not the browser — and it is in NO other project.
+   *
+   * ⚠️ This file exists for the EDITOR as much as for `tsc`. Without a tsconfig that
+   * covers them, `server/*.ts` fall back to TypeScript's built-in defaults
+   * (module: commonjs, an ancient target), and `index.ts`'s top-level await reports as
+   * TS1378 in the IDE while `pnpm typecheck` stays green — because the root config's
+   * `include: ["src"]` never looked at these files at all.
+   *
+   * It sits IN `server/` deliberately: tsserver resolves a file to the nearest tsconfig
+   * up its own directory tree, so this is found before the root one is consulted.
+   */
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["**/*.ts"]
+}
