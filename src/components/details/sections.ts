@@ -20,7 +20,6 @@ export type SectionKey =
   | 'reviews'
   | 'achievements'
   | 'players'
-  | 'demo'
   | 'metacritic'
   | 'genres'
   // Design turn 11a / 13b — the ProtonDB screen. Either the four report filters, or
@@ -67,7 +66,6 @@ export const extrasSections = (details?: AppDetails, reviews?: ReviewSummary): S
   if (reviews) keys.push('reviews')
   if (details?.achievementsTotal) keys.push('achievements')
   keys.push('players')
-  if (details?.hasDemo) keys.push('demo')
   if (details?.metacritic !== undefined) keys.push('metacritic')
   if (details?.genres.length) keys.push('genres')
   return keys
@@ -152,7 +150,7 @@ export const extrasAcross = (
   if (here === undefined) return index
   const columns = extrasColumns(keys)
   const target = columns[direction < 0 ? 0 : 1]
-  if (target.length === 0 || (direction < 0) === (here.side === 0)) return index
+  if (target.length === 0 || direction < 0 === (here.side === 0)) return index
   const key = target[Math.min(here.row, target.length - 1)]
   const next = keys.indexOf(key)
   return next >= 0 ? next : index

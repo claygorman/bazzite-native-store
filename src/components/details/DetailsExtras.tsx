@@ -28,7 +28,7 @@ const Panel = ({
 )
 
 /**
- * Details screen 3 (design 6c) — reviews, achievements, players, demo.
+ * Details screen 3 (design 6c) — reviews, achievements, players.
  *
  * The design also shows review filters, DLC/bundles and curators. Those are left out
  * deliberately rather than mocked:
@@ -114,15 +114,6 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
               so this must never be presented as a trend. */}
           <span className="text-sm font-medium text-ink-3/50">Right now</span>
         </Panel>
-
-        {details?.hasDemo && (
-          <div
-            className={`flex items-center gap-3 rounded-lg bg-ok-wash px-4.5 py-4 transition-shadow ${sectionRing(active === 'demo')}`}
-          >
-            <span className="text-base font-bold text-pad-ok">Demo available</span>
-            <span className="text-sm font-medium text-ink-2/70">Install it from Steam</span>
-          </div>
-        )}
 
         {details?.metacritic !== undefined && (
           <Panel title="Metacritic" focused={active === 'metacritic'}>

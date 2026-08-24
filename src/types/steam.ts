@@ -140,7 +140,16 @@ export type AppDetails = {
   requirementsRecommended: string[]
   matureNote?: string
   languages?: string
-  hasDemo: boolean
+  /**
+   * The demo's OWN appid, when the game has one.
+   *
+   * ⚠️ Not a boolean. `appdetails` answers `demos: [{appid, description}]` and this
+   * used to be reduced to `hasDemo: true`, which is why the demo could only ever be a
+   * sentence telling you to go and find it in Steam yourself — the one thing needed to
+   * act on it was thrown away at the parse. The appid is a real store entry with its own
+   * name, price and page (`type: "demo"`, `fullgame` pointing back here).
+   */
+  demoAppid?: number
   /** Total achievements, and a few highlighted ones with icons. */
   achievementsTotal: number
   achievementsHighlighted: Array<{ name: string; icon: string }>

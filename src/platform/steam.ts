@@ -437,7 +437,13 @@ export const fetchAppDetails = async (appid: number): Promise<AppDetails | undef
     languages: asString(data.supported_languages)
       ? htmlToText(asString(data.supported_languages) as string).split('\n')[0]
       : undefined,
-    hasDemo: Array.isArray(data.demos) && data.demos.length > 0,
+    // ⚠️ The appid, not a boolean. Steam lists demos oldest-first and a game may carry
+    // several (a demo and a later open beta); the LAST is the current one. `description`
+    // is usually empty, so the name comes from hydrating this appid instead.
+    demoAppid: (() => {
+      if (!Array.isArray(data.demos) || data.demos.length === 0) return undefined
+      return asNumber(asRecord(data.demos[data.demos.length - 1])?.appid)
+    })(),
     achievementsTotal: asNumber(asRecord(data.achievements)?.total) ?? 0,
     achievementsHighlighted: (() => {
       const list = asRecord(data.achievements)?.highlighted

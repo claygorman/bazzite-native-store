@@ -14,12 +14,12 @@ import { extrasAcross, extrasAlong, extrasColumns, type SectionKey } from './sec
  * nothing here fails — so this file pins the ORDER too, which is the part a reader
  * of either file alone cannot check.
  */
-const FULL: SectionKey[] = ['reviews', 'achievements', 'players', 'demo', 'metacritic', 'genres']
+const FULL: SectionKey[] = ['reviews', 'achievements', 'players', 'metacritic', 'genres']
 
 test('the columns match what the screen draws', () => {
   assert.deepEqual(extrasColumns(FULL), [
     ['reviews', 'achievements'],
-    ['players', 'demo', 'metacritic', 'genres'],
+    ['players', 'metacritic', 'genres'],
   ])
 })
 
@@ -51,7 +51,7 @@ test('up and down stay inside the column', () => {
   // than jumping to the top of the right one.
   assert.equal(extrasAlong(FULL, FULL.indexOf('achievements'), 1), undefined)
   assert.equal(extrasAlong(FULL, 0, -1), undefined)
-  assert.equal(FULL[extrasAlong(FULL, FULL.indexOf('demo'), 1) as number], 'metacritic')
+  assert.equal(FULL[extrasAlong(FULL, FULL.indexOf('players'), 1) as number], 'metacritic')
 })
 
 test('a column that lost its optional panels still navigates', () => {

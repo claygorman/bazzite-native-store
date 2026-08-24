@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import type { Offer } from '../../hooks/useOffers'
+import { offerRowsFor, type Offer } from '../../hooks/useOffers'
 import { useSteamLibrary } from '../../hooks/useSteamLibrary'
 import { ControllerGlyph } from '../ControllerGlyph'
 import type { InputSource } from '../../platform/glyphs'
@@ -171,8 +171,9 @@ export const OfferList = ({
    * bundle at all, this row is the whole block rather than an empty frame under a
    * heading, which would read as a load that failed.
    */
-  const bundles = offers.filter((offer) => offer.bundleid !== undefined)
-  const rows = [null, ...bundles] as const
+  const rows = offerRowsFor(offers)
+  const demoCount = rows.filter((r) => r.kind === 'demo').length
+  const buyCount = rows.length - demoCount
 
   /*
    * Slide the column so the focused row is fully visible.
@@ -215,8 +216,10 @@ export const OfferList = ({
           Editions &amp; bundles
         </h2>
         <span className="text-lg font-medium text-ink-3/50">
-          {rows.length} {rows.length === 1 ? 'way' : 'ways'} to buy · prices from Steam, checkout in
-          Steam
+          {buyCount} {buyCount === 1 ? 'way' : 'ways'} to buy
+          {/* ⚠️ Counted separately. A demo costs nothing, so folding it into "3 ways to
+              buy" would overstate the offers by one and price a free thing. */}
+          {demoCount > 0 && ' · a free demo'} · prices from Steam, checkout in Steam
         </span>
       </div>
 
@@ -240,8 +243,10 @@ export const OfferList = ({
           className="flex flex-col gap-3 transition-transform duration-200 ease-out will-change-transform"
           style={{ transform: `translateY(${-offset}px)` }}
         >
-          {rows.map((offer, index) => {
+          {rows.map((rowData, index) => {
             const here = focused && index === row
+            const isDemo = rowData.kind === 'demo'
+            const offer = rowData.kind === 'subject' ? undefined : rowData.offer
             const items = offer?.items ?? []
             // The row's own action is offered only when the dpad is on the row rather
             // than inside it — see the `col` prop's note.
@@ -249,7 +254,7 @@ export const OfferList = ({
 
             return (
               <div
-                key={offer?.bundleid ?? 'base'}
+                key={isDemo ? `demo-${offer?.demoAppid}` : (offer?.bundleid ?? 'base')}
                 className={[
                   'flex flex-none items-center gap-7 rounded-xl px-6 py-5 transition-colors',
                   here ? 'bg-plate-focus' : 'bg-plate shadow-[0_0_0_1px_var(--color-chip-soft)]',
@@ -262,14 +267,21 @@ export const OfferList = ({
                     >
                       {offer ? offer.name : subjectName}
                     </span>
-                    {offer && (
+                    {rowData.kind === 'bundle' && (
                       <span className="flex-none rounded-sm bg-focus/20 px-2.5 py-1 text-xs font-extrabold tracking-[0.1em] text-focus-ink">
                         BUNDLE
                       </span>
                     )}
+                    {/* Green, not the accent — it reads as "free to try" rather than as
+                        one more thing on sale. Same token the old inert card used. */}
+                    {isDemo && (
+                      <span className="flex-none rounded-sm bg-ok-wash px-2.5 py-1 text-xs font-extrabold tracking-[0.1em] text-pad-ok">
+                        DEMO
+                      </span>
+                    )}
                   </div>
 
-                  {offer && offer.bundleDiscountPercent !== undefined && (
+                  {rowData.kind === 'bundle' && offer?.bundleDiscountPercent !== undefined && (
                     <span className="text-base font-medium text-ink-3/55">
                       Save {offer.bundleDiscountPercent}% on all {offer.gameCount} items
                     </span>
@@ -335,7 +347,7 @@ export const OfferList = ({
                     ].join(' ')}
                   >
                     {rowAction && <ControllerGlyph action="accept" source={source} />}
-                    {offer ? 'Open bundle page' : 'Buy in Steam'}
+                    {isDemo ? 'Get the demo' : offer ? 'Open bundle page' : 'Buy in Steam'}
                   </span>
                 </div>
               </div>

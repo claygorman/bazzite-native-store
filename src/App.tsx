@@ -85,7 +85,7 @@ import { useInputActions } from './hooks/useInputActions'
 import { useMicrotrailer } from './hooks/useMicrotrailer'
 import { useProtonRating } from './hooks/useProtonRating'
 import { useProtonReports } from './hooks/useProtonReports'
-import { useOffers } from './hooks/useOffers'
+import { offerRowsFor, offerRowWidths, useOffers } from './hooks/useOffers'
 import { useBundle } from './hooks/useBundle'
 import { BundlePage } from './components/BundlePage'
 import { loadHostInfo } from './platform/systemInfo'
@@ -463,7 +463,10 @@ export const App = () => {
   }
   const detailsState = useAppDetails(view.screen === 'details' ? view.appid : undefined)
   const protonReports = useProtonReports(view.screen === 'details' ? view.appid : undefined)
-  const offers = useOffers(view.screen === 'details' ? view.appid : undefined)
+  const offers = useOffers(
+    view.screen === 'details' ? view.appid : undefined,
+    detailsState.details?.demoAppid,
+  )
   const bundle = useBundle(view.screen === 'bundle' ? view.bundleid : undefined)
   /*
    * ⚠️ The bundle cards' Proton tiers ride the SAME per-row hook the shelves use, which
@@ -510,15 +513,13 @@ export const App = () => {
   /*
    * Turn 14a's offer rows, as widths the dpad can be clamped against.
    *
-   * ⚠️ Row 0 is the base game and has NO items, so its width is 0 — left/right must do
-   * nothing there rather than lighting an item that is not drawn. Every other row's
-   * width is its bundle's contents.
+   * ⚠️ Row 0 is the base game and the demo row (when there is one) has NO items, so
+   * their width is 0 — left/right must do nothing there rather than lighting an item
+   * that is not drawn. Only a bundle's row has contents to walk.
    */
-  const offerRows: number[] =
-    view.screen === 'details'
-      ? [0, ...offers.offers.filter((o) => o.bundleid !== undefined).map((o) => o.items.length)]
-      : []
-  const offerBundles = offers.offers.filter((offer) => offer.bundleid !== undefined)
+  const offerRows: number[] = view.screen === 'details' ? offerRowWidths(offers.offers) : []
+  /** The rows actually drawn, so `activateOffer` indexes the same list the eye sees. */
+  const offerBundles = offerRowsFor(offers.offers)
 
   const galleryLength = Math.max(
     1,
@@ -1157,11 +1158,22 @@ export const App = () => {
       setDetailZone('offers')
       setOfferRow(row)
       setOfferCol(col)
-      const offer = row === 0 ? undefined : offerBundles[row - 1]
-      if (offer === undefined) {
+      const here = offerBundles[row]
+      if (here === undefined || here.kind === 'subject') {
         void openInSteam(view.appid)
         return
       }
+      /*
+       * ⚠️ The demo is a HANDOFF, not an install. `steam://store/<demoAppid>` is the
+       * same call every price in this app makes, and it lands on the demo's own store
+       * page — which carries Steam's Install button. `steam://install/` would start a
+       * download from one press with nothing in between, and is unverified here.
+       */
+      if (here.kind === 'demo') {
+        if (here.offer.demoAppid !== undefined) void openInSteam(here.offer.demoAppid)
+        return
+      }
+      const offer = here.offer
       const item = col !== undefined ? offer.items[col] : undefined
       if (item) {
         openDetails(item.appid, { name: item.name, art: item.capsuleUrl })
@@ -1929,9 +1941,12 @@ export const App = () => {
             return
           }
           if (action === 'secondary') {
-            // X opens the bundle's page in Steam from the row itself.
-            const offer = offerRow === 0 ? undefined : offerBundles[offerRow - 1]
-            if (offer?.bundleid !== undefined) void openBundleInSteam(offer.bundleid)
+            // X opens the bundle's page in Steam from the row itself. Only a bundle
+            // has one — the subject and the demo already lead to Steam under A.
+            const here = offerBundles[offerRow]
+            if (here?.kind === 'bundle' && here.offer.bundleid !== undefined) {
+              void openBundleInSteam(here.offer.bundleid)
+            }
             return
           }
           if (action === 'back') {
@@ -2585,11 +2600,7 @@ export const App = () => {
 
         {view.screen === 'wishlist' && (
           <motion.div key="wishlist" {...PAGE_ENTER} className="absolute inset-0">
-            <WishlistView
-              state={wishlist}
-              focusedIndex={wishlistFocus}
-              onActivate={openDetails}
-            />
+            <WishlistView state={wishlist} focusedIndex={wishlistFocus} onActivate={openDetails} />
           </motion.div>
         )}
 
