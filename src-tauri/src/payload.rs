@@ -138,6 +138,60 @@ pub fn payload_started(app: tauri::AppHandle) {
     }
 }
 
+/// The Flatpak's entry point — the script that chooses between shell and payload.
+///
+/// ⚠️ Restarting must go through THIS, not through the payload binary directly, or the
+/// "was launching" marker is never written and the new payload runs with no safety net.
+const LAUNCHER: &str = "/app/bin/bazzite-store-launch";
+
+/// Restart into whatever the launcher would now choose.
+///
+/// ⭐ **Why this exists, and why `tauri-plugin-process`'s `relaunch()` cannot do it.**
+/// That plugin re-spawns `std::env::current_exe()`. On Linux that is
+/// `readlink("/proc/self/exe")` — and installing a payload REPLACES the running binary by
+/// rename, which unlinks the inode the process is still executing. The kernel then answers
+/// that readlink with the original path plus a literal `" (deleted)"` suffix, which Rust
+/// documents and which was measured on the box 2026-08-24:
+///
+/// ```text
+/// pid 211594 -> /…/payload/bazzite-store (deleted)
+/// ```
+///
+/// So `relaunch()` tries to spawn a path that cannot exist, fails, and `relaunchApp`'s
+/// catch swallows it. The symptom is a Restart button that does nothing at all, forever,
+/// with the app still executing a binary that is no longer on disk. **The payload updater
+/// and `relaunch()` are incompatible by construction** — replacing the running executable
+/// is the entire point of one and fatal to the other.
+///
+/// ⚠️ Even with a working path, re-execing the PAYLOAD would be wrong: it would skip
+/// `launch.sh`, so no marker would be written and a payload that fails to start would have
+/// no way back. Restart has to re-enter through the launcher.
+///
+/// ⚠️ `exec` REPLACES this process rather than spawning a child. That is deliberate: the
+/// app is started by Steam through a `reaper` wrapper which owns the process, and a child
+/// spawned from a dying parent is exactly what that reaper cleans up. Keeping the same PID
+/// keeps Steam's bookkeeping intact.
+///
+/// Returns only on failure — on success this function never returns.
+#[cfg(unix)]
+#[tauri::command]
+pub fn payload_relaunch() -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    if !Path::new(LAUNCHER).exists() {
+        // Not a Flatpak — the caller falls back to the plugin, which is correct off-box
+        // where nothing is replacing the running binary.
+        return Err(format!("{LAUNCHER} not present"));
+    }
+    let error = std::process::Command::new(LAUNCHER).exec();
+    Err(format!("exec {LAUNCHER}: {error}"))
+}
+
+#[cfg(not(unix))]
+#[tauri::command]
+pub fn payload_relaunch() -> Result<(), String> {
+    Err("the payload launcher exists only on Linux".into())
+}
+
 /// What the launcher would choose, for the About page and the debug channel.
 #[tauri::command]
 pub fn payload_state(app: tauri::AppHandle) -> Result<serde_json::Value, String> {

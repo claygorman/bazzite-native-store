@@ -153,10 +153,13 @@ export const UPDATE_POLL_MS = 15 * 60_000
  * never came back — which is precisely the failure `flatpak/launch.sh` exists to survive
  * and the one thing that cannot be observed from outside the box.
  */
-export const payloadState = async (): Promise<{
-  installed: string | null
-  pendingMarker: boolean
-} | undefined> => {
+export const payloadState = async (): Promise<
+  | {
+      installed: string | null
+      pendingMarker: boolean
+    }
+  | undefined
+> => {
   if (!isTauri()) return undefined
   try {
     const { invoke } = await import('@tauri-apps/api/core')
@@ -387,12 +390,41 @@ export const installUpdate = async (
 
 export const relaunchApp = async (): Promise<void> => {
   if (!isTauri()) return
+
+  /*
+   * ⚠️ **The launcher first, and `relaunch()` only as the off-Flatpak fallback.**
+   *
+   * `tauri-plugin-process`'s `relaunch()` re-spawns `current_exe()`, which on Linux is
+   * `readlink("/proc/self/exe")`. Installing a payload REPLACES the running binary by
+   * rename, unlinking the inode this process is still executing — so that readlink
+   * answers with the original path plus a literal `" (deleted)"` suffix, and `relaunch()`
+   * spawns a path that cannot exist. Measured on the box 2026-08-24:
+   *
+   *     pid 211594 -> /…/payload/bazzite-store (deleted)
+   *
+   * The symptom was a Restart button that did nothing, silently, forever — the app kept
+   * running a 0.14.0 binary that was no longer on disk while 0.15.0 sat staged beside it.
+   * **The payload updater and `relaunch()` are incompatible by construction**: replacing
+   * the running executable is the whole point of one and fatal to the other.
+   *
+   * ⚠️ And re-execing the payload directly would be wrong even if the path resolved — it
+   * skips `launch.sh`, so the "was launching" marker is never written and a payload that
+   * fails to start would have no way back. Restart must re-enter through the launcher.
+   */
   try {
-    const { relaunch } = await import('@tauri-apps/plugin-process')
-    await relaunch()
+    const { invoke } = await import('@tauri-apps/api/core')
+    // Never returns on success — the process image is replaced in place.
+    await invoke('payload_relaunch')
   } catch {
-    // Nothing sensible to do: the update is staged either way and will apply the next
-    // time the app starts. Failing here must not lose that.
+    // Not a Flatpak, or the exec failed. Off-box nothing is replacing the running
+    // binary, so the plugin is correct there.
+    try {
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      await relaunch()
+    } catch {
+      // Nothing sensible to do: the update is staged either way and will apply the next
+      // time the app starts. Failing here must not lose that.
+    }
   }
 }
 

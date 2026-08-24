@@ -280,6 +280,7 @@ pub fn run() {
             payload::payload_install,
             payload::payload_started,
             payload::payload_state,
+            payload::payload_relaunch,
             proton_reports,
             proton_index_status,
             proton_refresh,
