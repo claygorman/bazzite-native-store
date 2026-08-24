@@ -1,5 +1,18 @@
 # Design source — do not edit, do not format
 
+> ⚠️ **STALE — last exported 2026-08-21.** Verified 2026-08-24: this export contains turns
+> 5a–7b only. Everything after 21 August lives solely in the live Claude Design project and
+> was never synced down — including **15a (wishlist)** and **16/16a (user tags + LIVE chip)**,
+> both of which are IMPLEMENTED in `src/`. So a screen existing in the code and not here does
+> not mean it was invented; it means this file is behind.
+>
+> Two consequences worth knowing before you trust it:
+> - **Do not diff app code against this to decide what the design says.** Read
+>   `Store Card - Tailwind port.md` (the designated source of truth for layout rules, and the
+>   one file here that has stayed accurate), or re-export.
+> - Re-export the whole canvas rather than hand-editing — the README's own rule below.
+
+
 Exported from Claude Design, project **"Bazzite Native Store Redesign"**.
 
 | File | What it is |
