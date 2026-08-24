@@ -1,3 +1,10 @@
+## [0.12.1](https://github.com/claygorman/bazzite-native-store/compare/0.12.0...0.12.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* /tmp does not survive between flatpak build-commands ([b71a3da](https://github.com/claygorman/bazzite-native-store/commit/b71a3da8b772626e345662017ac233f6ffce7d7c))
+
 # [0.12.0](https://github.com/claygorman/bazzite-native-store/compare/0.11.0...0.12.0) (2026-08-24)
 
 
