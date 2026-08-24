@@ -26,6 +26,15 @@ type Props = {
    * control channel already switched on and a tunnel already open; F2 needs neither.
    */
   identity?: { appid?: number; hint?: string; loaded?: string; unavailable?: boolean }
+  /**
+   * Shelves on screen that are NOT what their title says, and why.
+   *
+   * ⚠️ Same argument as `identity`, for a slower bug. Two home rows are approximations
+   * and both were recorded only in a source comment, so the question "is this row real?"
+   * could not be answered by looking at the app — which is exactly where it gets asked.
+   * Amber, not red: an approximation is a known compromise, not a fault.
+   */
+  approximations?: Array<{ title: string; why: string }>
 }
 
 /**
@@ -66,7 +75,7 @@ const readDisplay = (): DisplayInfo => {
   }
 }
 
-export const ControllerHud = ({ position, identity }: Props) => {
+export const ControllerHud = ({ position, identity, approximations }: Props) => {
   const [visible, setVisible] = useState(import.meta.env.DEV)
   const [display, setDisplay] = useState<DisplayInfo>(readDisplay)
   /** Steam's own UI scale for this panel, when we are on Bazzite and can read it. */
@@ -207,6 +216,16 @@ export const ControllerHud = ({ position, identity }: Props) => {
           {identity.unavailable === true && (
             <span className="text-amber-400"> · appdetails returned nothing</span>
           )}
+        </div>
+      )}
+      {approximations !== undefined && approximations.length > 0 && (
+        <div className="mt-1">
+          {approximations.map((row) => (
+            <div key={row.title}>
+              <span className="text-amber-400">~ {row.title}</span>
+              <span className="text-white/45"> · {row.why}</span>
+            </div>
+          ))}
         </div>
       )}
       <div className="mt-1">received:</div>

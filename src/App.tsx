@@ -2808,6 +2808,15 @@ export const App = () => {
           }
         />
         <ControllerHud
+          /* Only the rows actually on screen — a warning about a shelf you cannot see
+             is noise, and the home rows are the only approximated ones there are. */
+          approximations={
+            onHome
+              ? rows.flatMap((row) =>
+                  row.approximate ? [{ title: row.title, why: row.approximate }] : [],
+                )
+              : undefined
+          }
           position={
             onHome
               ? `shelf ${focus.row + 1}/${rows.length + (calendarDays > 0 ? 2 : 0)} · col ${focus.col + 1}`

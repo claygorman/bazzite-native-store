@@ -89,8 +89,13 @@ const FEATURED_ROWS: ReadonlyArray<{
   key: string
   title: string
   comingSoon?: boolean
+  approximate?: string
 }> = [
-  { key: 'top_sellers', title: 'Featured & Recommended' },
+  {
+    key: 'top_sellers',
+    title: 'Featured & Recommended',
+    approximate: 'top_sellers relabelled — the site’s own source for this row is unknown',
+  },
   { key: 'specials', title: 'Discounts & Events' },
   { key: 'new_releases', title: 'Popular New Releases' },
   { key: 'coming_soon', title: 'Coming Soon', comingSoon: true },
@@ -121,7 +126,14 @@ const buildBudgetRow = (rows: StoreRow[]): StoreRow | undefined => {
     }
   }
 
-  return items.length > 0 ? { id: 'under_10', title: 'Under $10', items } : undefined
+  return items.length > 0
+    ? {
+        id: 'under_10',
+        title: 'Under $10',
+        items,
+        approximate: 'the cheap end of rows already fetched, not a store-wide price query',
+      }
+    : undefined
 }
 
 /**
@@ -162,7 +174,7 @@ export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
   if (!root) return []
 
   const rows: StoreRow[] = []
-  for (const { key, title, comingSoon } of FEATURED_ROWS) {
+  for (const { key, title, comingSoon, approximate } of FEATURED_ROWS) {
     const section = asRecord(root[key])
     const items = Array.isArray(section?.items) ? section.items : []
     // ⚠️ Steam ships exact duplicates inside a row. Verified 2026-08-20: top_sellers
@@ -180,7 +192,7 @@ export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
         return true
       })
     // Drop empty rows rather than rendering an empty shelf.
-    if (normalized.length > 0) rows.push({ id: key, title, items: normalized })
+    if (normalized.length > 0) rows.push({ id: key, title, items: normalized, approximate })
   }
 
   const budget = buildBudgetRow(rows)

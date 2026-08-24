@@ -97,6 +97,19 @@ export type StoreRow = {
   id: string
   title: string
   items: StoreItem[]
+  /**
+   * Why this row is NOT what its title claims, when it is not.
+   *
+   * ⚠️ Two shelves are approximations — "Featured & Recommended" is really `top_sellers`
+   * and "Under $10" is filtered out of rows we already hold, not a store-wide price
+   * query. Both were recorded only in a comment and in `private/TASKS.md`, which means
+   * the one person who could tell whether the approximation is acceptable could not see
+   * it while looking at the screen. Set this and the debug HUD says so out loud.
+   *
+   * Undefined means the row is a direct mapping. That is the common case and it stays
+   * silent — a marker that appears on everything says nothing.
+   */
+  approximate?: string
 }
 
 export const formatPrice = (cents: number | undefined, currency = 'USD'): string => {
