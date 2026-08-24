@@ -1,6 +1,6 @@
 [package]
 name = "bazzite-store"
-version = "0.12.2"
+version = "0.13.0"
 description = "Controller-first Steam store client for Bazzite Game Mode"
 authors = ["Clay Gorman"]
 edition = "2021"

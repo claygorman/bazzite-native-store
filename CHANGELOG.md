@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/claygorman/bazzite-native-store/compare/0.12.2...0.13.0) (2026-08-24)
+
+
+### Features
+
+* publish the payload's state to the debug channel ([46950c2](https://github.com/claygorman/bazzite-native-store/commit/46950c2fae624de1a63113a5c548b727cc7d178f))
+
 ## [0.12.2](https://github.com/claygorman/bazzite-native-store/compare/0.12.1...0.12.2) (2026-08-24)
 
 
