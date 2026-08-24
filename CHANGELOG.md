@@ -1,3 +1,10 @@
+## [0.13.1](https://github.com/claygorman/bazzite-native-store/compare/0.13.0...0.13.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* let the settings glow escape its box instead of padding around it ([b18d1e9](https://github.com/claygorman/bazzite-native-store/commit/b18d1e9bbb6e4c2f103bc989b94350f5c1b48345))
+
 # [0.13.0](https://github.com/claygorman/bazzite-native-store/compare/0.12.2...0.13.0) (2026-08-24)
 
 
