@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { TileFocusLight } from './TileFocusLight'
 import { tagsThatFit } from './tagFit'
+import { compatGetsOwnRow, NARROW_CONTENT_REM } from './cardLayout'
 import { DECK_COMPAT_LABEL, type ControllerSupport, type DeckCompat } from '../types/steam'
 import { DEAL_FLAG_GRADIENTS } from '../platform/steam'
 
@@ -89,15 +90,6 @@ type CardShape = {
   pricePlacement: 'title' | 'facts'
   facts: 'ratingTier' | 'tags' | 'both'
 }
-
-/**
- * Below this much content column, blocks move to their own row instead of competing.
- *
- * The spec sets it at 420px for the price (§5.3); the same threshold governs the
- * compatibility block here, because it is the same failure — too many shrink-resistant
- * items on one line, resolved by shrinking type, which §2 forbids outright.
- */
-const NARROW_CONTENT_REM = 26.25
 
 /** Horizontal padding a boxed caption spends before content, both sides. */
 const BOXED_PADDING_REM = 2
@@ -366,10 +358,19 @@ export const StoreCard = ({
    * say yet, and it was never free anyway: the tier slot is deliberately held open even
    * while empty so the label cannot pop in and shove the row sideways mid-scroll.
    */
-  // A compact card has no room for a second facts line, and does not need one: the
-  // grid never passes a ProtonDB tier (it is fetched lazily per focused row, which a
-  // five-up grid has no equivalent of), so compatibility is one label, not two.
-  const compatOnOwnRow = !compact && hasCompat && contentRem < NARROW_CONTENT_REM
+  /*
+   * Compatibility on its own line — the port doc's rule, 2026-08-22. The decision and the
+   * reasoning live in `cardLayout.ts` with tests, because this rule already rotted once
+   * as a comment: it was vetoed by `!compact` on the premise that a compact grid never
+   * passes a ProtonDB tier, which stopped being true and failed silently everywhere
+   * except a television. A comment cannot fail; a test can.
+   */
+  const compatOnOwnRow = compatGetsOwnRow({
+    compact,
+    contentRem,
+    hasDeck: deckLabel !== '',
+    hasTier: tier !== undefined,
+  })
 
   const Root = onActivate ? 'button' : 'div'
 
