@@ -185,7 +185,18 @@ export const DetailsPage = ({
             details={details}
             proton={proton}
             loading={loading}
-            sectionIndex={sectionIndex}
+            /*
+              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+              while the tabs are. The panels used to ring purely from `sectionIndex`,
+              which does not know about zones — so the focused tab and a panel lit at
+              once and there were two cursors on screen saying different things about
+              where the next press goes.
+
+              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+              no panel draws a ring. Passing the index rather than a second `focused`
+              prop keeps the three screens' signatures identical.
+            */
+            sectionIndex={zone === 'media' ? sectionIndex : -1}
             expanded={sectionExpanded}
             source={source}
           />
@@ -201,7 +212,18 @@ export const DetailsPage = ({
             reportsLoading={protonReports.loading}
             hostGpu={hostGpu}
             deviceLabel={deviceLabel}
-            sectionIndex={sectionIndex}
+            /*
+              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+              while the tabs are. The panels used to ring purely from `sectionIndex`,
+              which does not know about zones — so the focused tab and a panel lit at
+              once and there were two cursors on screen saying different things about
+              where the next press goes.
+
+              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+              no panel draws a ring. Passing the index rather than a second `focused`
+              prop keeps the three screens' signatures identical.
+            */
+            sectionIndex={zone === 'media' ? sectionIndex : -1}
             expanded={sectionExpanded}
             cursor={sectionCursor}
             filters={protonFilters}
@@ -216,7 +238,18 @@ export const DetailsPage = ({
             reviews={reviews}
             players={state.players}
             loading={loading}
-            sectionIndex={sectionIndex}
+            /*
+              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+              while the tabs are. The panels used to ring purely from `sectionIndex`,
+              which does not know about zones — so the focused tab and a panel lit at
+              once and there were two cursors on screen saying different things about
+              where the next press goes.
+
+              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+              no panel draws a ring. Passing the index rather than a second `focused`
+              prop keeps the three screens' signatures identical.
+            */
+            sectionIndex={zone === 'media' ? sectionIndex : -1}
           />
         </motion.div>
       )}
