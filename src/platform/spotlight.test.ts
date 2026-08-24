@@ -18,6 +18,42 @@ test('the anonymous 200-with-empty-arrays payload yields undefined, not an empty
   assert.equal(spotlightRow(ANONYMOUS), undefined)
 })
 
+/**
+ * ⭐ The REAL shape, captured from a signed-in client 2026-08-24 (structure only — this repo
+ * is public and the payload is one person's recommendations, so field names and counts, never
+ * ids or titles). 86,805 bytes; 20 recommendations, 6 panels, 26 hydrated apps.
+ *
+ * Two things it settles:
+ *   - `spotlight_recommendations` entries are exactly `{appid: number}`. Nothing more to
+ *     parse, and the walk reads them directly.
+ *   - `rgApps` really does arrive as an OBJECT keyed by appid strings when populated, and as
+ *     `[]` when empty. The trap this module was written around is real, not theoretical.
+ */
+const REAL_SHAPE = {
+  spotlight_recommendations: Array.from({ length: 20 }, (_, i) => ({ appid: 1000 + i })),
+  spotlight_panels: Array.from({ length: 6 }, (_, i) => ({ appid: 2000 + i })),
+  item_data: {
+    rgApps: Object.fromEntries(
+      Array.from({ length: 26 }, (_, i) => [
+        String(1000 + i),
+        { name: 'x', tags: [], tagids: [], has_live_broadcast: false },
+      ]),
+    ),
+    rgPackages: [],
+    rgBundles: [],
+  },
+}
+
+test('the real payload parses to a ranked row of every recommendation and panel', () => {
+  const row = spotlightRow(REAL_SHAPE)
+  assert.ok(row, 'the real shape must parse')
+  assert.equal(row.ranked, true)
+  assert.equal(row.appids.length, 26)
+  // Recommendations lead, in order, then the panels — Steam's ranking, untouched.
+  assert.deepEqual(row.appids.slice(0, 3), [1000, 1001, 1002])
+  assert.deepEqual(row.appids.slice(-3), [2003, 2004, 2005])
+})
+
 test('garbage, nulls and non-objects yield undefined rather than throwing', () => {
   for (const bad of [undefined, null, '', 0, [], 'not json', { unrelated: true }]) {
     assert.equal(spotlightRow(bad), undefined)

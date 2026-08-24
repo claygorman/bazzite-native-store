@@ -464,6 +464,50 @@ mod tests {
         println!("userdata {} bytes · calendar {} bytes", userdata.len(), calendar.len());
     }
 
+    /// The spotlight row, against a real client. Answers the two things that could not be
+    /// settled off-hardware.
+    ///
+    /// ⚠️ **CORS is per-endpoint, not per-host**, and a blocked fetch REJECTS rather than
+    /// returning a status — so "no value" and "vendor blocks this origin" arrive looking
+    /// identical. `session_get` already falls through both candidate origins and surfaces
+    /// the rejection text, so a failure here is the answer, not a mystery.
+    ///
+    /// ⚠️ Prints COUNTS and FIELD NAMES, never ids or titles. This repo is public and the
+    /// payload is one person's recommendations.
+    ///
+    /// ```sh
+    /// ssh -N -L 8081:127.0.0.1:8080 <user>@<box-1> &
+    /// STEAM_CEF_DEBUGGER=http://127.0.0.1:8081 \
+    ///   cargo test --lib live_spotlight -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore = "needs a running Steam client with its CEF debugger open"]
+    async fn live_spotlight_row_is_readable_and_populated() {
+        // ⚠️ NO PARAMETERS — `v=2` without `u=` returns an empty payload. See the note in
+        // `platform/spotlight.ts`; this test caught exactly that and must keep catching it.
+        let body = session_get("/default/home_spotlight_recommendations/", &HashMap::new())
+            .await
+        .expect("spotlight read failed — if this is a CORS rejection, that is the finding");
+
+        println!("spotlight: {} bytes", body.len());
+        for key in [
+            "spotlight_recommendations",
+            "spotlight_panels",
+            "item_data",
+            "rgApps",
+            "appid",
+        ] {
+            println!("  contains {key:>26}: {}", body.contains(key));
+        }
+        // ⚠️ The whole point. Anonymously this is 200 with every array empty, so a parse
+        // that succeeds proves nothing — only content does.
+        assert!(
+            !body.contains(r#""spotlight_recommendations":[]"#)
+                || !body.contains(r#""rgApps":[]"#),
+            "empty payload — the session was not recognised: {body:.200}"
+        );
+    }
+
     /// The regression this module was rewritten for. A borrowed session that is not
     /// actually signed in answers 200 with empty arrays, so "it returned JSON" proves
     /// nothing — only a non-empty owned list does.

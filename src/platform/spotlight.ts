@@ -174,11 +174,24 @@ export const fetchSpotlightRow = async (): Promise<
 > => {
   const { steamSessionGet } = await import('./steamSession')
   /*
-   * ⚠️ `v=2` is Steam's own; `u=<accountid>` is deliberately NOT sent — see the header.
-   * No other parameters are known, and guessing at them on a privileged call is how you
-   * turn a read into something else.
+   * ⚠️ **NO PARAMETERS. Sending `v=2` alone returns an empty payload.** Measured against
+   * the real client 2026-08-24, from a signed-in same-origin store tab:
+   *
+   *   ?v=2            → 200,   111 bytes, every array empty
+   *   ?v=2&u=<acct>   → 200, 86805 bytes
+   *   ?u=<acct>       → 200, 86805 bytes
+   *   (no params)     → 200, 86805 bytes   ← what we send
+   *
+   * `v` without `u` poisons the request; the bare call is the one that works AND is the
+   * one that carries no caller-supplied identity. Steam's own client sends both, which is
+   * why `v=2` looked safe to copy on its own. It was not.
+   *
+   * ⚠️ This is exactly the silent-failure shape this module was written to respect, and it
+   * still fooled the first version: a wrong parameter and no session are indistinguishable
+   * from the response alone. If this ever returns empty again, suspect the QUERY before
+   * suspecting the session.
    */
-  const payload = await steamSessionGet('/default/home_spotlight_recommendations/', { v: 2 })
+  const payload = await steamSessionGet('/default/home_spotlight_recommendations/', {})
   const row = spotlightRow(payload)
   if (!row) return undefined
 
