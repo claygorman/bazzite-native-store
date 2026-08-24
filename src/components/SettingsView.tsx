@@ -144,10 +144,15 @@ export const SettingsView = ({
           leaving one entry 110px tall against its neighbours' 71. That page is now
           just "Storage", so no label currently needs the room.
 
-          ⚠️ Now 20.5rem, not the artboard's 22 — narrowed 1.5rem and given straight
-          back to the gap (`gap-8` -> `gap-14`), so the total is unchanged. Clay's call
-          at 4K: the rows sat 2rem from the rail and 3.5rem from the screen edge, and
-          the content read as shoved left. Both insets are 3.5rem now.
+          ⚠️ Now 18rem, not the artboard's 22. Clay's call at 4K, in two steps: the
+          first narrowed the rail and handed the same 1.5rem straight back to the gap,
+          which moved nothing — the content's left edge is `page + rail + gap`, so
+          taking from one and giving to the other is a no-op. It has to come off the
+          TOTAL.
+
+          So the rail gives up 2.5rem and the CONTENT spends it on its right padding
+          (`pr-10`): the content block shifts 2.5rem left and the screen edge gains
+          2.5rem, with the content's own width unchanged. Left inset 25rem, right 6rem.
 
           ⚠️ Still do not re-derive this from whatever the longest label happens to be
           this week — that was the original bug. It moved for BALANCE against the gap,
@@ -157,7 +162,7 @@ export const SettingsView = ({
           Vertically tighter than the artboard on purpose — seven entries share the
           height with a status card, and the extra width means less of it is needed.
         */}
-        <nav className="flex w-82 shrink-0 flex-col gap-1">
+        <nav className="flex w-72 shrink-0 flex-col gap-1">
           {SETTINGS_PAGES.map((p, i) => (
             /*
               ⚠️ Two states, not one. Which page you are ON is a permanent fact of the
@@ -196,7 +201,37 @@ export const SettingsView = ({
           ))}
         </nav>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6.5">
+        {/*
+          ⚠️ THE WHOLE RIGHT SIDE SCROLLS, status card included — not just the rows.
+          When only the grid scrolled, the card was a fixed lid above a scrolling box,
+          and the boundary between them was the scroll container's top edge: a focused
+          row's glow slid under the card and was cut into a hard horizontal line there.
+          Two surfaces, one of them clipping, is what made it look broken.
+
+          One scroll box means the card and the rows are in the SAME clip, so a glow can
+          paint over the card instead of being cut against it.
+
+          ⚠️ The glow padding lives here now, and it is MEASURED, not guessed.
+          `shadow-focused-bare` is a 3rem blur, and a blur radius is not a reach: CSS
+          approximates blur B with a Gaussian of sigma B/2 and paints to ~3 sigma, so it
+          lands pixels at about 1.5xB — 4.5rem. `18` is 4.5rem. This shipped at 0.375rem
+          and then 2rem, and both left a visible seam.
+
+          ⚠️ `overflow-clip-margin` does NOT help and was tried: it only applies to a box
+          that is clipped, and `overflow-y: auto` makes this a scroll container, which
+          clips at its padding box on both axes whatever `overflow-x` says. Shelf.tsx can
+          use that trick because its other axis is `visible`; this one has to scroll.
+
+          The negative margins keep the CONTENT where the layout wants it while the box
+          itself is wider:
+            left   `-ml-18 pl-18` — slides over the gap and ~1rem of the rail. Harmless;
+                   the rail is dimmed and only glow reaches there.
+            right  `-mr-8 pr-18`  — 2rem out, 4.5rem back, so the content keeps its 6rem
+                   screen margin and the glow still has room.
+            y      `-my-8 py-8`   — this axis genuinely scrolls, so its ends are a scroll
+                   boundary; 2rem is comfort rather than correctness.
+        */}
+        <div className="-mr-8 -my-8 -ml-18 flex min-h-0 min-w-0 flex-1 flex-col gap-6.5 overflow-y-auto py-8 pl-18 pr-18">
           <PageStatus
             page={page}
             settings={settings}
@@ -206,28 +241,8 @@ export const SettingsView = ({
             dump={dump}
           />
 
-          {/*
-            ⚠️ The horizontal glow is handled by `overflow-x: clip` plus a 4.5rem
-            `overflow-clip-margin`, NOT by padding — that is the whole point.
-
-            `shadow-focused-bare` is a 3rem blur, and a blur radius is not a reach: CSS
-            approximates blur B with a Gaussian of sigma B/2 and paints to ~3 sigma, so
-            it lands pixels at about 4.5rem. A scroll container clips at its padding
-            box, so any finite padding only moves the hard edge outward — this shipped
-            at 0.375rem, then 2rem, and the seam was still visible both times. `clip`
-            lets the paint escape by the margin instead of being cut at it.
-
-            ⚠️ `clip` on x with `auto` on y is legal and both keep their values.
-            `hidden` is what would silently force the other axis into a scroll
-            container, which is the trap that sends people back to padding.
-
-            Vertical is still ordinary padding: the box scrolls on that axis, so its top
-            and bottom really are a scroll boundary and clipping there is expected.
-          */}
-          <div
-            className="-my-8 grid min-h-0 flex-1 grid-cols-2 content-start gap-x-7 gap-y-3 overflow-y-auto overflow-x-clip py-8"
-            style={{ overflowClipMargin: '4.5rem' }}
-          >
+          {/* Natural height now: the column above owns the scrolling. */}
+          <div className="grid shrink-0 grid-cols-2 content-start gap-x-7 gap-y-3">
             <Column
               title={page.colA.title}
               rows={page.colA.rows}
