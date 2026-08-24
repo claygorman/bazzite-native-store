@@ -145,6 +145,28 @@ export const isFlatpak = async (): Promise<boolean> => {
  */
 export const UPDATE_POLL_MS = 15 * 60_000
 
+/**
+ * What the launcher would run: the staged payload, and whether the last one started.
+ *
+ * ⚠️ `pendingMarker` is the interesting field. It is true only between a handover and a
+ * successful start, so seeing it in a report means a payload was handed control and
+ * never came back — which is precisely the failure `flatpak/launch.sh` exists to survive
+ * and the one thing that cannot be observed from outside the box.
+ */
+export const payloadState = async (): Promise<{
+  installed: string | null
+  pendingMarker: boolean
+} | undefined> => {
+  if (!isTauri()) return undefined
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const raw = await invoke<{ installed: string | null; pendingMarker: boolean }>('payload_state')
+    return { installed: raw.installed ?? null, pendingMarker: raw.pendingMarker === true }
+  } catch {
+    return undefined
+  }
+}
+
 /** The newest version the published remote advertises, or `undefined` if unreachable. */
 export const publishedVersion = async (): Promise<string | undefined> => {
   if (!isTauri()) return undefined

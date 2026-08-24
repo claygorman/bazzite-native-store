@@ -40,6 +40,7 @@ import {
   checkForUpdate,
   flatpakUpdateSupport,
   isFlatpak,
+  payloadState,
   describeUpdate,
   installUpdate,
   relaunchApp,
@@ -697,6 +698,22 @@ export const App = () => {
     void import('@tauri-apps/api/core')
       .then(({ invoke }) => invoke('payload_started'))
       .catch(() => undefined)
+  }, [])
+
+  /*
+   * ⚠️ Published so the payload can be checked over SSH instead of by restarting the
+   * app and watching. Whether a staged payload exists, and whether the previous one
+   * failed to start, are otherwise invisible from outside the box entirely.
+   */
+  const [payloadInfo, setPayloadInfo] = useState('unknown')
+  useEffect(() => {
+    void payloadState().then((state) => {
+      setPayloadInfo(
+        state === undefined
+          ? 'n/a'
+          : `staged ${state.installed ?? 'none'}${state.pendingMarker ? ' · MARKER PRESENT' : ''}`,
+      )
+    })
   }, [])
 
   useEffect(() => {
@@ -2280,6 +2297,7 @@ export const App = () => {
       // over the control channel to read a string the app already knew.
       update: describeUpdate(update),
       portal: portalState,
+      payload: payloadInfo,
     })
   }, [
     view,
@@ -2297,6 +2315,7 @@ export const App = () => {
     // this was added to diagnose.
     update,
     portalState,
+    payloadInfo,
   ])
 
   const onHome = view.screen === 'home'
