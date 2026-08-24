@@ -610,8 +610,11 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x bazzite-store-linux-x86_64
-          pnpm tauri signer sign -f bazzite-store-linux-x86_64 \
-            > bazzite-store-linux-x86_64.sig
+          # ⚠️ The file is POSITIONAL and the signature is written BESIDE it, not to
+          # stdout. `-f` is `--private-key-path`, which collides with the key already
+          # supplied through TAURI_SIGNING_PRIVATE_KEY:
+          #   error: '--private-key-path' cannot be used with '--private-key'
+          pnpm tauri signer sign bazzite-store-linux-x86_64
           # ⚠️ Assert the signature is not empty. Tauri's signer exits 0 with nothing on
           # stdout when the key is missing, and an empty .sig would ship an update every
           # client silently refuses — indistinguishable from a network fault.
