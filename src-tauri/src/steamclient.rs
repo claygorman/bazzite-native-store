@@ -63,6 +63,18 @@ const ALLOWED_PATHS: &[&str] = &[
     "/dynamicstore/userdata/",
     // ~300 upcoming releases with per-item bIsOwned / bIsWishlisted / eReviewScore
     "/personalcalendardata",
+    // ⭐ The real "Featured & Recommended" row — the personalised half of Steam's own
+    // home carousel, plus hydrated item facts. Verified 2026-08-24.
+    //
+    // ⚠️ Anonymously this answers **200 with every array empty**, not an error. That is
+    // the silent-failure shape, and it is why `spotlight.ts` treats "no rows" as "we
+    // were not recognised" and falls back, rather than drawing an empty shelf.
+    //
+    // ⚠️ Its `u=<accountid>` parameter is NOT an authorization bypass — tested with a
+    // real id and no cookies, which returns the same empty payload. The session cookie
+    // is the authority. We therefore do not send `u=` at all: the cookie already says
+    // who we are, and a caller-supplied identity would be a parameter worth attacking.
+    "/default/home_spotlight_recommendations/",
 ];
 
 /// The one property read this module performs, verbatim.
@@ -316,7 +328,7 @@ fn urlencode(s: &str) -> String {
 mod tests {
     use super::{
         build_url, client_identity, session_get, steam_client_identity, steam_session_get,
-        ws_url, LOOPBACK_ORIGIN, STORE_ORIGIN,
+        ws_url, ALLOWED_PATHS, LOOPBACK_ORIGIN, STORE_ORIGIN,
     };
     use std::collections::HashMap;
 
@@ -391,6 +403,25 @@ mod tests {
     async fn a_path_off_the_allowlist_is_refused_outright() {
         for path in ["/cart/addtocart", "/api/addtowishlist", "/dynamicstore/userdata/../evil"] {
             assert!(steam_session_get(path.into(), HashMap::new()).await.is_none());
+        }
+    }
+
+    /// ⚠️ The allowlist is EXACT-MATCH, and the spotlight path's trailing slash is part
+    /// of it. A near-miss must be refused rather than quietly normalised — the whole
+    /// point of the list is that what reaches the network is enumerable by reading it.
+    #[tokio::test]
+    async fn the_spotlight_path_matches_exactly_or_not_at_all() {
+        assert!(ALLOWED_PATHS.contains(&"/default/home_spotlight_recommendations/"));
+        for near_miss in [
+            // no trailing slash
+            "/default/home_spotlight_recommendations",
+            // a plausible sibling nobody verified
+            "/default/home_spotlight_panels/",
+            // path traversal off the back of a legitimate prefix
+            "/default/home_spotlight_recommendations/../../cart/addtocart",
+        ] {
+            assert!(!ALLOWED_PATHS.contains(&near_miss), "{near_miss} must not be allowed");
+            assert!(steam_session_get(near_miss.into(), HashMap::new()).await.is_none());
         }
     }
 

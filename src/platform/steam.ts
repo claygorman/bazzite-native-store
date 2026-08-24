@@ -162,6 +162,48 @@ const buildBudgetRow = (rows: StoreRow[]): StoreRow | undefined => {
  */
 const STORE_HOURS = 4 * 3_600
 
+/**
+ * Build a renderable `StoreItem` out of an appid and the facts `GetItems` returned for it.
+ *
+ * ⚠️ **There are five other places doing this by hand** (`useWishlist`, `useTagBrowse` ×3,
+ * `steam.ts:570`) and no shared helper existed, which is how the `capsuleUrl` fallback came
+ * to be written `?? ''` in three files and `?? item.capsuleUrl` in a fourth. This is the
+ * seed of the fix, used by the newest caller so it does not become a sixth copy. The
+ * existing five should adopt it, but that is a separate change with its own risk — the same
+ * reasoning that split `offerRows.ts` out rather than adding one more row-list filter.
+ *
+ * Returns `undefined` for an app `GetItems` could not name, because a nameless tile is a
+ * hole in a shelf, and for adult content, which the caller must not have to remember.
+ */
+export const storeItemFromFacts = (
+  appid: number,
+  facts: StoreItemFacts | undefined,
+): StoreItem | undefined => {
+  if (!facts || facts.name === '' || isAdultContent(facts.contentDescriptors)) return undefined
+  return {
+    appid,
+    name: facts.name,
+    // `headerUrl` is the only art GetItems returns; the capsule slot takes it too.
+    capsuleUrl: facts.headerUrl ?? '',
+    headerUrl: facts.headerUrl,
+    discounted: facts.discounted,
+    discountPercent: facts.discountPercent,
+    originalPriceCents: facts.originalPriceCents,
+    finalPriceCents: facts.finalPriceCents,
+    comingSoon: facts.comingSoon === true,
+    linuxAvailable: facts.linuxAvailable === true,
+    reviewPercent: facts.reviewPercent,
+    reviewLabel: facts.reviewLabel,
+    releaseDate: facts.releaseDate,
+    discountEndsAt: facts.discountEndsAt,
+    dealFlag: facts.dealFlag,
+    shortDescription: facts.shortDescription,
+    controllerSupport: facts.controllerSupport,
+    deckCompat: facts.deckCompat,
+    contentDescriptors: facts.contentDescriptors,
+  }
+}
+
 export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
   const json = await steamGet({
     host: 'store',
@@ -198,7 +240,44 @@ export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
   const budget = buildBudgetRow(rows)
   if (budget) rows.push(budget)
 
-  return rows
+  return upgradeFeaturedRow(rows)
+}
+
+/**
+ * Replace the faked "Featured & Recommended" shelf with Steam's real personalised one.
+ *
+ * ⭐ This is the payoff for the whole `steamclient.rs` session layer: that row has been
+ * `top_sellers` under a different label since the beginning, and this is the actual source.
+ *
+ * ⚠️ **Falls back silently and completely.** No session, no Steam, no Bazzite, an
+ * unrecognised cookie, a shape this parser does not read — every one of those returns the
+ * approximation, unchanged and still marked `approximate`. Nothing may depend on this
+ * working, which is the standing rule for everything the session layer touches.
+ *
+ * ⚠️ **`approximate` is cleared only when the row is RANKED.** `spotlight.ts` reports
+ * whether it recovered Steam's ordering or only the set of games; an unranked row is the
+ * right games in ascending-appid order, which is a better shelf and still not the real one.
+ * Saying so in the HUD is the difference between this feature and the thing it replaced.
+ */
+const upgradeFeaturedRow = async (rows: StoreRow[]): Promise<StoreRow[]> => {
+  const index = rows.findIndex((row) => row.id === 'top_sellers')
+  if (index < 0) return rows
+  try {
+    const { fetchSpotlightRow } = await import('./spotlight')
+    const spotlight = await fetchSpotlightRow()
+    if (!spotlight) return rows
+    const upgraded: StoreRow = {
+      ...rows[index]!,
+      items: spotlight.items,
+      approximate: spotlight.ranked
+        ? undefined
+        : 'Steam\u2019s real recommendations, but in appid order \u2014 the response did not carry its ranking',
+    }
+    return rows.map((row, i) => (i === index ? upgraded : row))
+  } catch {
+    // An enhancement that throws must not take the home screen with it.
+    return rows
+  }
 }
 
 /**

@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { appidsWithin, rgAppsAppids, spotlightRow } from './spotlight.ts'
+
+/**
+ * ⚠️ The anonymous response, captured verbatim 2026-08-24. This is the shape that made
+ * "there is no endpoint" look true for an afternoon: HTTP 200, valid JSON, everything
+ * empty. It must never produce a shelf.
+ */
+const ANONYMOUS = {
+  spotlight_recommendations: [],
+  spotlight_panels: [],
+  item_data: { rgApps: [], rgPackages: [], rgBundles: [] },
+}
+
+test('the anonymous 200-with-empty-arrays payload yields undefined, not an empty row', () => {
+  assert.equal(spotlightRow(ANONYMOUS), undefined)
+})
+
+test('garbage, nulls and non-objects yield undefined rather than throwing', () => {
+  for (const bad of [undefined, null, '', 0, [], 'not json', { unrelated: true }]) {
+    assert.equal(spotlightRow(bad), undefined)
+  }
+})
+
+test('appids come back in the order Steam ranked them', () => {
+  const payload = {
+    spotlight_recommendations: [{ appid: 2764460 }, { appid: 1374490 }, { appid: 1326470 }],
+    spotlight_panels: [],
+  }
+  assert.deepEqual(spotlightRow(payload), {
+    appids: [2764460, 1374490, 1326470],
+    ranked: true,
+  })
+})
+
+/**
+ * ⚠️ THE trap this module exists to survive. Steam's backend renders an empty associative
+ * array as a JSON array and a populated one as a JSON object — `"rgApps":[]` anonymously,
+ * `"rgApps":{"1631270":{…}}` on the real page. Assuming either alone is right half the
+ * time, and wrong on the half that has data.
+ */
+test('rgApps is read whether it arrives as an object or an array', () => {
+  assert.deepEqual(rgAppsAppids({ rgApps: [] }), [])
+  // ⚠️ Written 1631270-then-1062090, read back ASCENDING. Not a typo — see the note on the
+  // fallback test below. This assertion is the demonstration that the bag cannot be ranked.
+  assert.deepEqual(rgAppsAppids({ rgApps: { '1631270': {}, '1062090': {} } }), [1062090, 1631270])
+  // ⚠️ The ARRAY form keeps its order, because array indices are positions rather than
+  // integer-like keys being re-enumerated. Both forms are handled; only one is ordered.
+  assert.deepEqual(rgAppsAppids({ rgApps: [{ appid: 730 }, { appid: 570 }] }), [730, 570])
+})
+
+/**
+ * ⚠️ Note the order, and that it is NOT the order written above. Integer-index-like object
+ * keys enumerate ascending in every conforming JS engine regardless of insertion order
+ * (ECMAScript OrdinaryOwnPropertyKeys), so the bag can never carry Steam's ranking. That is
+ * exactly why this case reports `ranked: false` — right games, arbitrary order — and why the
+ * caller keeps the shelf marked approximate when it lands here.
+ */
+test('the rgApps fallback returns the right games but reports itself unranked', () => {
+  const payload = {
+    spotlight_recommendations: [{ unrecognised_shape: true }],
+    item_data: { rgApps: { '892970': {}, '252490': {}, '1631270': {} } },
+  }
+  assert.deepEqual(spotlightRow(payload), {
+    appids: [252490, 892970, 1631270],
+    ranked: false,
+  })
+})
+
+test('the ranked lists win over rgApps when both are readable', () => {
+  const payload = {
+    spotlight_recommendations: [{ appid: 111 }],
+    item_data: { rgApps: { '999': {} } },
+  }
+  assert.deepEqual(spotlightRow(payload), { appids: [111], ranked: true })
+})
+
+test('appids arrive as numbers or as decimal strings, and both count', () => {
+  assert.deepEqual(appidsWithin([{ appid: 730 }, { appid: '570' }]), [730, 570])
+})
+
+/** `0` is Steam's "no app" sentinel; rendering it is a broken tile. */
+test('zero, negatives and non-numeric ids are not appids', () => {
+  assert.deepEqual(
+    appidsWithin([{ appid: 0 }, { appid: -5 }, { appid: '12a' }, { appid: null }]),
+    [],
+  )
+})
+
+test('a game listed twice keeps its FIRST rank', () => {
+  const payload = {
+    spotlight_recommendations: [{ appid: 730 }, { appid: 570 }],
+    spotlight_panels: [{ appid: 730 }, { appid: 440 }],
+  }
+  assert.deepEqual(spotlightRow(payload), { appids: [730, 570, 440], ranked: true })
+})
+
+test('nested entries are reached — a row item may carry its own contents', () => {
+  const payload = {
+    spotlight_recommendations: [{ appid: 100, included_items: [{ appid: 200 }, { appid: 300 }] }],
+  }
+  assert.deepEqual(spotlightRow(payload), { appids: [100, 200, 300], ranked: true })
+})
+
+/**
+ * ⚠️ The walk runs over a payload we do not control and have never seen populated. A hang
+ * here is a frozen television, which is worse than a missing shelf — so depth and count are
+ * bounded, and a cyclic structure must terminate rather than recurse forever.
+ */
+test('a pathological payload terminates instead of hanging', () => {
+  const cyclic: Record<string, unknown> = { appid: 42 }
+  cyclic.self = cyclic
+  assert.deepEqual(appidsWithin(cyclic), [42])
+
+  // Deeply buried ids are given up on rather than chased forever.
+  let deep: unknown = { appid: 7 }
+  for (let i = 0; i < 50; i++) deep = { nested: deep }
+  assert.deepEqual(appidsWithin(deep), [])
+
+  const huge = Array.from({ length: 5000 }, (_, i) => ({ appid: i + 1 }))
+  assert.ok(appidsWithin(huge).length <= 200)
+})
