@@ -218,25 +218,66 @@ that matters lives inside the files; keeping git history too would add ~20 MB of
 objects per release to a branch nobody reads. `--prune-depth=3` bounds the ostree side
 against Pages' 1 GB limit.
 
-**The in-app button.** `org.freedesktop.portal.Flatpak.CreateUpdateMonitor`
-(`src-tauri/src/flatpakupdate.rs`), *not* `flatpak-spawn --host flatpak update`.
+**The in-app button: a payload, not the portal.**
 
-⚠️ Spawning needs `--talk-name=org.freedesktop.Flatpak`, which lets the sandbox run
-**any** host command — "we only update ourselves" would then be a property of our code.
-The portal's monitor is bound to the caller's own ref, so touching anything else is not
-expressible, and it needs no `finish-args` at all. Same rule as `ALLOWED_PATHS` in
-`steamclient.rs`.
+The portal (`org.freedesktop.portal.Flatpak`) is the sanctioned route and **cannot work
+in Game Mode**. It is reachable — zbus connects, `CreateUpdateMonitor` succeeds,
+`Update()` is accepted — and then fails in a `Progress` signal:
 
-⚠️ **The monitor is a watcher, not a request.** There is no "check now" method and no
-"you are up to date" signal — it announces updates and is otherwise silent. So a check
-that hears nothing yields `unannounced`, never `current`: silence covers both "there is
-nothing" and "it has not polled yet", and only `current` may claim currency.
+    status: 3, error: org.freedesktop.DBus.Error.NotSupported,
+    error_message: "No portal support found"
 
-⚠️ **None of it works for an app installed from a bundle.** A bundle has no origin to
-pull from, so both `flatpak update` and the portal find nothing, forever, and it looks
-exactly like being up to date. `scripts/install.sh` therefore installs from the remote
-and keeps the bundle only as a fallback. **One reinstall from the remote is required
-once**, on any box that was installed from a bundle.
+`flatpak-portal` wants to show an **"Update <app>?" Grant/Deny dialog** and resolves a
+backend by desktop name. The gamescope session is `XDG_CURRENT_DESKTOP=gamescope` (empty
+inside the sandbox) against backends for gtk/kde/kwallet/plasmanotify — none claims it.
+
+⚠️ **Setting `XDG_CURRENT_DESKTOP=KDE` does not help.** Verified 2026-08-23: the lookup
+is against the SESSION's portal configuration, not the caller's environment. There is no
+dialog to approve, so no amount of client-side work fixes it.
+
+⚠️ `--talk-name=org.freedesktop.Flatpak` + `flatpak-spawn --host` **would** work and was
+rejected: it lets the sandbox run *any* host command, so "only this app updates" becomes
+a property of our code rather than of the system.
+
+So the Flatpak is a **shell around a payload it can replace itself**
+(`src-tauri/src/payload.rs`, `flatpak/launch.sh`). `/app` is read-only;
+`~/.var/app/<id>/data/<id>/payload/` is not. This needs **no new `finish-args`**.
+
+| piece | where |
+|---|---|
+| picks shell vs payload, holds the safety net | `flatpak/launch.sh` (the Flatpak's `command:`) |
+| downloads, verifies, installs | `src-tauri/src/payload.rs` |
+| exports + signs the binary | `release.yml`, jobs `flatpak` → `payload` |
+
+⚠️ **The binary is only interchangeable because CI exports the one the flatpak job
+already built**, inside `org.gnome.Platform//50`, rather than compiling a second one on
+the runner. It links the runtime's WebKitGTK exactly as the shipped binary does. Nothing
+is bundled — this is *not* the AppImage that carried its own WebKit and died with
+`EGL_BAD_PARAMETER`.
+
+⚠️ **We now own the trust decision Flatpak used to own.** The order is the argument:
+download to `.part` → fetch signature → **verify against the bytes on disk** → `fsync` →
+`chmod` → rename → write `VERSION` last. Verifying after the rename leaves a window where
+the launcher could pick up unverified bytes. `fsync` before rename because a rename is
+atomic for the directory entry, not the contents — a signature checked before a power cut
+protects nothing. `VERSION` last means a crash mid-install leaves a stale `VERSION`, so
+the launcher prefers `/app`: the safe direction. Only strictly-newer versions install.
+
+⚠️ **The marker is the piece that matters most.** `launch.sh` writes `LAUNCHING` before
+handing over; the app deletes it once the webview has rendered — *not* at process start,
+because a payload that reaches `main()` and then dies is still broken. Finding it at the
+next launch means that payload never came up, so it is deleted and `/app` runs instead.
+**Without this, one bad payload means the store never opens again and the only way back is
+SSH** — the exact failure this feature exists to remove. All five branches were exercised
+against a fake tree before shipping.
+
+⚠️ `launch.sh` falls back to the shell binary on *every* failure rather than erroring. It
+runs before the app on every launch under `set -e`, so a missing `sort`, an unwritable
+directory or an empty string would otherwise trade a missed update for a dead app.
+
+⚠️ **`flatpak info` reports the SHELL's version**, which is not necessarily what is
+running. The header chip shows the running build; that is the one to trust. A wrong
+version string has already cost this project two separate bug hunts.
 
 ### ⚠️ Nothing on the target box runs updates on a schedule
 
