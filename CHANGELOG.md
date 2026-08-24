@@ -1,3 +1,21 @@
+# [0.15.0](https://github.com/claygorman/bazzite-native-store/compare/0.14.0...0.15.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* a focused tab no longer lights a panel as well ([92a65b9](https://github.com/claygorman/bazzite-native-store/commit/92a65b92cf1a93042228744f4afbbf8086d339de))
+* every TypeScript file now belongs to a project ([76b9a82](https://github.com/claygorman/bazzite-native-store/commit/76b9a8276ee6ee76c097e6472c4449dcff4e04d7))
+* the spotlight row needs NO query, not v=2 ([a085aa2](https://github.com/claygorman/bazzite-native-store/commit/a085aa2e39f4e5b34f7df5e5f60d49ab35df8876))
+
+
+### Features
+
+* the apps table, phase 1 — write-through ([c7d4243](https://github.com/claygorman/bazzite-native-store/commit/c7d4243bf10dff9085ca78cc5bb54b5427c69760))
+* the demo becomes a thing you can press ([05303de](https://github.com/claygorman/bazzite-native-store/commit/05303de22006bc1194cc7f6390af523e7cdde392))
+* the HUD names the shelves that are not what they claim ([b677822](https://github.com/claygorman/bazzite-native-store/commit/b677822727bc3d23b723c22c1abb1d19aa40c8b7))
+* the real Featured & Recommended, when Steam knows who you are ([6221324](https://github.com/claygorman/bazzite-native-store/commit/62213242adbd54f6ac87d25eab3a960b25de15b6))
+* user tags on cards, and a LIVE chip — design turn 16a ([7ec4c0c](https://github.com/claygorman/bazzite-native-store/commit/7ec4c0cad76a1d8cab5646869e61e54664d37ea1))
+
 # [0.14.0](https://github.com/claygorman/bazzite-native-store/compare/0.13.1...0.14.0) (2026-08-24)
 
 
