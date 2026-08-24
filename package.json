@@ -1,7 +1,7 @@
 {
   "name": "bazzite-native-store",
   "private": true,
-  "version": "0.15.1",
+  "version": "0.15.2",
   "packageManager": "pnpm@9.15.3",
   "engines": {
     "node": ">=24",

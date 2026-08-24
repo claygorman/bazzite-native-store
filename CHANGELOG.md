@@ -1,3 +1,10 @@
+## [0.15.2](https://github.com/claygorman/bazzite-native-store/compare/0.15.1...0.15.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* Restart re-enters through the launcher, not through relaunch() ([9cbb86c](https://github.com/claygorman/bazzite-native-store/commit/9cbb86cc4191d1b509f133911ecef7f7c5d6a83d))
+
 ## [0.15.1](https://github.com/claygorman/bazzite-native-store/compare/0.15.0...0.15.1) (2026-08-24)
 
 
