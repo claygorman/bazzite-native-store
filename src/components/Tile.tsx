@@ -113,6 +113,20 @@ export const Tile = ({
       flag={item.dealFlag}
       owned={owned}
       /*
+       * Turn 16a — tags as a fourth body row, on every tile whether or not it has focus.
+       *
+       * ⚠️ `both`, not `tags`: the tag row is IN ADDITION to the rating/compat row, not
+       * instead of it. `tags` would drop the review score, which is the fact people
+       * actually decide on.
+       *
+       * ⚠️ This adds ~32px of reserved height to every shelf tile — the row renders even
+       * when a game has no tags, so a shelf cannot rag along its bottom edge. That cost is
+       * the whole trade-off of the body-row placement over the over-the-art one.
+       */
+      facts="both"
+      tags={item.tags}
+      hasLiveBroadcast={item.hasLiveBroadcast}
+      /*
        * Both DECLARED states — Steam's glyph, solid for full and half-filled for
        * partial. It survives being on every tile in a way the design's "Full controller
        * support" sentence did not.

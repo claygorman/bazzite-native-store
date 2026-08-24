@@ -36,6 +36,31 @@ export type StoreItem = {
    * fills in quietly.
    */
 
+  /**
+   * Steam's own user tags, most-voted first — design turn 16.
+   *
+   * ⚠️ **The ORDER is the product.** Steam sorts by vote weight and a card draws only the
+   * top few (5 at 688px down to 2 at 336px), so re-sorting these would change which tags a
+   * game appears to have. Never sort, never de-duplicate across games.
+   *
+   * `undefined` means we did not ask or the names did not resolve. `fetchStoreItems` omits
+   * the field rather than setting `[]`, so presence means "there is something to draw".
+   */
+  tags?: readonly string[]
+  /**
+   * Someone is streaming this game right now — design turn 16's LIVE chip.
+   *
+   * ⚠️ **A boolean, and only a boolean.** There is no viewer count anywhere we can reach:
+   * the endpoint that carries one says it is stale within seconds and must not be
+   * persisted. Anything rendering this as a number is inventing it.
+   *
+   * ⚠️ **Only the Featured & Recommended shelf can fill this.** It comes from the
+   * personalised spotlight payload; `GetItems`, which hydrates every other shelf, has no
+   * such field — verified 2026-08-24 against a real response. So `undefined` means "we
+   * could not know", NOT "nobody is streaming", and must never be drawn as an absence.
+   */
+  hasLiveBroadcast?: boolean
+
   /** 0-100 positive, from `reviews.summary_filtered.percent_positive`. */
   reviewPercent?: number
   /** Steam's own wording, e.g. 'Very Positive'. */

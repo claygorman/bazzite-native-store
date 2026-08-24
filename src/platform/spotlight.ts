@@ -141,6 +141,34 @@ export const rgAppsAppids = (itemData: unknown): number[] => {
 export type SpotlightRow = {
   appids: number[]
   ranked: boolean
+  /**
+   * Appids Steam says have a live broadcast right now — design turn 16's LIVE chip.
+   *
+   * ⚠️ **This payload is the ONLY source.** `GetItems`, which hydrates every other shelf,
+   * has no live-broadcast field at all (verified 2026-08-24 against a real response), so
+   * the chip can only ever appear on Featured & Recommended. Absence from this set on any
+   * other shelf means "unknowable", not "not streaming".
+   */
+  live: ReadonlySet<number>
+}
+
+/**
+ * The appids `item_data.rgApps` marks as currently broadcasting.
+ *
+ * ⚠️ Only reads the OBJECT form. The array form is the empty-payload shape, which by
+ * definition has nothing live in it — see `rgAppsAppids` for why both forms exist.
+ */
+const liveAppids = (itemData: unknown): Set<number> => {
+  const live = new Set<number>()
+  const rgApps = isRecord(itemData) ? itemData.rgApps : undefined
+  if (!isRecord(rgApps)) return live
+  for (const [key, value] of Object.entries(rgApps)) {
+    const appid = asAppid(key)
+    if (appid !== undefined && isRecord(value) && value.has_live_broadcast === true) {
+      live.add(appid)
+    }
+  }
+  return live
 }
 
 export const spotlightRow = (payload: unknown): SpotlightRow | undefined => {
@@ -151,10 +179,11 @@ export const spotlightRow = (payload: unknown): SpotlightRow | undefined => {
     ...appidsWithin(payload.spotlight_panels),
   ]
   const ordered = found.filter((id, i) => found.indexOf(id) === i)
-  if (ordered.length > 0) return { appids: ordered, ranked: true }
+  const live = liveAppids(payload.item_data)
+  if (ordered.length > 0) return { appids: ordered, ranked: true, live }
 
   const bag = rgAppsAppids(payload.item_data)
-  return bag.length > 0 ? { appids: bag, ranked: false } : undefined
+  return bag.length > 0 ? { appids: bag, ranked: false, live } : undefined
 }
 
 /**
@@ -204,7 +233,9 @@ export const fetchSpotlightRow = async (): Promise<
    */
   const items = row.appids.flatMap((appid) => {
     const item = storeItemFromFacts(appid, facts.get(appid))
-    return item ? [item] : []
+    // ⚠️ Set only on the shelf that can know. Everywhere else it stays `undefined`, which
+    // the card reads as "unknowable" rather than "not streaming".
+    return item ? [{ ...item, hasLiveBroadcast: row.live.has(appid) }] : []
   })
   // Every id dropped (unnamed, or filtered as adult) leaves nothing to draw.
   return items.length > 0 ? { items, ranked: row.ranked } : undefined

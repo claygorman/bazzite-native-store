@@ -65,10 +65,9 @@ test('appids come back in the order Steam ranked them', () => {
     spotlight_recommendations: [{ appid: 2764460 }, { appid: 1374490 }, { appid: 1326470 }],
     spotlight_panels: [],
   }
-  assert.deepEqual(spotlightRow(payload), {
-    appids: [2764460, 1374490, 1326470],
-    ranked: true,
-  })
+  const row = spotlightRow(payload)
+  assert.deepEqual(row?.appids, [2764460, 1374490, 1326470])
+  assert.equal(row?.ranked, true)
 })
 
 /**
@@ -99,10 +98,9 @@ test('the rgApps fallback returns the right games but reports itself unranked', 
     spotlight_recommendations: [{ unrecognised_shape: true }],
     item_data: { rgApps: { '892970': {}, '252490': {}, '1631270': {} } },
   }
-  assert.deepEqual(spotlightRow(payload), {
-    appids: [252490, 892970, 1631270],
-    ranked: false,
-  })
+  const row = spotlightRow(payload)
+  assert.deepEqual(row?.appids, [252490, 892970, 1631270])
+  assert.equal(row?.ranked, false)
 })
 
 test('the ranked lists win over rgApps when both are readable', () => {
@@ -110,7 +108,7 @@ test('the ranked lists win over rgApps when both are readable', () => {
     spotlight_recommendations: [{ appid: 111 }],
     item_data: { rgApps: { '999': {} } },
   }
-  assert.deepEqual(spotlightRow(payload), { appids: [111], ranked: true })
+  assert.deepEqual(spotlightRow(payload)?.appids, [111])
 })
 
 test('appids arrive as numbers or as decimal strings, and both count', () => {
@@ -130,14 +128,14 @@ test('a game listed twice keeps its FIRST rank', () => {
     spotlight_recommendations: [{ appid: 730 }, { appid: 570 }],
     spotlight_panels: [{ appid: 730 }, { appid: 440 }],
   }
-  assert.deepEqual(spotlightRow(payload), { appids: [730, 570, 440], ranked: true })
+  assert.deepEqual(spotlightRow(payload)?.appids, [730, 570, 440])
 })
 
 test('nested entries are reached — a row item may carry its own contents', () => {
   const payload = {
     spotlight_recommendations: [{ appid: 100, included_items: [{ appid: 200 }, { appid: 300 }] }],
   }
-  assert.deepEqual(spotlightRow(payload), { appids: [100, 200, 300], ranked: true })
+  assert.deepEqual(spotlightRow(payload)?.appids, [100, 200, 300])
 })
 
 /**
@@ -157,4 +155,38 @@ test('a pathological payload terminates instead of hanging', () => {
 
   const huge = Array.from({ length: 5000 }, (_, i) => ({ appid: i + 1 }))
   assert.ok(appidsWithin(huge).length <= 200)
+})
+
+/**
+ * ⚠️ The LIVE chip's only source. `GetItems` — which hydrates every other shelf — has no
+ * live-broadcast field at all, verified against a real response 2026-08-24. So absence
+ * from this set means "we cannot know", never "not streaming", and the card must not draw
+ * it as an absence.
+ */
+test('live broadcasts are read from rgApps, and only the true ones', () => {
+  const row = spotlightRow({
+    spotlight_recommendations: [{ appid: 111 }, { appid: 222 }, { appid: 333 }],
+    item_data: {
+      rgApps: {
+        '111': { has_live_broadcast: true },
+        '222': { has_live_broadcast: false },
+        // Present on the row, absent from the bag entirely — unknowable, so not live.
+        '444': { has_live_broadcast: true },
+      },
+    },
+  })
+  assert.equal(row?.live.has(111), true)
+  assert.equal(row?.live.has(222), false, 'false must not count as live')
+  assert.equal(row?.live.has(333), false, 'absent from rgApps is not live')
+  assert.equal(row?.live.has(444), true)
+})
+
+test('the empty payload has nothing live, and the array form is not walked for it', () => {
+  assert.equal(spotlightRow(ANONYMOUS), undefined)
+  // Truthy-but-wrong shapes must not smuggle a live flag through.
+  const row = spotlightRow({
+    spotlight_recommendations: [{ appid: 1 }],
+    item_data: { rgApps: { '1': { has_live_broadcast: 'yes' } } },
+  })
+  assert.equal(row?.live.has(1), false, 'only a real boolean true counts')
 })

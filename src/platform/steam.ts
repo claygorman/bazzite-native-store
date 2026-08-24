@@ -201,6 +201,7 @@ export const storeItemFromFacts = (
     controllerSupport: facts.controllerSupport,
     deckCompat: facts.deckCompat,
     contentDescriptors: facts.contentDescriptors,
+    tags: facts.tags,
   }
 }
 
@@ -654,6 +655,10 @@ export const searchApps = async (term: string): Promise<StoreItem[]> => {
         contentDescriptors: extra.contentDescriptors,
         controllerSupport: extra.controllerSupport,
         deckCompat: extra.deckCompat,
+        // Turn 16 — Steam's user tags, most-voted first. `GetItems` is the only source
+        // (`featuredcategories` and `SearchApps` carry none), and the ORDER is the
+        // product, so this copies the array as-is rather than merging with anything.
+        tags: extra.tags,
         // `SearchApps` has no notion of unreleased, so GetItems is the only source
         // here — without it a search result for an unannounced game reads "Free".
         comingSoon: extra.comingSoon,
@@ -820,6 +825,7 @@ export type StoreItemFacts = Pick<
   StoreItem,
   | 'name'
   | 'headerUrl'
+  | 'tags'
   | 'reviewPercent'
   | 'reviewLabel'
   | 'shortDescription'
@@ -878,6 +884,16 @@ export const fetchStoreItems = async (
              * endpoint with a hard ~200 req / 5 min ceiling.
              */
             include_trailers: true,
+            /*
+             * ⚠️ Five, not twenty. This is the batch behind every shelf, and five is what
+             * the widest card can draw (design turn 16 derives the count from card width:
+             * 5 at 688px down to 2 at 336px). `fetchAppTags` still asks for 20 for the
+             * details screen's own tag row, where there is room for them.
+             *
+             * ⚠️ Returns `tags: [{tagid, weight}]` — IDS, not names. Names come from
+             * `fetchTagNames` below, one extra call per batch, cached for a day.
+             */
+            include_tag_count: 5,
           },
         }),
       },
@@ -886,6 +902,16 @@ export const fetchStoreItems = async (
 
     const items = asRecord(asRecord(json)?.response)?.store_items
     if (!Array.isArray(items)) return out
+
+    /*
+     * Tag IDS per app, kept aside so the NAMES can be resolved in one call for the whole
+     * batch rather than one call per tile.
+     *
+     * ⚠️ `tags` is ordered by weight — most-voted first — and that order is the product.
+     * A card shows the top 2-5, so re-sorting or de-duplicating across apps here would
+     * silently change which tags a game appears to have.
+     */
+    const tagIdsFor = new Map<number, number[]>()
 
     for (const raw of items) {
       const o = asRecord(raw)
@@ -979,6 +1005,46 @@ export const fetchStoreItems = async (
         // was already in this response.
         linuxAvailable: linuxNativeFrom(o.platforms),
       })
+
+      /*
+       * ⚠️ `tags` (weighted, ordered) is preferred over the flat `tagids`, because the
+       * ORDER is the product — Steam sorts most-voted first and a card shows the top few.
+       * `tagids` is the same set without that ranking, so it is only the fallback.
+       */
+      const weighted = Array.isArray(o.tags) ? o.tags : undefined
+      const ids = weighted
+        ? weighted.flatMap((t) => {
+            const id = asNumber(asRecord(t)?.tagid)
+            return id === undefined ? [] : [id]
+          })
+        : Array.isArray(o.tagids)
+          ? o.tagids.filter((id): id is number => typeof id === 'number')
+          : []
+      if (ids.length > 0) tagIdsFor.set(appid, ids)
+    }
+
+    /*
+     * Names for every tag id in the batch, in ONE call.
+     *
+     * ⚠️ Deliberately after the loop, not inside it. Per-tile this would be a request per
+     * card; per-batch it is one request per shelf load, and `fetchTagNames` caches for a
+     * day because tag names are effectively immutable.
+     *
+     * ⚠️ Failure is silent and partial-tolerant: an id with no name is DROPPED rather than
+     * rendered as its number. "7332" on a card is worse than one fewer tag.
+     */
+    const everyTagId = [...new Set([...tagIdsFor.values()].flat())]
+    if (everyTagId.length > 0) {
+      const names = await fetchTagNames(everyTagId)
+      for (const [appid, ids] of tagIdsFor) {
+        const existing = out.get(appid)
+        if (!existing) continue
+        const named = ids.flatMap((id) => {
+          const name = names.get(id)
+          return name ? [name] : []
+        })
+        if (named.length > 0) out.set(appid, { ...existing, tags: named })
+      }
     }
   } catch {
     // Hydration is additive: a failure leaves tiles showing what the shelf already

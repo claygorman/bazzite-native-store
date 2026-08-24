@@ -84,6 +84,10 @@ export const useHydratedRows = (rows: StoreRow[]): HydratedRows => {
                   contentDescriptors: extra.contentDescriptors,
                   controllerSupport: extra.controllerSupport,
                   deckCompat: extra.deckCompat,
+                  // Turn 16 — Steam's user tags, most-voted first. `GetItems` is the only source
+                  // (`featuredcategories` and `SearchApps` carry none), and the ORDER is the
+                  // product, so this copies the array as-is rather than merging with anything.
+                  tags: extra.tags,
                   // GetItems is the better price source — it carries the original price
                   // even where featuredcategories sends null — but it must NOT overwrite
                   // a coming-soon item's price, which is 0 in both and means

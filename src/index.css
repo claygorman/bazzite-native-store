@@ -118,6 +118,21 @@ html {
   --color-warn: #cfb53b;
   --color-warn-wash: rgb(207 181 59 / 0.18);
   --color-bad: #d0685f;
+  /*
+   * Turn 16 — the LIVE broadcast chip. A red of its own, deliberately NOT `--color-bad`:
+   * that one means "this will not run", and a live stream is good news. Steam's broadcast
+   * red, with a light tint for the label so it reads on the scrim at ten feet.
+   */
+  --color-live: #e2434c;
+  --color-live-ink: #f2b8bc;
+
+  /*
+   * The live dot is the ONLY thing that moves on a card at rest. That is deliberate and it
+   * is the reason the animation is this restrained: a pulse that merely breathes reads as
+   * "happening now" at ten feet without competing with the focus glow, which is the one
+   * signal the whole UI depends on.
+   */
+  --animate-live-dot: live-dot 1.6s ease-in-out infinite;
   --color-bad-wash: rgb(208 104 95 / 0.18);
 
   /*
@@ -414,4 +429,18 @@ body.controller-active * {
 
 .animate-tile-breath-hi {
   animation-name: tile-breath-hi;
+}
+
+/* Turn 16 — see `--animate-live-dot`. Expanding ring rather than a blink: a blink at ten
+   feet is easy to miss between glances, a ring is legible in peripheral vision. */
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgb(226 67 76 / 0.55);
+  }
+  60% {
+    opacity: 0.72;
+    box-shadow: 0 0 0 5px rgb(226 67 76 / 0);
+  }
 }

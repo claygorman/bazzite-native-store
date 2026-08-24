@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import { TileFocusLight } from './TileFocusLight'
+import { tagsThatFit } from './tagFit'
 import { DECK_COMPAT_LABEL, type ControllerSupport, type DeckCompat } from '../types/steam'
 import { DEAL_FLAG_GRADIENTS } from '../platform/steam'
 
@@ -203,6 +204,14 @@ export type StoreCardProps = Partial<CardShape> & {
   owned?: boolean
   controllerSupport?: ControllerSupport
   tags?: readonly string[]
+  /**
+   * Someone is streaming this game — turn 16's LIVE chip.
+   *
+   * ⚠️ `true | undefined`, never `false`. Only the Featured & Recommended shelf has a
+   * source for this; everywhere else it is unknowable, and an explicit `false` would be a
+   * claim we cannot make. Same shape and same reason as `owned`.
+   */
+  hasLiveBroadcast?: boolean
   /* ── design turn 15a: the wishlist's five-band body ── */
   /**
    * Position in the list, drawn before the title.
@@ -274,6 +283,7 @@ export const StoreCard = ({
   owned,
   controllerSupport,
   tags,
+  hasLiveBroadcast,
   rank,
   tagline,
   note,
@@ -320,6 +330,18 @@ export const StoreCard = ({
 
   const showTags = facts === 'tags' || facts === 'both'
   const showRating = facts !== 'tags'
+
+  /*
+   * Turn 16a — which tags fit, by WIDTH rather than by a count.
+   *
+   * ⚠️ The design derives a count from card width (5 at 688px down to 2 at 336px). Right
+   * about the intent, wrong about the arithmetic: tag names run from "FPS" to "Open World
+   * Survival Craft". Measured on the live home rows, a fixed three at 440px overflowed 11
+   * of 82 tiles — and `overflow-hidden` clips the last chip MID-WORD, which reads as a
+   * rendering bug rather than as truncation. `tagsThatFit` budgets the actual row and
+   * returns whole chips; see `tagFit.ts` for why it estimates rather than measures.
+   */
+  const fittedTags = tagsThatFit(tags, contentRem)
 
   // Deck verdict and ProtonDB tier are different claims — Valve testing a build on its
   // own hardware, versus aggregated community reports — so neither substitutes for the
@@ -429,13 +451,41 @@ export const StoreCard = ({
           </span>
         )}
 
-        {/* Only when a session actually told us. `undefined` is "unknown", never
-            "not owned" — there is no anonymous source. */}
-        {owned === true && (
-          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-focus text-sm font-extrabold leading-5 text-ink-on-accent ring-4 ring-scrim">
-            ✓
-          </span>
-        )}
+        {/*
+          Turn 16 — the art's top-right is a FLEX GROUP, not a stack of absolutes.
+        
+          ⚠️ It used to hold only the owned tick, positioned directly. Adding the LIVE chip
+          beside it meant both would have occupied the same corner and overlapped on any
+          game that is both owned and streaming. A row that lays them out is the fix, and
+          it is why this is a container rather than two positioned children.
+        */}
+        <div className="absolute right-2 top-2 flex items-center gap-2">
+          {/*
+            ⚠️ Lit in BOTH focus states, unlike the tags. It is the only fact on a card
+            that expires — everything else is as true for the tile you are not looking at
+            as for the one you are — so dimming it at rest would hide the one thing whose
+            whole value is that it is happening now.
+        
+            ⚠️ NO VIEWER COUNT, and there cannot be one. The only endpoint carrying a count
+            says it is stale within seconds and must not be persisted, so a number here
+            would be invented. `undefined` means unknowable (every shelf but Featured &
+            Recommended); only an explicit `true` lights it.
+          */}
+          {hasLiveBroadcast === true && (
+            <span className="flex items-center gap-2 rounded-md bg-scrim px-2 py-1 text-sm font-extrabold leading-5 tracking-[0.08em] text-live-ink">
+              <span className="size-2 animate-live-dot rounded-full bg-live" />
+              LIVE
+            </span>
+          )}
+
+          {/* Only when a session actually told us. `undefined` is "unknown", never
+              "not owned" — there is no anonymous source. */}
+          {owned === true && (
+            <span className="grid size-7 place-items-center rounded-full bg-focus text-sm font-extrabold leading-5 text-ink-on-accent ring-4 ring-scrim">
+              ✓
+            </span>
+          )}
+        </div>
 
         {/*
           The glyph is capable of both declared states; WHICH are worth showing is the
@@ -538,11 +588,7 @@ export const StoreCard = ({
         {note !== undefined && (
           <span
             className={`flex items-center gap-2.25 truncate text-base font-semibold leading-6 ${
-              note.tone === 'sale'
-                ? 'text-sale'
-                : note.tone === 'warn'
-                  ? 'text-warn'
-                  : 'text-focus'
+              note.tone === 'sale' ? 'text-sale' : note.tone === 'warn' ? 'text-warn' : 'text-focus'
             }`}
           >
             <span className="size-1.75 shrink-0 rounded-full bg-current" />
@@ -561,12 +607,30 @@ export const StoreCard = ({
           </div>
         )}
 
-        {showTags && tags !== undefined && tags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {tags.slice(0, 8).map((tag) => (
+        {/*
+          Turn 16a — tags as a body row.
+        
+          ⚠️ `min-h-8` is RESERVED, and the row renders even with nothing in it. Same rule
+          as §5.1/§5.2 and the compat row above: a shelf where some tiles have tags and
+          others do not would otherwise rag along the bottom by 32px, and tags would land
+          at a different y on adjacent tiles — which is exactly what stops the eye reading
+          them down a column.
+        
+          ⚠️ `overflow-hidden` + `whitespace-nowrap` + `flex-none` chips, NOT `flex-wrap`.
+          Truncation is by whole chip: a chip clipped in half reads as a rendering bug, and
+          a second wrapped row changes the card's height.
+        */}
+        {showTags && (
+          <div className="flex min-h-8 items-center gap-2 overflow-hidden whitespace-nowrap">
+            {fittedTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded bg-chip px-3 py-1 text-base font-medium leading-6 text-ink-mute"
+                className={[
+                  'flex-none rounded px-3 py-1 text-base font-medium leading-6 transition-colors',
+                  // Dim at rest, bright on focus. The tags of the tile you are ON are the
+                  // ones you are reading; the rest are context, not content.
+                  focused ? 'bg-chip-strong text-ink' : 'bg-chip text-ink-mute',
+                ].join(' ')}
               >
                 {tag}
               </span>
