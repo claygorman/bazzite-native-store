@@ -1,3 +1,10 @@
+## [0.12.2](https://github.com/claygorman/bazzite-native-store/compare/0.12.1...0.12.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* the signer takes the file positionally, and writes the .sig beside it ([3e9a9bd](https://github.com/claygorman/bazzite-native-store/commit/3e9a9bd344ef7c352f750f3b9053a469bf7bd25d))
+
 ## [0.12.1](https://github.com/claygorman/bazzite-native-store/compare/0.12.0...0.12.1) (2026-08-24)
 
 
