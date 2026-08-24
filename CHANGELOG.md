@@ -1,3 +1,10 @@
+# [0.12.0](https://github.com/claygorman/bazzite-native-store/compare/0.11.0...0.12.0) (2026-08-24)
+
+
+### Features
+
+* the app updates itself, without asking the sandbox for new powers ([aa06d5f](https://github.com/claygorman/bazzite-native-store/commit/aa06d5fa98eb09451fdc49ce8e9220a9a786d2cd))
+
 # [0.11.0](https://github.com/claygorman/bazzite-native-store/compare/0.10.1...0.11.0) (2026-08-23)
 
 
