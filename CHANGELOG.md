@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/claygorman/bazzite-native-store/compare/0.15.0...0.15.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* compatibility gets its own line again, on compact cards too ([6691e3c](https://github.com/claygorman/bazzite-native-store/commit/6691e3c4d0169c64725bb0918fb05544ee16a99e))
+
 # [0.15.0](https://github.com/claygorman/bazzite-native-store/compare/0.14.0...0.15.0) (2026-08-24)
 
 
