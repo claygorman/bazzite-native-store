@@ -243,7 +243,6 @@ pub fn run() {
             steamclient::steam_client_identity,
             flatpakupdate::flatpak_update_supported,
             flatpakupdate::flatpak_update_check,
-            flatpakupdate::flatpak_update_install,
             flatpakupdate::published_version,
             payload::payload_install,
             payload::payload_started,

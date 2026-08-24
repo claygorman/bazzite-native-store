@@ -13,7 +13,14 @@
 //! Same reasoning as `ALLOWED_PATHS` in `steamclient.rs`: it cannot beats we promise not
 //! to. It also needs no `finish-args` at all — portals are reachable from every sandbox.
 //!
-//! ⚠️ **It only works when the app was installed from a REMOTE.** A single-file
+//! ⚠️ **This module no longer INSTALLS anything.** `Update()` cannot work in Game Mode —
+//! `flatpak-portal` insists on an "Update <app>?" dialog and resolves a backend from the
+//! session's portal configuration, which gamescope does not populate, so it answers
+//! `NotSupported / "No portal support found"` whatever the caller does. Installing is
+//! `payload.rs`'s job now. What remains here is the update CHECK, used only when the
+//! version feed is unreachable, and a capability probe for the debug channel.
+//!
+//! ⚠️ **The check only works when the app was installed from a REMOTE.** A single-file
 //! `.flatpak` bundle has no origin to pull from, so the monitor has nothing to check and
 //! reports nothing forever. That is not a failure state to display; it is why the CI job
 //! publishes an ostree repo.
@@ -50,7 +57,14 @@ mod imp {
             options: HashMap<&str, Value<'_>>,
         ) -> zbus::Result<OwnedObjectPath>;
 
-        #[zbus(property)]
+        /// ⚠️ `name = "version"` is required. zbus capitalises property names by
+        /// default, so this asked for `Version` and the portal answers
+        /// `org.freedesktop.DBus.Error.InvalidArgs: No such property "Version"` — which
+        /// surfaced as "portal UNAVAILABLE" and had me believing the portal was
+        /// unreachable when it was answering perfectly well. The real portal failure was
+        /// somewhere else entirely (no Access backend in gamescope); this only made it
+        /// harder to see.
+        #[zbus(property, name = "version")]
         fn version(&self) -> zbus::Result<u32>;
     }
 
@@ -125,50 +139,6 @@ mod imp {
         Ok(as_string(&info, "remote_commit").or_else(|| as_string(&info, "local_commit")))
     }
 
-    /// Install the pending update for THIS app.
-    ///
-    /// ⚠️ Takes effect on next launch. The running deployment stays mounted, so nothing
-    /// changes under the process — the UI must say "restart to finish" rather than
-    /// implying it already happened.
-    pub async fn install() -> Result<(), String> {
-        let connection = Connection::session().await.map_err(|e| e.to_string())?;
-        let monitor = monitor(&connection).await.map_err(|e| e.to_string())?;
-
-        let mut progress = monitor.receive_progress().await.map_err(|e| e.to_string())?;
-
-        // An empty parent window: we have no XDG window handle to hand over, and this
-        // update needs no dialog. The portal accepts "" for exactly this case.
-        let started = monitor.update("", HashMap::new()).await;
-        if let Err(error) = started {
-            let _ = monitor.close().await;
-            return Err(error.to_string());
-        }
-
-        let outcome = tokio::time::timeout(INSTALL_TIMEOUT, async {
-            while let Some(signal) = progress.next().await {
-                let Ok(args) = signal.args() else { continue };
-                let info = args.info;
-                match as_u32(&info, "status") {
-                    Some(STATUS_DONE) => return Ok(()),
-                    Some(STATUS_FAILED) => {
-                        // ⚠️ `error_message` is the human half; `error` is a D-Bus error
-                        // name. Reporting only the name gives the user a sentence they
-                        // cannot act on and cannot search for.
-                        return Err(as_string(&info, "error_message")
-                            .or_else(|| as_string(&info, "error"))
-                            .unwrap_or_else(|| "the update failed".into()));
-                    }
-                    _ => continue,
-                }
-            }
-            Err("the portal stopped reporting before the update finished".to_string())
-        })
-        .await;
-
-        let _ = monitor.close().await;
-        outcome.map_err(|_| "the update timed out".to_string())?
-    }
-
     /// Whether the portal is present, and WHY NOT when it is not.
     ///
     /// ⚠️ This returned `Option<u32>` and swallowed every error, which cost an evening:
@@ -189,9 +159,6 @@ mod imp {
 #[cfg(not(target_os = "linux"))]
 mod imp {
     pub async fn check() -> Result<Option<String>, String> {
-        Err("the Flatpak portal exists only on Linux".into())
-    }
-    pub async fn install() -> Result<(), String> {
         Err("the Flatpak portal exists only on Linux".into())
     }
     pub async fn portal_version() -> Result<u32, String> {
@@ -279,13 +246,7 @@ pub async fn flatpak_update_check() -> Result<Option<String>, String> {
     imp::check().await
 }
 
-#[tauri::command]
-pub async fn flatpak_update_install() -> Result<(), String> {
-    if !in_flatpak() {
-        return Err("not running inside a Flatpak".into());
-    }
-    imp::install().await
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -304,7 +265,6 @@ mod tests {
     #[tokio::test]
     async fn the_commands_refuse_outside_a_sandbox() {
         assert!(super::flatpak_update_check().await.is_err());
-        assert!(super::flatpak_update_install().await.is_err());
         // Reporting capability must still succeed — it is what the UI reads to decide
         // which sentence to show, so an error there blanks the page.
         let supported = super::flatpak_update_supported().await.expect("should report");

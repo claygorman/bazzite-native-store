@@ -212,10 +212,25 @@ export const SettingsView = ({
                      compare against. Same trick as Shelf.tsx.
               left   `-ml-8 pl-8` — the column gap, and no further: the rail is a
                      sibling and a wider negative margin would slide this box over it.
-              y      `-my-8 py-8` — 2rem, past which the Gaussian is under ~2% alpha
-                     and there is nothing left to clip.
+              y      `-my-8 py-8` — this one really is just padding; the box
+                     scrolls vertically, so its top and bottom edges are a scroll
+                     boundary and clipping there is expected.
+
+            ⚠️ AND `overflow-x: clip` with a 4.5rem `overflow-clip-margin`, which is the
+            fix that actually works. Padding alone cannot solve this: a scroll container
+            clips at its padding box, so ANY finite padding just moves the hard edge
+            further out — 0.375rem, then 2rem, and the seam was still there at 2rem
+            because the glow reaches 4.5rem. `clip` lets paint escape the box by the
+            margin instead of being cut at it, so nothing is clipped at all.
+
+            ⚠️ `clip` on x and `auto` on y is legal and keeps both values; `hidden` is
+            what would silently force the other axis into a scroll container. Same
+            pattern as Shelf.tsx, which learned it first.
           */}
-          <div className="-mx-8 -my-8 -mr-14 grid min-h-0 flex-1 grid-cols-2 content-start gap-x-7 gap-y-3 overflow-y-auto py-8 pl-8 pr-14">
+          <div
+            className="-mx-8 -my-8 -mr-14 grid min-h-0 flex-1 grid-cols-2 content-start gap-x-7 gap-y-3 overflow-y-auto overflow-x-clip py-8 pl-8 pr-14"
+            style={{ overflowClipMargin: '4.5rem' }}
+          >
             <Column
               title={page.colA.title}
               rows={page.colA.rows}
