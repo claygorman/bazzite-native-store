@@ -97,8 +97,12 @@ modules:
       # which binary to run. Without it every shell reads as 0.0.0 and a stale payload
       # would always win, so a `flatpak update` could be silently undone.
       - install -Dm755 flatpak/launch.sh /app/bin/bazzite-store-launch
-      - node -p "require('./package.json').version" > /tmp/APP_VERSION
-      - install -Dm644 /tmp/APP_VERSION /app/share/bazzite-store/VERSION
+      # ⚠️ Written straight into /app, NOT via /tmp. flatpak-builder runs every
+      # build-command in its own sandbox invocation, so /tmp is a fresh tmpfs each time
+      # and a file staged there is gone by the next line — the redirect succeeds and the
+      # install then cannot find it, which is exactly how 0.12.0 failed.
+      - mkdir -p /app/share/bazzite-store
+      - node -p "require('./package.json').version" > /app/share/bazzite-store/VERSION
       - install -Dm644 flatpak/com.claygorman.bazzite-store.desktop
         /app/share/applications/com.claygorman.bazzite-store.desktop
       - install -Dm644 flatpak/com.claygorman.bazzite-store.metainfo.xml
