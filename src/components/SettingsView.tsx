@@ -246,10 +246,15 @@ export const SettingsView = ({
                    the rail is dimmed and only glow reaches there.
             right  `-mr-8 pr-18`  — 2rem out, 4.5rem back, so the content keeps its 6rem
                    screen margin and the glow still has room.
-            y      `-my-8 py-8`   — this axis genuinely scrolls, so its ends are a scroll
-                   boundary; 2rem is comfort rather than correctness.
+            y      `-my-18 py-18` — 4.5rem, the SAME measured reach. This was 2rem and
+                   described as "comfort rather than correctness", which was wrong: the
+                   status card is the first child, so the container's top edge is
+                   exactly where its glow gets cut, and 2rem cut it. The negative margin
+                   lifts the box 4.5rem and the padding puts the content back, so at
+                   `scrollTop: 0` the card sits where it always did — the room is above
+                   it, inside the clip.
         */}
-        <div className="-mr-8 -my-8 -ml-18 flex min-h-0 min-w-0 flex-1 flex-col gap-6.5 overflow-y-auto py-8 pl-18 pr-18">
+        <div className="-mr-8 -my-18 -ml-18 flex min-h-0 min-w-0 flex-1 flex-col gap-6.5 overflow-y-auto py-18 pl-18 pr-18">
           {/*
             ⚠️ `relative z-10` with the ring, same as every other focused surface: a
             box-shadow paints OUTSIDE the element's box but takes no layout space, so a
