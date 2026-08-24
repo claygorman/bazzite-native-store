@@ -4,6 +4,7 @@ mod debugserver;
 mod display;
 mod flatpakupdate;
 mod input;
+mod payload;
 pub mod protondb;
 mod steam;
 mod steamclient;
@@ -244,6 +245,9 @@ pub fn run() {
             flatpakupdate::flatpak_update_check,
             flatpakupdate::flatpak_update_install,
             flatpakupdate::published_version,
+            payload::payload_install,
+            payload::payload_started,
+            payload::payload_state,
             proton_reports,
             proton_index_status,
             proton_refresh,

@@ -39,7 +39,7 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
   - org.freedesktop.Sdk.Extension.node24
 
-command: bazzite-store
+command: bazzite-store-launch
 
 finish-args:
   - --socket=wayland
@@ -92,6 +92,13 @@ modules:
       # the WebKit it must not carry.
       - pnpm tauri build --no-bundle
       - install -Dm755 src-tauri/target/release/bazzite-store /app/bin/bazzite-store
+      # ⚠️ The launcher becomes the entrypoint, and the shipped VERSION goes with it —
+      # `launch.sh` compares that file against a staged payload's own VERSION to decide
+      # which binary to run. Without it every shell reads as 0.0.0 and a stale payload
+      # would always win, so a `flatpak update` could be silently undone.
+      - install -Dm755 flatpak/launch.sh /app/bin/bazzite-store-launch
+      - node -p "require('./package.json').version" > /tmp/APP_VERSION
+      - install -Dm644 /tmp/APP_VERSION /app/share/bazzite-store/VERSION
       - install -Dm644 flatpak/com.claygorman.bazzite-store.desktop
         /app/share/applications/com.claygorman.bazzite-store.desktop
       - install -Dm644 flatpak/com.claygorman.bazzite-store.metainfo.xml

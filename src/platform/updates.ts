@@ -287,23 +287,42 @@ export const checkForUpdate = async (channel: UpdateChannel): Promise<UpdateStat
 export const installUpdate = async (
   channel: UpdateChannel,
   onProgress: (state: UpdateState) => void,
+  /** Which version to install. Only the Flatpak payload route needs it. */
+  version?: string,
 ): Promise<UpdateState> => {
   if (!isTauri()) return { status: 'unsupported' }
 
   if (await isFlatpak()) {
     /*
-     * ⚠️ No progress percentage here, and that is not laziness. The portal reports
-     * progress as an operation COUNT plus a per-operation percent, which does not
-     * compose into one honest bar — and a bar that invents its own number is worse
-     * than a spinner, the same rule the download branch below already follows.
+     * ⚠️ A PAYLOAD, not the Flatpak portal. The portal is the sanctioned route and
+     * cannot work here: it wants to show an "Update <app>?" dialog and resolves a
+     * backend from the session's portal configuration, which in gamescope registers
+     * none — so it answers NotSupported / "No portal support found" whatever the caller
+     * does. `--talk-name=org.freedesktop.Flatpak` would work and was rejected, because
+     * it lets the sandbox run any host command. See src-tauri/src/payload.rs.
      */
-    onProgress({ status: 'downloading', version: 'the new build' })
+    const target = version ?? (await publishedVersion())
+    if (target === undefined) {
+      return {
+        status: 'error',
+        message: 'no published version to install',
+        checkedAt: Date.now(),
+      }
+    }
+    /*
+     * ⚠️ No percentage. The download is one request whose progress we do not stream,
+     * and a bar that invents its own number is worse than a label that does not claim
+     * one — the same rule the Tauri branch below follows when there is no content
+     * length.
+     */
+    onProgress({ status: 'downloading', version: target })
     try {
       const { invoke } = await import('@tauri-apps/api/core')
-      await invoke('flatpak_update_install')
-      // ⚠️ The running deployment stays mounted, so nothing has changed under this
-      // process. `ready` is the honest state: it applies on restart.
-      return { status: 'ready', version: 'the new build' }
+      await invoke('payload_install', { version: target })
+      // ⚠️ `ready`, never "installed". The running process is still the old binary —
+      // the launcher picks the new one up next start, and saying otherwise would have
+      // someone looking for a change that cannot have happened yet.
+      return { status: 'ready', version: target }
     } catch (err) {
       return {
         status: 'error',

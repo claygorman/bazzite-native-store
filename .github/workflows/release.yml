@@ -521,6 +521,24 @@ jobs:
             || { echo "::error::no bazzite-store binary inside $bundle"; exit 1; }
           echo "$bundle contains bazzite-store"
 
+      # ⚠️ The SAME binary that went into the Flatpak, taken from the build tree rather
+      # than compiled again. Rebuilding it outside the sandbox would link it against the
+      # runner's libraries instead of `org.gnome.Platform//50`, and the whole payload
+      # design rests on it being interchangeable with the shipped one — that is the
+      # difference between this and the AppImage that bundled its own WebKit and died
+      # with EGL_BAD_PARAMETER.
+      - name: Export the payload binary
+        run: |
+          set -euo pipefail
+          install -Dm755 build/files/bin/bazzite-store payload/bazzite-store-linux-x86_64
+          ls -l payload/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: payload-linux-x86_64
+          path: payload/bazzite-store-linux-x86_64
+          retention-days: 1
+
       # ⚠️ Published only AFTER the bundle assertion above. A repo is what clients pull
       # from automatically, so shipping one that installs to a missing binary is worse
       # than shipping nothing — the bundle check is the gate.
@@ -555,6 +573,58 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
           gh release upload "${{ needs.release.outputs.version }}" *.flatpak \
+            --clobber --repo "$GITHUB_REPOSITORY"
+
+  payload:
+    name: Sign the payload
+    needs: [release, flatpak]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+      # ⚠️ A separate job rather than a step in `flatpak`, because signing needs node
+      # and the flathub builder container has none — node lives inside the flatpak
+      # SANDBOX there, as an SDK extension, not on the container itself.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: payload-linux-x86_64
+
+      # ⚠️ The same minisign key every other artifact is signed with, so the app can
+      # verify the payload against the pubkey already in tauri.conf.json. The private
+      # half exists only as a repository secret and is never handled locally.
+      - name: Sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x bazzite-store-linux-x86_64
+          pnpm tauri signer sign -f bazzite-store-linux-x86_64 \
+            > bazzite-store-linux-x86_64.sig
+          # ⚠️ Assert the signature is not empty. Tauri's signer exits 0 with nothing on
+          # stdout when the key is missing, and an empty .sig would ship an update every
+          # client silently refuses — indistinguishable from a network fault.
+          test -s bazzite-store-linux-x86_64.sig \
+            || { echo "::error::empty signature - is the signing key set?"; exit 1; }
+          wc -c bazzite-store-linux-x86_64 bazzite-store-linux-x86_64.sig
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.release.outputs.version }}" \
+            bazzite-store-linux-x86_64 bazzite-store-linux-x86_64.sig \
             --clobber --repo "$GITHUB_REPOSITORY"
 
   manifest:

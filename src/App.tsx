@@ -685,6 +685,20 @@ export const App = () => {
    */
   const [portalState, setPortalState] = useState('unknown')
 
+  /*
+   * ⚠️ Tells the launcher this payload works. `flatpak/launch.sh` writes a marker
+   * before handing over and refuses the payload if it is still there next time — so a
+   * binary that starts and dies is used once, not forever. Fired from an effect rather
+   * than at process start, because a process that reached main() and then crashed
+   * before drawing anything is still a broken payload.
+   */
+  useEffect(() => {
+    if (!isTauri()) return
+    void import('@tauri-apps/api/core')
+      .then(({ invoke }) => invoke('payload_started'))
+      .catch(() => undefined)
+  }, [])
+
   useEffect(() => {
     void flatpakUpdateSupport().then((support) => {
       setPortalState(
@@ -756,9 +770,13 @@ export const App = () => {
       if (result.status !== 'available' || settings.meteredConnection) return
       if (!autoInstallRef.current) return
 
-      const installed = await installUpdate(settings.updateChannel, (progress) => {
-        if (!cancelled) setUpdate(progress)
-      })
+      const installed = await installUpdate(
+        settings.updateChannel,
+        (progress) => {
+          if (!cancelled) setUpdate(progress)
+        },
+        result.version,
+      )
       if (cancelled) return
       /*
        * ⚠️ A failed install keeps the update AVAILABLE. It used to overwrite the state
@@ -975,7 +993,11 @@ export const App = () => {
         case 'check-updates':
           if (update.status === 'ready') return void relaunchApp()
           if (update.status === 'available') {
-            return void installUpdate(settings.updateChannel, setUpdate).then((next) => {
+            return void installUpdate(
+              settings.updateChannel,
+              setUpdate,
+              update.status === 'available' ? update.version : undefined,
+            ).then((next) => {
               setUpdate(next)
               // > Notify before restarting: ask first if an update needs a relaunch.
               if (next.status === 'ready' && !settings.notifyBeforeRestart) void relaunchApp()

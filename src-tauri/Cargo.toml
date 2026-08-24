@@ -72,6 +72,14 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 gilrs = "0.11"
 thiserror = "2"
 serde_urlencoded = "0.7"
+# Signature verification for the swappable payload (src/payload.rs). ⚠️ The trust
+# decision Flatpak used to make for us, so it is checked in-process against the SAME
+# minisign public key tauri.conf.json already carries — no second key, no second format.
+# Tiny and dependency-free; it verifies, it cannot sign.
+minisign-verify = "0.2"
+# Already compiled in as a transitive dependency; this only names the use. Tauri wraps
+# both the public key and the .sig in base64 around whole minisign files.
+base64 = "0.22"
 # ProtonDB's open data dump ships as .tar.gz. `reqwest`'s `gzip` feature only handles
 # HTTP content-encoding, which is a different thing from a gzipped file body — so the
 # archive has to be decompressed and untarred here.
