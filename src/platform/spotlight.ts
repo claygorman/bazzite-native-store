@@ -21,16 +21,28 @@
  * anyway would add a caller-supplied identity to a privileged call for no gain, and a
  * parameter that looks like it selects a user is worth attacking whether or not it works.
  *
- * ## ⚠️ We deliberately read only the APPIDS from this endpoint
+ * ## The real shape, measured on the box 2026-08-25
  *
- * The populated response shape has never been seen — only the empty one. Rather than guess
- * at field names inside `spotlight_recommendations[]` and ship a parser that silently yields
- * nothing when a guess is wrong, this takes the one thing that is unambiguous (appids) and
- * hydrates them with `GetItems`, which is already trusted, already batched and already
- * cached. The feature then works the moment the ids parse, whatever else is in there.
+ * This module was written against the EMPTY payload and deliberately read only appids,
+ * because guessing at field names inside `spotlight_recommendations[]` risked a parser that
+ * silently yields nothing. A populated 86 368-byte response has now been read, and the
+ * guess was right for a reason worth recording — there was nothing else to get:
  *
- * When the real shape IS known on hardware, richer fields can be lifted — but not before,
- * and `docs`/tests should be updated from a real sample rather than from a guess.
+ * ```
+ * spotlight_recommendations : array(20)  each element is { appid: number }  ← and nothing else
+ * spotlight_panels          : array(6)   each element is { appid: number }  ← and nothing else
+ * item_data.rgApps          : object(26) keyed by appid STRING, one per id above
+ * item_data.rgPackages      : array(0)   ⚠️ empty associative arrays serialize as []
+ * item_data.rgBundles       : array(0)
+ * ```
+ *
+ * So the two arrays carry ranking and nothing more; every fact lives in `rgApps`, whose
+ * entries hold `name`, `header`, `discount`, `review_summary`, `tagids`, `tags`,
+ * `microtrailer`, `screenshots` and `has_live_broadcast`. We still hydrate through
+ * `GetItems` rather than reading `rgApps`, because that path is already trusted, batched,
+ * cached and shared with every other shelf — one parser, not two. `has_live_broadcast` is
+ * the exception, lifted here because this is the only response that carries it (8 of 26
+ * were live at the time of measurement).
  */
 
 // ⚠️ TYPE-only import: erased at runtime, so `spotlight.test.ts` still loads under plain

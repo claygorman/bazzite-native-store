@@ -190,3 +190,46 @@ test('the empty payload has nothing live, and the array form is not walked for i
   })
   assert.equal(row?.live.has(1), false, 'only a real boolean true counts')
 })
+
+/**
+ * ⭐ **The shape this module was written blind against, now measured.**
+ *
+ * Read off a real signed-in client 2026-08-25: 86 368 bytes, 20 recommendations, 6 panels,
+ * 26 `rgApps` entries, 8 of them live. The elements of both ranked arrays carry `appid` and
+ * NOTHING ELSE, which is why reading only appids was right rather than merely cautious.
+ *
+ * ⚠️ This test exists so a future "richer parse" that reaches into
+ * `spotlight_recommendations[]` for a title or a price fails here instead of on a
+ * television — there is nothing in there to reach for.
+ */
+test('the measured payload: ranked arrays carry appid alone, facts live in rgApps', () => {
+  const recommendations = Array.from({ length: 20 }, (_, i) => ({ appid: 100 + i }))
+  const panels = Array.from({ length: 6 }, (_, i) => ({ appid: 200 + i }))
+  const rgApps = Object.fromEntries(
+    [...recommendations, ...panels].map(({ appid }, i) => [
+      String(appid),
+      {
+        name: `game ${appid}`,
+        header: `https://example.invalid/${appid}.jpg`,
+        tagids: [1, 2, 3],
+        review_summary: 8,
+        // 8 of 26, matching the live measurement.
+        has_live_broadcast: i < 8,
+      },
+    ]),
+  )
+  const row = spotlightRow({
+    spotlight_recommendations: recommendations,
+    spotlight_panels: panels,
+    // ⚠️ PHP serializes an empty associative array as `[]`, so these arrive as arrays
+    // even though the populated form would be an object. Neither may derail the parse.
+    item_data: { rgApps, rgPackages: [], rgBundles: [] },
+  })
+
+  assert.equal(row?.ranked, true, 'the ranked lists were present, so the row is ranked')
+  assert.equal(row?.appids.length, 26, '20 recommendations + 6 panels, none dropped')
+  // Recommendations rank ahead of panels, in the order Steam sent them.
+  assert.deepEqual(row?.appids.slice(0, 3), [100, 101, 102])
+  assert.deepEqual(row?.appids.slice(20, 23), [200, 201, 202])
+  assert.equal(row?.live.size, 8, '8 of 26 were broadcasting')
+})

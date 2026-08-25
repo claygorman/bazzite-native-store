@@ -149,12 +149,42 @@ async fn session_get(
     query: &HashMap<String, String>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let targets = steam_targets().await?;
+    let url = build_url(path, query);
+    let mut last: Option<String> = None;
+
+    /*
+     * ⭐ **The privileged load first, because it is the only route that always works.**
+     *
+     * The `fetch` below is page script and therefore subject to Steam's per-endpoint CORS
+     * allowlist; `load_resource` is a DevTools load and is not. Measured on the box
+     * 2026-08-25 with Big Picture open on the library — i.e. the ordinary case:
+     *
+     *   Runtime.evaluate + fetch     -> TypeError: Failed to fetch
+     *   Network.loadNetworkResource  -> 200, 86 368 bytes, 20 recommendations
+     *
+     * ⚠️ **This is why the spotlight row was dead in normal use and looked alive in
+     * testing.** `session_get` had two candidate origins and both were dead ends: the
+     * loopback shell is CORS-refused for this endpoint, and a `store.steampowered.com`
+     * target only exists while a real store page is open — which, in an app whose whole
+     * purpose is to replace that page, is never. The row silently fell back to
+     * `top_sellers` on every launch and the fallback is deliberately indistinguishable
+     * from success. Verified only ever from a hand-opened store tab, which is the one
+     * condition that does not hold in production.
+     */
+    if let Some(socket_url) = ws_url(&targets, &[LOOPBACK_ORIGIN]) {
+        match load_resource(&socket_url, &url).await {
+            Ok(body) => return Ok(body),
+            // ⚠️ The MESSAGE, not the error — see the note on the loop below.
+            Err(e) => last = Some(e.to_string()),
+        }
+    }
+
     let expression = format!(
         "fetch({}, {{ credentials: 'include' }}).then(r => r.text())",
-        serde_json::to_string(&build_url(path, query))?
+        serde_json::to_string(&url)?
     );
 
-    // ⚠️ Try every candidate origin, do not just pick the best one.
+    // ⚠️ Kept as the fallback, and try every candidate origin rather than the best one.
     //
     // Steam's CORS allowlist is PER ENDPOINT, which is not something you would guess.
     // Measured 2026-08-23 from `SharedJSContext`:
@@ -170,7 +200,6 @@ async fn session_get(
     // problem at all. Shared context first because when both exist it is the signed-in
     // one; the store page is a fallback that is usually anonymous but never worse than
     // nothing.
-    let mut last: Option<String> = None;
     for origin in [LOOPBACK_ORIGIN, STORE_ORIGIN] {
         let Some(socket_url) = ws_url(&targets, &[origin]) else { continue };
         match evaluate(&socket_url, &expression).await {
@@ -292,6 +321,163 @@ async fn evaluate(
             .unwrap_or("no string body in evaluate result");
         return Err(reason.into());
     }
+}
+
+/// An open CDP socket. Named because the resource loader passes one between steps.
+type Socket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+/// One CDP call on an already-open socket: send a method, read frames until our own id
+/// comes back.
+///
+/// ⚠️ Matching on the id is not pedantry. `SharedJSContext` is Steam's own busy UI, so
+/// the first frames back are almost always unsolicited events for somebody else's
+/// traffic. Trusting the first frame reads a `Network.requestWillBeSent` as your answer.
+async fn cdp(
+    socket: &mut Socket,
+    id: u64,
+    method: &str,
+    params: Value,
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let request = serde_json::json!({ "id": id, "method": method, "params": params });
+    socket.send(Message::Text(request.to_string().into())).await?;
+
+    let deadline = tokio::time::Instant::now() + TIMEOUT;
+    loop {
+        let frame =
+            tokio::time::timeout_at(deadline, socket.next()).await?.ok_or("socket closed")??;
+        let Message::Text(text) = frame else { continue };
+        let message: Value = serde_json::from_str(&text)?;
+        if message.get("id").and_then(Value::as_u64) != Some(id) {
+            continue;
+        }
+        // ⚠️ A CDP protocol error arrives as a 200-shaped frame with an `error` member,
+        // never as a transport failure. Reading only `result` turns "no such method" into
+        // a silent empty answer.
+        if let Some(reason) = message.pointer("/error/message").and_then(Value::as_str) {
+            return Err(format!("{method}: {reason}").into());
+        }
+        return Ok(message.get("result").cloned().unwrap_or(Value::Null));
+    }
+}
+
+/// A ceiling on what this app will hold in memory from a response it does not control.
+/// The largest real payload measured here is 86 KB, so this is ~95x headroom.
+const MAX_BODY: usize = 8 * 1024 * 1024;
+
+/// Fetch a url through **CEF's own network stack**, from inside the signed-in target.
+///
+/// ⭐ **The route that CORS does not apply to, and the reason the spotlight row works.**
+///
+/// `Runtime.evaluate` runs a `fetch` as *page script*, so it is bound by the page's
+/// origin and Steam's per-endpoint CORS allowlist. `Network.loadNetworkResource` is a
+/// DevTools-privileged load — it is how a debugger fetches a sourcemap — so it goes
+/// straight out through the browser's network stack with the frame's cookies attached
+/// and no preflight. Measured on the box 2026-08-25, same client, same second:
+///
+/// | route                                       | result                        |
+/// |---------------------------------------------|-------------------------------|
+/// | `Runtime.evaluate` + `fetch` from loopback  | `TypeError: Failed to fetch`  |
+/// | `Network.loadNetworkResource` from loopback | 200, 86 368 bytes, populated  |
+///
+/// ⚠️ **This still handles no credential.** The cookie is attached by CEF, inside CEF,
+/// and never crosses into this process — which is the whole reason to prefer this over
+/// reading the cookie jar with `Network.getCookies` and replaying it from `reqwest`.
+/// That also works and was rejected: it would make this module hold a live
+/// `steamLoginSecure`, and the promise that it never does is worth more than the
+/// simpler code.
+///
+/// ⚠️ `frameId` is required and the error for omitting it — "Parameter frameId must be
+/// provided for frame targets" — is a CDP protocol error, so it surfaces only if `cdp`
+/// reads the `error` member.
+async fn load_resource(socket_url: &str, url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let (mut socket, _) =
+        tokio::time::timeout(TIMEOUT, tokio_tungstenite::connect_async(socket_url.to_owned()))
+            .await??;
+
+    let mut id = 0u64;
+    let mut next = || {
+        id += 1;
+        id
+    };
+
+    let tree = cdp(&mut socket, next(), "Page.getFrameTree", serde_json::json!({})).await?;
+    let frame = tree
+        .pointer("/frameTree/frame/id")
+        .and_then(Value::as_str)
+        .ok_or("that target has no frame to load from")?
+        .to_owned();
+
+    let loaded = cdp(
+        &mut socket,
+        next(),
+        "Network.loadNetworkResource",
+        serde_json::json!({
+            "frameId": frame,
+            "url": url,
+            // `disableCache` because a stale personalised row is worse than a slow one,
+            // and `includeCredentials` is the entire point — without it this is anonymous
+            // and Steam answers 200 with every array empty.
+            "options": { "disableCache": true, "includeCredentials": true },
+        }),
+    )
+    .await?;
+
+    // ⚠️ `success: false` is how a refused load arrives — NOT as a CDP error. The reason
+    // lives in two different members depending on whether it failed below HTTP or at it.
+    if loaded.pointer("/resource/success").and_then(Value::as_bool) != Some(true) {
+        let why = loaded
+            .pointer("/resource/netErrorName")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .or_else(|| {
+                loaded
+                    .pointer("/resource/httpStatusCode")
+                    .and_then(Value::as_u64)
+                    .map(|code| format!("HTTP {code}"))
+            })
+            .unwrap_or_else(|| "the load failed and gave no reason".into());
+        return Err(why.into());
+    }
+
+    let handle = loaded
+        .pointer("/resource/stream")
+        .and_then(Value::as_str)
+        .ok_or("the load succeeded but returned no stream")?
+        .to_owned();
+
+    let mut body = String::new();
+    loop {
+        let chunk = cdp(
+            &mut socket,
+            next(),
+            "IO.read",
+            serde_json::json!({ "handle": handle, "size": 262_144 }),
+        )
+        .await?;
+        if let Some(data) = chunk.get("data").and_then(Value::as_str) {
+            // ⚠️ The flag is PER CHUNK and must be read every time. A text stream may
+            // still base64 an individual chunk, and assuming it never does corrupts the
+            // body somewhere in the middle rather than failing outright.
+            if chunk.get("base64Encoded").and_then(Value::as_bool) == Some(true) {
+                use base64::Engine as _;
+                let raw = base64::engine::general_purpose::STANDARD.decode(data)?;
+                body.push_str(&String::from_utf8_lossy(&raw));
+            } else {
+                body.push_str(data);
+            }
+        }
+        if body.len() > MAX_BODY {
+            return Err("the response is larger than this app will hold".into());
+        }
+        if chunk.get("eof").and_then(Value::as_bool) == Some(true) {
+            break;
+        }
+    }
+
+    // Best effort — the socket closes on drop, which frees the stream anyway.
+    let _ = cdp(&mut socket, next(), "IO.close", serde_json::json!({ "handle": handle })).await;
+    Ok(body)
 }
 
 /// ⚠️ **Absolute, and it has to be.** The signed-in target is on `steamloopback.host`, so
