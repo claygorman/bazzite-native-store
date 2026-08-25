@@ -180,7 +180,24 @@ export const DetailsPage = ({
         `absolute` positioning.
       */}
       {screen === 1 && (
-        <motion.div key="about" className="absolute inset-0" {...PAGE_ENTER}>
+        /*
+          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
+          subtree animating opacity AND y, and it carries the things that are expensive to
+          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
+          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
+          the 170ms enter, which is what made switching tabs feel laggy while the Overview
+          screen (already promoted) felt fine.
+
+          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
+          subtree in one frame. It only stops that subtree being repainted 10 more times on
+          the way in.
+        */
+        <motion.div
+          key="about"
+          style={{ willChange: 'transform, opacity' }}
+          className="absolute inset-0 transform-gpu"
+          {...PAGE_ENTER}
+        >
           <DetailsAbout
             details={details}
             proton={proton}
@@ -203,7 +220,24 @@ export const DetailsPage = ({
         </motion.div>
       )}
       {screen === 2 && (
-        <motion.div key="proton" className="absolute inset-0" {...PAGE_ENTER}>
+        /*
+          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
+          subtree animating opacity AND y, and it carries the things that are expensive to
+          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
+          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
+          the 170ms enter, which is what made switching tabs feel laggy while the Overview
+          screen (already promoted) felt fine.
+
+          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
+          subtree in one frame. It only stops that subtree being repainted 10 more times on
+          the way in.
+        */
+        <motion.div
+          key="proton"
+          style={{ willChange: 'transform, opacity' }}
+          className="absolute inset-0 transform-gpu"
+          {...PAGE_ENTER}
+        >
           <DetailsProton
             name={name}
             rating={proton}
@@ -234,7 +268,24 @@ export const DetailsPage = ({
         </motion.div>
       )}
       {screen === 3 && (
-        <motion.div key="extras" className="absolute inset-0" {...PAGE_ENTER}>
+        /*
+          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
+          subtree animating opacity AND y, and it carries the things that are expensive to
+          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
+          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
+          the 170ms enter, which is what made switching tabs feel laggy while the Overview
+          screen (already promoted) felt fine.
+
+          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
+          subtree in one frame. It only stops that subtree being repainted 10 more times on
+          the way in.
+        */
+        <motion.div
+          key="extras"
+          style={{ willChange: 'transform, opacity' }}
+          className="absolute inset-0 transform-gpu"
+          {...PAGE_ENTER}
+        >
           <DetailsExtras
             details={details}
             reviews={reviews}
