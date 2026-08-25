@@ -463,7 +463,35 @@ export const App = () => {
     status: 'loading' as const,
   }
   const detailsState = useAppDetails(view.screen === 'details' ? view.appid : undefined)
-  const protonReports = useProtonReports(view.screen === 'details' ? view.appid : undefined)
+  /**
+   * The rendering GPU, for the ProtonDB tab's on-your-hardware score.
+   *
+   * ⚠️ Read once here rather than through `useSystemStatus`, which is gated to the
+   * Settings screen because it also times the four upstreams. Borrowing it would run a
+   * network probe every time someone opened a game page. This is one local invoke that
+   * reads `/sys/class/drm`, and it is `undefined` in the browser build — which the
+   * score already treats as "nothing to match against" rather than as zero evidence.
+   */
+  const [hostGpu, setHostGpu] = useState<string | undefined>(undefined)
+  /*
+   * ⚠️ The same invoke already returns `os` (`PRETTY_NAME`), and `reportDistro: 'auto'` is
+   * defined as "read it off this machine" — so this costs nothing beyond a second setState.
+   * Kept separate from `hostGpu` rather than held as one object because the two feed
+   * different subsystems and a combined object would rerender both when either arrives.
+   */
+  const [hostOs, setHostOs] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    void loadHostInfo().then((host) => {
+      setHostGpu(host.gpu)
+      setHostOs(host.os)
+    })
+  }, [])
+
+  const protonReports = useProtonReports(
+    view.screen === 'details' ? view.appid : undefined,
+    settings.reportDistro,
+    hostOs,
+  )
   const offers = useOffers(
     view.screen === 'details' ? view.appid : undefined,
     detailsState.details?.demoAppid,
@@ -480,19 +508,6 @@ export const App = () => {
   // bundle from a two-card one opens with the cursor past the end.
   useEffect(() => setBundleIndex(0), [view.screen === 'bundle' ? view.bundleid : undefined])
 
-  /**
-   * The rendering GPU, for the ProtonDB tab's on-your-hardware score.
-   *
-   * ⚠️ Read once here rather than through `useSystemStatus`, which is gated to the
-   * Settings screen because it also times the four upstreams. Borrowing it would run a
-   * network probe every time someone opened a game page. This is one local invoke that
-   * reads `/sys/class/drm`, and it is `undefined` in the browser build — which the
-   * score already treats as "nothing to match against" rather than as zero evidence.
-   */
-  const [hostGpu, setHostGpu] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    void loadHostInfo().then((host) => setHostGpu(host.gpu))
-  }, [])
 
   // Clamp gallery navigation to what actually exists, so holding a direction does
   // not run the index off the end and leave the user pressing back through nothing.

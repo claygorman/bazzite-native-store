@@ -116,7 +116,6 @@ export type Settings = {
   requestTimeoutMs: number
   meteredConnection: boolean
   offlineMode: boolean
-  prefetchFocused: boolean
   debugLogging: boolean
   debugServer: boolean
 }
@@ -169,7 +168,6 @@ export const DEFAULT_SETTINGS: Settings = {
   requestTimeoutMs: 8000,
   meteredConnection: false,
   offlineMode: false,
-  prefetchFocused: true,
   // ⚠️ Off, and it must stay off by default: enabled it writes a line per HTTP request.
   // A diagnostic you turn on to reproduce something, not a thing running forever.
   debugLogging: false,

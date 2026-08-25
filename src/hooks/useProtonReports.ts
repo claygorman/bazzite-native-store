@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { readProtonReports, type ProtonReport } from '../platform/protonReports'
 import { readDumpStatus, type DumpPhase } from '../platform/protonDump'
+import { scopeToDistro, type NamedDistro, type UnscopedReason } from '../platform/reportDistro'
+import type { ReportDistro } from '../platform/settings'
 
 /**
  * The report feed for one game, plus WHY it is empty when it is.
@@ -13,13 +15,29 @@ import { readDumpStatus, type DumpPhase } from '../platform/protonDump'
  * say something about the GAME that is actually true about the client.
  */
 export type ProtonReportsState = {
+  /** Already scoped to `distro` — see `scopeToDistro`. */
   reports: ProtonReport[]
   /** `unavailable` in the browser, `absent` until the archive is fetched. */
   phase: DumpPhase
   loading: boolean
+  /**
+   * Which distribution the list was narrowed to, and why it was not.
+   *
+   * ⚠️ Reported rather than inferred, for the same reason `phase` is: a caller cannot
+   * tell a scoped list from an unscoped one by looking at it, and "these are Bazzite
+   * reports" is a claim the UI must not make on its own.
+   */
+  distro?: NamedDistro
+  unscoped?: UnscopedReason
 }
 
-export const useProtonReports = (appid: number | undefined): ProtonReportsState => {
+export const useProtonReports = (
+  appid: number | undefined,
+  /** The `reportDistro` setting. `any` is off; `auto` reads `hostOs`. */
+  distro: ReportDistro = 'any',
+  /** This machine's `PRETTY_NAME`, for `auto`. */
+  hostOs?: string,
+): ProtonReportsState => {
   const [state, setState] = useState<ProtonReportsState>({
     reports: [],
     phase: 'unavailable',
@@ -45,13 +63,26 @@ export const useProtonReports = (appid: number | undefined): ProtonReportsState 
       }
       const reports = await readProtonReports(appid)
       if (!alive) return
-      setState({ reports, phase: 'ready', loading: false })
+      /*
+       * ⚠️ Scoped HERE and not in the component, so every consumer of this hook gets the
+       * same list. The details page, the hardware score and the outcome bars all read
+       * `reports`, and three of them filtering separately is three chances to disagree
+       * about what the user is looking at.
+       */
+      const scope = scopeToDistro(reports, distro, hostOs)
+      setState({
+        reports: scope.reports,
+        phase: 'ready',
+        loading: false,
+        distro: scope.applied,
+        unscoped: scope.unscoped,
+      })
     })()
 
     return () => {
       alive = false
     }
-  }, [appid])
+  }, [appid, distro, hostOs])
 
   return state
 }

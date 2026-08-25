@@ -9,6 +9,11 @@ import {
 import { RUNGS, scoreForHardware, verdictFor, type Rung } from '../../platform/hardwareScore'
 import type { ProtonState } from '../../hooks/useProtonRating'
 import type { DumpPhase } from '../../platform/protonDump'
+import {
+  DISTRO_LABEL,
+  type NamedDistro,
+  type UnscopedReason,
+} from '../../platform/reportDistro'
 import { ValueSelect } from '../ValueSelect'
 import { ControllerGlyph } from '../ControllerGlyph'
 import type { InputSource } from '../../platform/glyphs'
@@ -46,6 +51,14 @@ type Props = {
   name?: string
   rating: ProtonState
   reports: ProtonReport[]
+  /** The distribution `reports` was narrowed to, if any — see `scopeToDistro`. */
+  distro?: NamedDistro
+  /**
+   * Why it was NOT narrowed. ⚠️ Rendered, not swallowed: a list that was silently
+   * widened back to every distro while the setting says "Bazzite" is the setting lying,
+   * and this row already shipped once as a control that did nothing.
+   */
+  unscoped?: UnscopedReason
   /** Why the report list is empty, when it is. */
   phase: DumpPhase
   reportsLoading: boolean
@@ -283,6 +296,8 @@ export const DetailsProton = ({
   name,
   rating,
   reports,
+  distro,
+  unscoped,
   phase,
   reportsLoading,
   hostGpu,
@@ -372,13 +387,24 @@ export const DetailsProton = ({
             <div className="flex flex-col gap-3">
               <div className="flex items-baseline gap-3.5">
                 <Caption>
-                  What {reports.length.toLocaleString('en-US')} reporters said happened
+                  What {reports.length.toLocaleString('en-US')}
+                  {distro === undefined ? ' ' : ` ${DISTRO_LABEL[distro]} `}
+                  reporters said happened
                 </Caption>
                 <span className="text-base font-medium text-ink-3/40">
                   {/* ⚠️ Counts, never percentages, and this line says why: the median
                       game in the archive has two reports, so "50%" is routinely one
-                      person. */}
-                  their own answers, not a computed grade
+                      person.
+
+                      ⚠️ And when the distro scope was asked for but could not be applied,
+                      say THAT instead. A list quietly widened back to every distro while
+                      Settings reads "Bazzite" is the same class of lie as the row that
+                      read nothing at all. */}
+                  {unscoped === 'noReportsFromThere'
+                    ? 'nobody reported this one from your distro — showing every distro'
+                    : unscoped === 'unknownHost'
+                      ? 'this machine’s distro is not one of the ones reported on — showing every distro'
+                      : 'their own answers, not a computed grade'}
                 </span>
               </div>
               <div className="flex h-4.5 overflow-hidden rounded-full bg-chip">

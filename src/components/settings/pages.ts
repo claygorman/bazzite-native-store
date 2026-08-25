@@ -299,7 +299,18 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
       rows: [
         step('region', 'Store region', 'Prices, currency and release dates follow this'),
         step('requestTimeoutMs', 'Request timeout', 'Give up on a slow endpoint after this'),
-        toggle('meteredConnection', 'Metered connection', 'Stops trailer and artwork prefetch'),
+        /*
+         * ⚠️ The description used to read "Stops trailer and artwork prefetch", naming the
+         * same prefetch that does not exist. The toggle itself is real — `App.tsx` checks it
+         * before the automatic update download, a ~16 MB transfer with nobody waiting on it
+         * — so this is a wording fix, not a wiring one. A true switch with a false label is
+         * still a lie, and this one sent me looking for a prefetch for ten minutes.
+         */
+        toggle(
+          'meteredConnection',
+          'Metered connection',
+          'Holds back the automatic update download',
+        ),
         toggle('offlineMode', 'Offline mode', 'Browse the cache, make no requests at all'),
         /*
          * ⚠️ Here rather than on About, because what it logs is REQUESTS — which host,
@@ -322,7 +333,14 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
     colB: {
       title: 'Requests',
       rows: [
-        toggle('prefetchFocused', 'Prefetch focused tile', 'Loads details before you press A'),
+        /*
+         * ⚠️ **"Prefetch focused tile" was REMOVED here, 2026-08-25.** There is no prefetch
+         * in this app — nothing anywhere loads a tile's details before A is pressed — so the
+         * switch described a feature that does not exist and could not be wired without
+         * building one. The project's rule is that a switch which changes nothing is
+         * indistinguishable from a broken one at ten feet, and the honest options were
+         * build it or pull it. Pulled. If prefetch is ever built, the row comes back WITH it.
+         */
         button(
           'run-diagnostics',
           'Re-check services',
