@@ -1,3 +1,27 @@
+# [0.18.0](https://github.com/claygorman/bazzite-native-store/compare/0.17.0...0.18.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* a successful Steam sign-in now tells the UI it happened ([8531234](https://github.com/claygorman/bazzite-native-store/commit/85312340e15760e95f7535bf4020724898da6747))
+* Reduce motion stops being a half-truth ([42aee82](https://github.com/claygorman/bazzite-native-store/commit/42aee8299c2ed76b4409d2f41c6592408bee0dee))
+* X unmutes again, and the ambient wash stops re-blurring at idle ([1aec6ad](https://github.com/claygorman/bazzite-native-store/commit/1aec6adbde1587b4fa7d5be6f27e655e1f747122))
+
+
+### Features
+
+* the detail tabs move as a filmstrip instead of appearing in place ([fe5ec21](https://github.com/claygorman/bazzite-native-store/commit/fe5ec21a2e845ac2df4479bfea29e38f7f0cd79e))
+
+
+### Performance Improvements
+
+* the animations stop asking the browser for layout and blur every frame ([986b40b](https://github.com/claygorman/bazzite-native-store/commit/986b40b5ac4d22f436d2577be9c9e0f23753512f))
+* the detail pager becomes a real strip, so a tab switch has nothing to block on ([14e7cc3](https://github.com/claygorman/bazzite-native-store/commit/14e7cc346fb28df27db4b329088c78fe77a779e6))
+* the hero/offers transition stops re-rasterising two shadows per frame ([e834052](https://github.com/claygorman/bazzite-native-store/commit/e8340526ae7d85db0aa5d4753798ae87ab894e98))
+* the offers band slides on a transform instead of relaying out the page ([c41c2b7](https://github.com/claygorman/bazzite-native-store/commit/c41c2b793acdb5b9ee9c9ac67f59a343362d58b3))
+* the tab swipe stops snapping — async image decode, and a curve for the distance ([4540f59](https://github.com/claygorman/bazzite-native-store/commit/4540f591824c4c2563f432db20ae6ccc26d0adab))
+* the three detail tabs get the promotion the Overview screen already had ([c0286c0](https://github.com/claygorman/bazzite-native-store/commit/c0286c014f6ad90ef7b59378f0fb6103fe0cb7f7))
+
 # [0.17.0](https://github.com/claygorman/bazzite-native-store/compare/0.16.0...0.17.0) (2026-08-25)
 
 
