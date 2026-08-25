@@ -36,6 +36,15 @@ export type ProtonReport = {
    * years and older reports simply do not carry the newer questions — treating an
    * absent answer as a negative turns a fine report into a broken one.
    */
+  /**
+   * ⚠️ **Parsed, and deliberately not shown anywhere.** ProtonDB stopped asking this after
+   * 2022 — zero answers across 203,560 reports from 2023 on — and a report is a verdict on a
+   * Proton version rather than on the game, so a 2022 "blocked" cannot be checked against
+   * today's stack. The details page's Anti-cheat panel was removed 2026-08-25 for exactly
+   * that. Kept on the type because the archive carries the column and dropping it would
+   * misrepresent the source shape; do not build a feature on it without checking whether
+   * ProtonDB has started asking again.
+   */
   anticheat?: boolean
   installs?: boolean
   opens?: boolean

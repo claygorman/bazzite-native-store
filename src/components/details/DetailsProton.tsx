@@ -9,7 +9,6 @@ import {
 import { RUNGS, scoreForHardware, verdictFor, type Rung } from '../../platform/hardwareScore'
 import type { ProtonState } from '../../hooks/useProtonRating'
 import type { DumpPhase } from '../../platform/protonDump'
-import { anticheatSummary, anticheatVerdict, answeredYear } from '../../platform/anticheat'
 import {
   DISTRO_LABEL,
   type NamedDistro,
@@ -336,14 +335,6 @@ export const DetailsProton = ({
 
   const hardware = scoreForHardware(reports, hostGpu)
 
-  /*
-   * ⚠️ `undefined` and `false` are different answers — see `anticheatSummary`, which also
-   * carries WHEN the question was last answered. ProtonDB stopped asking after 2022, so an
-   * undated verdict here reports a four-year-old fact as though it were today's.
-   */
-  const anticheat = anticheatSummary(reports)
-  const anticheatVerdictNow = anticheatVerdict(anticheat)
-  const anticheatYear = answeredYear(anticheat)
 
   return (
     <div className="absolute inset-x-13 bottom-22 top-25 flex items-stretch gap-6.5 overflow-hidden p-3">
@@ -568,52 +559,28 @@ export const DetailsProton = ({
             </Missing>
           )}
 
-          {ready ? (
-            <div
-              className={`flex flex-1 flex-col gap-2.5 rounded-xl border p-5.5 ${
-                /* ⚠️ The alarm colour is reserved for a CURRENT claim. A 2022 verdict
-                   gets the ordinary plate — see the dated line below. */
-                anticheat.blocked > 0 ? 'border-bad/40 bg-bad-wash' : 'border-hairline bg-chip-soft'
-              }`}
-            >
-              <Caption>Anti-cheat</Caption>
-              {anticheatVerdictNow === 'unasked' ? (
-                <span className="text-lg font-medium leading-[1.35] text-ink-2/70 text-pretty">
-                  Nobody who reported this game was asked about anti-cheat.
-                </span>
-              ) : (
-                <>
-                  <span className="text-2xl font-extrabold text-ink">
-                    {anticheatVerdictNow === 'clear'
-                      ? 'Not reported as a blocker'
-                      : anticheatVerdictNow === 'blocking'
-                        ? 'Was reported as blocking'
-                        : 'Was partly blocked'}
-                  </span>
-                  <span className="text-lg font-medium leading-[1.35] text-ink-2/78 text-pretty">
-                    {anticheat.blocked} of {anticheat.asked} reports that were asked said
-                    anti-cheat got in the way.
-                  </span>
-                  {/*
-                    ⚠️⚠️ **The line that stops this being a lie.** ProtonDB has not asked
-                    anybody about anti-cheat since 2022 — zero answers across 203,560 reports
-                    from 2023 on — so every verdict above is history. Undated, this panel told
-                    a wishlist game "reported as blocking" on 2022 evidence while Valve's
-                    current Deck verdict for it said Playable. The year is read from the data
-                    rather than hardcoded, so it stays true if ProtonDB ever asks again.
-                  */}
-                  <span className="text-base font-medium leading-[1.35] text-ink-3/45 text-pretty">
-                    Last asked in {anticheatYear}. ProtonDB stopped asking, so this is history
-                    — the Deck verdict above is the maintained answer.
-                  </span>
-                </>
-              )}
-            </div>
-          ) : (
-            <Missing caption="Anti-cheat" className="flex-1">
-              Answered in 21,890 reports across the archive. None of them are here yet.
-            </Missing>
-          )}
+          {/*
+            ⚠️ **The "Anti-cheat" panel was REMOVED here, 2026-08-25.** It reported the
+            ProtonDB archive's `isImpactedByAntiCheat` answers — and ProtonDB stopped asking
+            that question after 2022: zero answers across 203,560 reports from 2023 on,
+            measured against the real archive.
+
+            It was briefly changed to date its own claim ("Last asked in 2022…") rather than
+            drop it. Clay's call to remove it outright, and the right one — for a reason
+            sharper than staleness: **a report is a verdict on a Proton version, not on the
+            game.** Proton has shipped many major releases since 2022, GE builds alongside
+            them, and publishers have opted EAC and BattlEye into Linux in that time. A 2022
+            "anti-cheat blocked this" therefore cannot be checked against today's stack, and
+            nothing in the report tells you whether a later fix landed. It is unfalsifiable,
+            which is worse than merely old.
+
+            The panel had been telling a wishlist game "reported as blocking" on 2022 evidence
+            while Valve's current Deck verdict for it was *Playable*.
+
+            ⚠️ This is NOT "anti-cheat is fine on Linux" — kernel anti-cheat still blocks real
+            games. It is that this SOURCE stopped measuring it. The live signal is the Deck
+            verdict, which Valve maintains and which is already on every card and above.
+          */}
         </div>
 
         {ready ? (

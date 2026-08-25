@@ -229,10 +229,16 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
          * 2022 — and Valve's CURRENT Deck verdict for it is *Playable*. The badge would have
          * contradicted a maintained source and been wrong, on a game already on the wishlist.
          *
+         * ⚠️ And a report is a verdict on a PROTON VERSION, not on the game. Proton has had
+         * many major releases since 2022, GE builds alongside them, and publishers have opted
+         * EAC and BattlEye into Linux in that time — so a 2022 "blocked" cannot be checked
+         * against today's stack and nothing in the report says whether a later fix landed.
+         * Unfalsifiable, which is worse than merely old.
+         *
          * ⚠️ This is NOT "anti-cheat is fine on Linux" — kernel anti-cheat still blocks real
          * games. It is that this SOURCE stopped measuring it. The live signal is the Deck
-         * verdict, maintained by Valve and already on every card. See `platform/anticheat.ts`
-         * for the numbers, and the details panel now DATES its claim rather than hiding it.
+         * verdict, maintained by Valve and already on every card. The details page's
+         * Anti-cheat panel was removed for the same reason; see `DetailsProton.tsx`.
          */
       ],
     },
