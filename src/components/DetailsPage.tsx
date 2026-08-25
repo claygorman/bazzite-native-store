@@ -162,6 +162,7 @@ export const DetailsPage = ({
           src={art}
           alt=""
           aria-hidden
+          decoding="async"
           className="absolute inset-0 h-full w-full scale-112 object-cover opacity-60 blur-[1rem] saturate-125"
         />
       )}

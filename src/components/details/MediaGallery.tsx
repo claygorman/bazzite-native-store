@@ -229,6 +229,7 @@ export const MediaGallery = ({
         {/* The still stays mounted under the video so a failed clip is invisible. */}
         <img
           key={current.thumb}
+          decoding="async"
           src={current.kind === 'video' ? current.thumb : current.src}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
@@ -309,7 +310,7 @@ export const MediaGallery = ({
                 i === safeIndex ? 'relative z-10 opacity-100 ring-flat' : 'opacity-45',
               ].join(' ')}
             >
-              <img src={item.thumb} alt="" className="h-full w-full object-cover" />
+              <img src={item.thumb} alt="" decoding="async" className="h-full w-full object-cover" />
               {item.kind === 'video' && (
                 <span className="absolute inset-0 grid place-items-center bg-[rgba(8,13,22,.35)]">
                   <span className="h-0 w-0 border-y-[0.5rem] border-l-[0.75rem] border-y-transparent border-l-ink" />

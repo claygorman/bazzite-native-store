@@ -140,8 +140,22 @@ export const PAGER = {
 }
 
 /**
- * Longer than `PAGE_ENTER`'s 170ms because the distance is a whole screen rather than
- * 14px, and on the same front-loaded curve so it still feels immediate. Fast enough that
- * holding LB/RB through several tabs does not queue up a backlog of travel.
+ * ⚠️ **NOT `PAGE_ENTER`'s curve, and the reason is the distance.** This first shipped
+ * reusing `[0.16, 1, 0.3, 1]` — correct there, where it is described as "front-loaded so
+ * it feels immediate", because that animation travels 14px. Over a whole screen the same
+ * curve is a snap rather than a slide. Measured fraction of the travel already covered:
+ *
+ * | time in          |  6% | 12% | 25% | 50% |
+ * |------------------|-----|-----|-----|-----|
+ * | `[0.16,1,0.3,1]` | 33% | 56% | 83% | 97% |
+ * | this curve       |  1% |  4% | 24% | 78% |
+ *
+ * A third of the screen crossed in the FIRST FRAME is not something the eye reads as
+ * movement — Clay's word for it was "more like a snap then a whoosh". This curve eases in
+ * and out, so the strip starts from rest and settles, which is what makes it legible as a
+ * strip you are moving along.
+ *
+ * 320ms because a full screen needs longer to read than 14px does, and still short enough
+ * that holding LB/RB through several tabs does not queue a backlog of travel.
  */
-export const PAGE_SWIPE = { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const }
+export const PAGE_SWIPE = { duration: 0.32, ease: [0.4, 0, 0.2, 1] as const }

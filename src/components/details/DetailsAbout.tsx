@@ -135,9 +135,19 @@ export const DetailsAbout = ({
               Its ratio is Steam's header ratio rather than a fixed height, so it
               cannot letterbox or crop as the column's height changes. */}
           {details?.screenshots[1] && !isOpen('about') && (
+            /*
+              ⚠️ `decoding="async"` is a PERFORMANCE fix, not a hint nobody reads. This image
+              mounts during the tab swipe, and by default a browser may decode it
+              SYNCHRONOUSLY on the main thread. WebKit does so far more readily than
+              Chrome, which is exactly why the swipe was smooth in the browser and
+              snapped in the Mac app: measured from a 60fps capture, only ~3 frames of a
+              19-frame animation were ever drawn. Motion is time-based, so a main-thread
+              stall does not slow the animation down — it skips it to the end.
+            */
             <img
               src={details.screenshots[1]}
               alt=""
+              decoding="async"
               className="aspect-header h-auto w-full rounded-lg object-cover"
             />
           )}

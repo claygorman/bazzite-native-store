@@ -174,7 +174,7 @@ const Item = ({
         ].join(' ')}
       >
         {item.capsuleUrl ? (
-          <img src={item.capsuleUrl} alt="" className="block h-21.5 w-46 object-cover" />
+          <img src={item.capsuleUrl} alt="" decoding="async" className="block h-21.5 w-46 object-cover" />
         ) : (
           <div className="h-21.5 w-46 bg-plate" />
         )}

@@ -86,6 +86,7 @@ export const DetailsExtras = ({ details, reviews, players, loading, sectionIndex
               {details.achievementsHighlighted.map((achievement) => (
                 <img
                   key={achievement.icon}
+                  decoding="async"
                   src={achievement.icon}
                   alt={achievement.name}
                   title={achievement.name}
