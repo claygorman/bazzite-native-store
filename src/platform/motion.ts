@@ -81,3 +81,21 @@ export const PAGE_ENTER = {
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.17, ease: [0.16, 1, 0.3, 1] as const },
 }
+
+/**
+ * A focus glow coming up or going away.
+ *
+ * ⚠️ **The point of this token is the LAYER it implies, not the curve.** A focus glow is
+ * a large blurred `box-shadow`, and blur is the one thing that cannot be handed to the
+ * compositor: `transition-shadow` re-rasterises the blur on every frame of the fade, and
+ * a blurred shadow paints outside the element, so the ancestor it overlaps repaints too.
+ *
+ * So a glow is not animated as a shadow. It is painted ONCE on its own always-present
+ * layer, and that layer's OPACITY is animated — opacity being free at the compositor.
+ * The shape never changes, only how much of it you see.
+ *
+ * 150ms and ease-out because that is Tailwind's default `transition` and it is what these
+ * glows already did; the feel is deliberately unchanged by the move off CSS. Anything that
+ * wants to feel different should say so on purpose rather than inherit it from a refactor.
+ */
+export const FOCUS_FADE = { duration: 0.15, ease: 'easeOut' as const }

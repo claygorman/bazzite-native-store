@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { motion } from 'motion/react'
 import { Prompt } from './ButtonLegend'
 import { SettingsRow } from './settings/SettingsRow'
 import { CacheBars, ServiceList, StatusCard, type StatusTone } from './settings/StatusCard'
@@ -8,6 +9,7 @@ import { debugLogPath } from '../platform/debugLog'
 import { healthSummary, type ServiceHealth } from '../platform/serviceHealth'
 import { describeUpdate, type UpdateState } from '../platform/updates'
 import { labelFor, type Settings } from '../platform/settings'
+import { FOCUS_FADE } from '../platform/motion'
 import type { SystemStatus } from '../hooks/useSystemStatus'
 import type { DumpState } from '../platform/protonDump'
 import type { InputSource } from '../platform/glyphs'
@@ -206,7 +208,7 @@ export const SettingsView = ({
                 and wraps, so it never forced the issue.
               */}
               <span
-                className={`w-1 shrink-0 rounded-sm bg-focus transition-all duration-150 ${
+                className={`w-1 shrink-0 rounded-sm bg-focus transition-[height,opacity] duration-150 ${
                   i === focus.page
                     ? onRail
                       ? 'h-8 opacity-100'
@@ -260,21 +262,44 @@ export const SettingsView = ({
             box-shadow paints OUTSIDE the element's box but takes no layout space, so a
             later sibling's background paints straight over it and the ring looks
             clipped along one edge.
+
+            ⚠️ Unconditional now, where it used to arrive with the glow. The glow no longer
+            appears and disappears — it is always painted and its opacity is animated (see
+            below) — so there is no moment to add the stacking at, and taking `z-10` away
+            the instant focus leaves would let the grid below paint over the glow while it
+            was still fading out. Safe to leave on: a focused row in that grid sets its own
+            `relative z-10`, and on a tie the later sibling wins, so the row's ring still
+            draws above this card exactly as before.
           */}
-          <div
-            ref={statusRef}
-            className={`shrink-0 rounded-xl transition-shadow ${
-              onStatus ? 'relative z-10 shadow-focused-bare' : ''
-            }`}
-          >
-          <PageStatus
-            page={page}
-            settings={settings}
-            status={status}
-            update={update}
-            version={version}
-            dump={dump}
-          />
+          <div ref={statusRef} className="relative z-10 shrink-0 rounded-xl">
+            {/*
+              ⚠️ A separate always-present layer whose OPACITY animates — NOT
+              `transition-shadow` on the card, which is what this was. `shadow-focused-bare`
+              is `0 0 3rem`, a 48px blur, and a blurred shadow is re-rasterised on every
+              frame of a shadow transition; because it paints outside the card it also
+              dirties the scrolling column behind it. Opacity on a static layer is a
+              compositor operation and costs nothing per frame. See `FOCUS_FADE`.
+
+              Transparent, so only the shadow shows, and `inset-0` + `rounded-xl` so it is
+              the card's exact silhouette. It is positioned and `PageStatus` is not, so it
+              would paint above — harmless, because an outer box-shadow is clipped out of
+              its own border box and there is nothing else on this layer to cover the card.
+            */}
+            <motion.span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-xl shadow-focused-bare"
+              initial={false}
+              animate={{ opacity: onStatus ? 1 : 0 }}
+              transition={FOCUS_FADE}
+            />
+            <PageStatus
+              page={page}
+              settings={settings}
+              status={status}
+              update={update}
+              version={version}
+              dump={dump}
+            />
           </div>
 
           {/* Natural height now: the column above owns the scrolling. */}

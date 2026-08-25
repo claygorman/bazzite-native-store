@@ -305,7 +305,7 @@ export const MediaGallery = ({
             <div
               key={`${item.src}-${i}`}
               className={[
-                'relative h-18 w-32 shrink-0 overflow-hidden rounded-md transition-all duration-150',
+                'relative h-18 w-32 shrink-0 overflow-hidden rounded-md transition-[opacity,box-shadow] duration-150',
                 i === safeIndex ? 'relative z-10 opacity-100 ring-flat' : 'opacity-45',
               ].join(' ')}
             >

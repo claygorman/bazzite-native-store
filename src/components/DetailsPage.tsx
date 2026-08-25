@@ -156,7 +156,7 @@ export const DetailsPage = ({
           <span
             key={label}
             className={[
-              'rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all',
+              'rounded-full px-3.5 py-1.5 text-sm font-semibold transition-[color,background-color,box-shadow]',
               index === screen ? 'bg-ink text-ink-on-light' : 'bg-chip-strong text-ink-3/60',
               // Only ring the active tab while the tab strip actually holds focus,
               // so "where am I" and "what is selected" stay distinguishable.

@@ -173,9 +173,27 @@ export const TagSpotlight = ({
             {/* The advance timer, made visible. Without it the carousel moving on its
                 own reads as the UI doing something random. */}
             <div className="absolute inset-x-0 bottom-0 h-1 bg-scrim-soft">
+              {/*
+               * ⚠️ `scaleX`, NOT `width`, and this is the one animation on the home screen
+               * that never stops. `width` is a LAYOUT property: every frame the browser
+               * re-runs layout for this subtree, repaints the bar and its glow, then
+               * composites. The tween is `TICK_MS` long and a new one starts every
+               * `TICK_MS`, so it is not ten cheap steps a second — it is a continuous
+               * 60fps layout animation for as long as the spotlight is on screen, which on
+               * this app is most of the time anyone is looking at it.
+               *
+               * `scaleX` is a transform: no layout, no repaint, handed to the compositor.
+               * Same picture, and the only work left per frame is a matrix multiply.
+               *
+               * Trade-off, stated rather than hidden: scaling also scales the glow, so the
+               * leading edge's 14px halo is squashed horizontally early in the sweep. On a
+               * 4px-tall bar the halo that actually reads is the vertical one, which scaleX
+               * does not touch — and the horizontal difference is at its largest when the
+               * bar is at its narrowest and least visible.
+               */}
               <motion.span
-                className="block h-full bg-focus shadow-[0_0_0.875rem_rgba(77,155,230,.8)]"
-                animate={{ width: `${(elapsed / SPOTLIGHT_DWELL_MS) * 100}%` }}
+                className="block h-full w-full origin-left bg-focus shadow-[0_0_0.875rem_rgba(77,155,230,.8)]"
+                animate={{ scaleX: elapsed / SPOTLIGHT_DWELL_MS }}
                 transition={{ duration: TICK_MS / 1000, ease: 'linear' }}
               />
             </div>
@@ -264,7 +282,7 @@ export const TagSpotlight = ({
         {games.map((g, i) => (
           <span
             key={g.appid}
-            className={`h-2.25 rounded-full transition-all duration-200 ${
+            className={`h-2.25 rounded-full transition-[width,background-color] duration-200 ${
               i === index ? 'w-7 bg-ink' : 'w-2.25 bg-ink/30'
             }`}
           />

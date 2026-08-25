@@ -75,7 +75,7 @@ export const SearchView = ({ query, focus, onResults, results, resultFocus, sour
 
   const cell = (active: boolean, extra = '') =>
     [
-      'grid place-items-center rounded-lg transition-all duration-150',
+      'grid place-items-center rounded-lg transition-[background-color,box-shadow] duration-150',
       active ? 'relative z-10 bg-chip-strong ring-flat' : 'bg-chip',
       extra,
     ].join(' ')
@@ -132,7 +132,7 @@ export const SearchView = ({ query, focus, onResults, results, resultFocus, sour
                 <div
                   key={label}
                   className={[
-                    'grid h-23 place-items-center rounded-lg font-semibold transition-all duration-150',
+                    'grid h-23 place-items-center rounded-lg font-semibold transition-[background-color,box-shadow] duration-150',
                     isBackspace ? 'text-2xl' : 'text-xl',
                     colIndex === 0 ? 'flex-[2]' : 'flex-1',
                     isSubmit

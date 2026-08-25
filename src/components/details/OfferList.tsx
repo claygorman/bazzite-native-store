@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { motion } from 'motion/react'
 import { offerRowsFor, type Offer } from '../../hooks/useOffers'
 import { useSteamLibrary } from '../../hooks/useSteamLibrary'
 import { ControllerGlyph } from '../ControllerGlyph'
+import { FOCUS_FADE } from '../../platform/motion'
 import type { InputSource } from '../../platform/glyphs'
 
 /**
@@ -116,30 +118,52 @@ const Item = ({
    * but ignores a click reads as broken rather than as controller-only.
    */
   <button type="button" onClick={onPick} className="flex flex-none flex-col gap-1.75 text-left">
-    <div
-      className={[
-        'relative overflow-hidden rounded-md transition-shadow',
-        state === 'lit'
-          ? 'outline-2 outline-offset-[0.1875rem] outline-focus shadow-[0_0_1.625rem_rgba(77,155,230,.55)]'
-          : '',
-        state === 'lit' ? 'opacity-100' : state === 'near' ? 'opacity-78' : 'opacity-62',
-      ].join(' ')}
-    >
-      {item.capsuleUrl ? (
-        <img src={item.capsuleUrl} alt="" className="block h-21.5 w-46 object-cover" />
-      ) : (
-        <div className="h-21.5 w-46 bg-plate" />
-      )}
-      {owned && (
-        <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-focus text-xs font-extrabold text-ink-on-accent shadow-[0_0_0_0.1875rem_rgba(8,13,22,.75)]">
-          ✓
-        </span>
-      )}
-      {item.isSubject && (
-        <span className="absolute bottom-1.5 left-1.5 rounded-sm bg-scrim px-2 py-0.75 text-xs font-bold tracking-[0.06em] text-ink-2/85">
-          THIS GAME
-        </span>
-      )}
+    {/*
+     * ⚠️ The wrapper exists ONLY to give the glow somewhere to live that is not inside
+     * the clip. The lit glow used to be a `transition-shadow` on the box below, and that
+     * box is `overflow-hidden` — fine for its own shadow, since an element's box-shadow
+     * is not clipped by its own overflow, but it means a glow LAYER cannot be a child of
+     * it without being cut off at the capsule's edge.
+     */}
+    <div className="relative">
+      {/*
+       * ⚠️ Opacity on a static layer, not a 26px blur being re-rasterised every frame of
+       * a shadow transition — and this one fires on every dpad step along the offers row,
+       * twice (the tile arriving and the tile leaving). See `FOCUS_FADE`.
+       */}
+      <motion.span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-md shadow-[0_0_1.625rem_rgba(77,155,230,.55)]"
+        initial={false}
+        animate={{ opacity: state === 'lit' ? 1 : 0 }}
+        transition={FOCUS_FADE}
+      />
+      <div
+        className={[
+          // ⚠️ No `transition-shadow` any more: the only shadow it animated is the glow
+          // above. The outline is a separate property and never transitioned — it snapped
+          // before this change and it snaps now.
+          'relative overflow-hidden rounded-md',
+          state === 'lit' ? 'outline-2 outline-offset-[0.1875rem] outline-focus' : '',
+          state === 'lit' ? 'opacity-100' : state === 'near' ? 'opacity-78' : 'opacity-62',
+        ].join(' ')}
+      >
+        {item.capsuleUrl ? (
+          <img src={item.capsuleUrl} alt="" className="block h-21.5 w-46 object-cover" />
+        ) : (
+          <div className="h-21.5 w-46 bg-plate" />
+        )}
+        {owned && (
+          <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-focus text-xs font-extrabold text-ink-on-accent shadow-[0_0_0_0.1875rem_rgba(8,13,22,.75)]">
+            ✓
+          </span>
+        )}
+        {item.isSubject && (
+          <span className="absolute bottom-1.5 left-1.5 rounded-sm bg-scrim px-2 py-0.75 text-xs font-bold tracking-[0.06em] text-ink-2/85">
+            THIS GAME
+          </span>
+        )}
+      </div>
     </div>
     <span
       className={`w-46 truncate text-base font-semibold ${state === 'lit' ? 'text-ink' : 'text-ink-2/60'}`}

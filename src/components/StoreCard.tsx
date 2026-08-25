@@ -385,7 +385,19 @@ export const StoreCard = ({
         // COLUMN it is what stops the card being squeezed vertically to nothing, which
         // is exactly what happened to the search results when this was made
         // width-dependent: eight cards, 1352px wide, 0px tall.
-        'group relative min-w-0 shrink-0 text-left transition-all duration-200 ease-out',
+        // ⚠️ Named properties, NOT `transition-all` — and the property left OUT is the
+        // point. `transition-all` was animating the plate's drop shadow between
+        // `shadow-plate` (30px blur) and `shadow-tile-drop` (46px blur), which is exactly
+        // what the comment further down says it must not do: "stays STATIC — it is
+        // deliberately not part of the breathing pair". A blurred box-shadow cannot be
+        // composited, so it was re-rasterised every frame for 200ms, on the tile arriving
+        // AND the tile leaving, on every dpad step through a shelf. That is the hottest
+        // path in the app and the most-repeated element on the screen.
+        //
+        // `width` stays: a focused card really does grow (`shelf` 21rem ->
+        // `focusedStacked` 32rem) and that growth is the design.
+        'group relative min-w-0 shrink-0 text-left ease-out',
+        'transition-[width,outline-color,background-color] duration-200',
         side ? 'flex' : 'flex flex-col',
         // ⚠️ The ring must never be `outline-none` plus width/colour utilities — see
         // the utility definition in index.css. It is always present; only the colour
