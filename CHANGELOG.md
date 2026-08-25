@@ -1,3 +1,17 @@
+# [0.17.0](https://github.com/claygorman/bazzite-native-store/compare/0.16.0...0.17.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* drop the anti-cheat panel rather than dating it ([d6505d5](https://github.com/claygorman/bazzite-native-store/commit/d6505d5981ff393c3e303df78f2f36221f47bc63))
+* the anti-cheat panel says WHEN, and the last two dead switches are gone ([ea48205](https://github.com/claygorman/bazzite-native-store/commit/ea482054b2c807d48be3242b15b348ecc9c8487d))
+* the settings rows that read nothing now read something, or are gone ([b385746](https://github.com/claygorman/bazzite-native-store/commit/b38574660feca76857556671a75100ed513b4e2d))
+
+
+### Features
+
+* "Under $10" asks the store instead of guessing ([8875b0f](https://github.com/claygorman/bazzite-native-store/commit/8875b0f3be37bcde8a13445a8a7cfc56ac84bffa))
+
 # [0.16.0](https://github.com/claygorman/bazzite-native-store/compare/0.15.3...0.16.0) (2026-08-25)
 
 
