@@ -49,7 +49,22 @@ export const AmbientArt = ({ src }: Props) => {
           animate={{ opacity: WASH_OPACITY }}
           exit={{ opacity: 0 }}
           transition={{ duration: AMBIENT_FADE_S, ease: 'easeInOut' }}
-          className="absolute inset-0 h-full w-full scale-114 object-cover blur-wash saturate-125"
+          /*
+           * ⚠️ **`transform-gpu` and `will-change` are load-bearing, not decoration.**
+           * This is a full-screen `filter: blur(18px)` — expensive to rasterise and, on its
+           * own, NOT promoted to a composited layer. The focused tile above it runs
+           * `animate-tile-breath`, an infinite 2.8s opacity animation, so without promotion
+           * every one of those frames re-blurs the whole screen. Measured on macOS
+           * (WKWebView, Retina) 2026-08-25: **4-9% CPU at complete idle** with the wash on,
+           * **0.4-2.7%** with it off. Nobody was touching the app in either case.
+           *
+           * Promoting it rasterises the blur ONCE into a texture that the compositor reuses,
+           * so animations above it cost what they should. `will-change` names `opacity`
+           * because that is what `motion` animates during the cross-fade — the moment two of
+           * these exist at once is the most expensive frame this app draws.
+           */
+          style={{ willChange: 'opacity' }}
+          className="absolute inset-0 h-full w-full scale-114 transform-gpu object-cover blur-wash saturate-125"
         />
       )}
     </AnimatePresence>

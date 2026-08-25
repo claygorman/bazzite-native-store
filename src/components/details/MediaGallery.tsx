@@ -146,45 +146,42 @@ export const MediaGallery = ({
     setOffset(Math.min(Math.max(0, target), max))
   }, [safeIndex, items.length])
 
-  // ⚠️ Steam's microtrailers carry NO audio stream at all — verified with ffprobe:
-  // a single `vp9, video` stream and nothing else. So unmuting one does nothing, and
-  // saying "muted" would be a lie. Measure instead of assuming: if the element has
-  // decoded video but zero audio bytes, the source is genuinely silent.
-  // Real trailer audio needs the full stream through libmpv (private/VIDEO-TRAILERS.md
-  // tier 2), which does not go through this element.
+  /*
+   * Whether the current source has sound — answered from WHAT IT IS, not by interrogating
+   * the decoder.
+   *
+   * ⚠️ Steam's microtrailers carry NO audio stream at all — verified with ffprobe: a single
+   * `vp9, video` stream and nothing else. The full trailer is the adaptive HLS stream, and
+   * it does have audio. That is the whole question, and the source already answers it.
+   *
+   * ⚠️⚠️ **This used to probe `video.webkitAudioDecodedByteCount` / `video.mozHasAudio`
+   * after a 1.5s timer, falling through to `report(undefined)` — "no way to tell on this
+   * engine".** Both are VENDOR-PREFIXED, and on an engine carrying neither the result was
+   * `undefined`, which fails the gate in `App.tsx` (`if (trailerHasAudio) …`). So X did
+   * nothing, silently, and the SOUND ON / MUTE hint never appeared. Reported on the macOS
+   * build 2026-08-25.
+   *
+   * ⚠️ The comment that justified the probe was STALE. It said real trailer audio "needs
+   * the full stream through libmpv, which does not go through this element" — true when it
+   * was written, and settled by SPIKE 2b: libmpv is not needed, `useHlsVideo` plays the
+   * full 1080p HLS right here, audio included. The probe was answering a question that had
+   * stopped being open, on evidence the engine might not supply.
+   *
+   * Deriving it also removes the 1.5s window where the control was dead on every engine.
+   */
   useEffect(() => {
-    setHasAudio(undefined)
-    onAudioChange?.(undefined)
     if (current?.kind !== 'video') {
+      setHasAudio(false)
       onAudioChange?.(false)
       return
     }
-
-    // Give an adaptive stream longer: nothing decodes until hls.js has fetched the
-    // manifest and the first segments, so probing too early always reads "silent".
-    const timer = setTimeout(() => {
-      const video = videoRef.current as
-        | (HTMLVideoElement & {
-            webkitAudioDecodedByteCount?: number
-            mozHasAudio?: boolean
-          })
-        | null
-      if (!video) return
-      const report = (value: boolean | undefined) => {
-        setHasAudio(value)
-        onAudioChange?.(value)
-      }
-      if (typeof video.mozHasAudio === 'boolean') return report(video.mozHasAudio)
-      if (typeof video.webkitAudioDecodedByteCount === 'number') {
-        return report(video.webkitAudioDecodedByteCount > 0)
-      }
-      report(undefined) // no way to tell on this engine
-    }, 1500)
-
-    return () => clearTimeout(timer)
+    // Adaptive === the full HLS trailer === has sound. Anything else is a microtrailer.
+    const audible = current.adaptive === true
+    setHasAudio(audible)
+    onAudioChange?.(audible)
     // onAudioChange is stable (useCallback in App).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.kind, current?.src])
+  }, [current?.kind, current?.src, current?.adaptive])
 
   // ⚠️ `muted` must be driven imperatively. React does not reliably apply it on the
   // initial render of a <video> — the attribute is special-cased — so a declarative

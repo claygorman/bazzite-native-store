@@ -258,9 +258,21 @@ pub fn spawn(app: AppHandle) {
                     _ => {}
                 }
             }
-            // gilrs has no blocking read; poll at a rate well under one frame so the
-            // dpad never feels behind the UI.
-            std::thread::sleep(std::time::Duration::from_millis(4));
+            /*
+             * gilrs has no blocking read, so this is a poll. 4ms (250Hz) is well under one
+             * frame, which is what keeps the dpad from ever feeling behind the UI.
+             *
+             * ⚠️ **But only when a pad is actually attached.** With none connected — the
+             * normal case on macOS and Windows, and on Linux before a controller wakes —
+             * that is a thread waking 250 times a second to find nothing, forever. Backing
+             * off to 100ms costs nothing that matters: the very next poll after a pad
+             * appears returns to 4ms, and `gilrs` queues the connection event rather than
+             * dropping it, so the pad is never missed. A tenth of a second of latency on
+             * the first press after plugging in is not perceptible; a spinning thread on
+             * a laptop is.
+             */
+            let idle = gilrs.gamepads().next().is_none();
+            std::thread::sleep(std::time::Duration::from_millis(if idle { 100 } else { 4 }));
         }
     });
 }
