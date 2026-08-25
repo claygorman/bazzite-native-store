@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { TIER_STYLE } from '../platform/protondb'
 import { formatPrice } from '../types/steam'
 import { appDetailsLikelyThrottled } from '../platform/steam'
@@ -13,8 +14,8 @@ import { DetailsProton, type ProtonFilters } from './details/DetailsProton'
 import { OfferList } from './details/OfferList'
 import type { OffersState } from '../hooks/useOffers'
 import type { ProtonReportsState } from '../hooks/useProtonReports'
-import { motion } from 'motion/react'
-import { PAGE_ENTER } from '../platform/motion'
+import { AnimatePresence, motion } from 'motion/react'
+import { PAGE_ENTER, PAGER, PAGE_SWIPE } from '../platform/motion'
 
 /**
  * The four detail screens, paged with LB/RB as the design specifies.
@@ -126,6 +127,27 @@ export const DetailsPage = ({
   const gallery = buildGallery(details, preview, fallbackArt)
   const name = details?.name ?? fallbackName ?? ''
 
+  /*
+   * Which way the pager travels, so the screen slides the way the tab strip moved.
+   *
+   * ⚠️ Derived from the CHANGE in `screen`, not from `screen` itself, which is why it
+   * lives in a ref rather than in state: it is a fact about the transition rather than
+   * about the page, and setting state here would re-render on the way into a render.
+   * Held between changes so the exiting screen and the entering one agree on the
+   * direction — `AnimatePresence` reads `custom` for both, and if they disagreed the two
+   * halves would travel opposite ways and cross over each other.
+   *
+   * Comparing against the previous value makes a no-op re-render leave it alone, so a
+   * second render for any other reason cannot flip the strip mid-flight.
+   */
+  const seenScreen = useRef(screen)
+  const directionRef = useRef(1)
+  if (seenScreen.current !== screen) {
+    directionRef.current = screen > seenScreen.current ? 1 : -1
+    seenScreen.current = screen
+  }
+  const direction = directionRef.current
+
   const priceLabel = details?.isFree
     ? 'Free'
     : details?.comingSoon
@@ -169,317 +191,299 @@ export const DetailsPage = ({
       </div>
 
       {/*
+        The pager. All four screens live in ONE keyed element so the outgoing and the
+        incoming screen can be on stage together and travel as a strip — see `PAGER` for
+        why that is a slide and not a cross-fade.
+
         ⚠️ `absolute inset-0` on the MOTION wrapper, not just on the screen inside it.
-        `PAGE_ENTER` animates `y`, which compiles to a `transform` — and a transformed
-        element becomes the containing block for every `position: absolute` descendant.
-        A bare wrapper has no height of its own (its only child is absolutely
-        positioned), so the screen inside it resolved `top-25 bottom-22` against a
-        zero-height box and collapsed to a ~32px sliver with `overflow-hidden` eating
-        the rest. Sizing the wrapper puts the containing block back where the geometry
-        expects it. Screen 0 was never affected because its wrapper carries its own
-        `absolute` positioning.
+        The pager animates `x`, which compiles to a `transform`, and a transformed element
+        becomes the containing block for every `position: absolute` descendant. A bare
+        wrapper has no height of its own (its children are absolutely positioned), so a
+        screen inside it resolved `top-25 bottom-22` against a zero-height box and
+        collapsed to a ~32px sliver with `overflow-hidden` eating the rest. Sizing the
+        wrapper puts the containing block back where the geometry expects it.
+
+        ⚠️ Promoted for the same reason the hero inside it is: this is a full-screen
+        subtree carrying the panels' focus rings and, on ProtonDB, a 36px blurred glow.
+        Unpromoted, the compositor re-rasterises the whole screen on every frame of the
+        travel. Promotion does NOT make the mount cheap — swapping tabs still builds a new
+        subtree in one frame; it only stops that subtree being repainted all the way in.
       */}
-      {screen === 1 && (
-        /*
-          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
-          subtree animating opacity AND y, and it carries the things that are expensive to
-          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
-          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
-          the 170ms enter, which is what made switching tabs feel laggy while the Overview
-          screen (already promoted) felt fine.
-
-          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
-          subtree in one frame. It only stops that subtree being repainted 10 more times on
-          the way in.
-        */
+      <AnimatePresence initial={false} custom={direction}>
         <motion.div
-          key="about"
-          style={{ willChange: 'transform, opacity' }}
+          key={screen}
+          custom={direction}
+          variants={PAGER}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={PAGE_SWIPE}
+          style={{ willChange: 'transform' }}
           className="absolute inset-0 transform-gpu"
-          {...PAGE_ENTER}
         >
-          <DetailsAbout
-            details={details}
-            proton={proton}
-            loading={loading}
-            /*
-              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
-              while the tabs are. The panels used to ring purely from `sectionIndex`,
-              which does not know about zones — so the focused tab and a panel lit at
-              once and there were two cursors on screen saying different things about
-              where the next press goes.
+        {/*
+          ⚠️ `absolute inset-0` on the MOTION wrapper, not just on the screen inside it.
+          `PAGE_ENTER` animates `y`, which compiles to a `transform` — and a transformed
+          element becomes the containing block for every `position: absolute` descendant.
+          A bare wrapper has no height of its own (its only child is absolutely
+          positioned), so the screen inside it resolved `top-25 bottom-22` against a
+          zero-height box and collapsed to a ~32px sliver with `overflow-hidden` eating
+          the rest. Sizing the wrapper puts the containing block back where the geometry
+          expects it. Screen 0 was never affected because its wrapper carries its own
+          `absolute` positioning.
+        */}
+        {screen === 1 && (
+          <div className="absolute inset-0">
+            <DetailsAbout
+              details={details}
+              proton={proton}
+              loading={loading}
+              /*
+                ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+                while the tabs are. The panels used to ring purely from `sectionIndex`,
+                which does not know about zones — so the focused tab and a panel lit at
+                once and there were two cursors on screen saying different things about
+                where the next press goes.
 
-              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
-              no panel draws a ring. Passing the index rather than a second `focused`
-              prop keeps the three screens' signatures identical.
-            */
-            sectionIndex={zone === 'media' ? sectionIndex : -1}
-            expanded={sectionExpanded}
-            source={source}
-          />
-        </motion.div>
-      )}
-      {screen === 2 && (
-        /*
-          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
-          subtree animating opacity AND y, and it carries the things that are expensive to
-          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
-          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
-          the 170ms enter, which is what made switching tabs feel laggy while the Overview
-          screen (already promoted) felt fine.
-
-          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
-          subtree in one frame. It only stops that subtree being repainted 10 more times on
-          the way in.
-        */
-        <motion.div
-          key="proton"
-          style={{ willChange: 'transform, opacity' }}
-          className="absolute inset-0 transform-gpu"
-          {...PAGE_ENTER}
-        >
-          <DetailsProton
-            name={name}
-            rating={proton}
-            reports={protonReports.reports}
-            distro={protonReports.distro}
-            unscoped={protonReports.unscoped}
-            phase={protonReports.phase}
-            reportsLoading={protonReports.loading}
-            hostGpu={hostGpu}
-            deviceLabel={deviceLabel}
-            /*
-              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
-              while the tabs are. The panels used to ring purely from `sectionIndex`,
-              which does not know about zones — so the focused tab and a panel lit at
-              once and there were two cursors on screen saying different things about
-              where the next press goes.
-
-              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
-              no panel draws a ring. Passing the index rather than a second `focused`
-              prop keeps the three screens' signatures identical.
-            */
-            sectionIndex={zone === 'media' ? sectionIndex : -1}
-            expanded={sectionExpanded}
-            cursor={sectionCursor}
-            filters={protonFilters}
-            source={source}
-          />
-        </motion.div>
-      )}
-      {screen === 3 && (
-        /*
-          ⚠️ Promoted, for the same reason the hero block below is. This is a FULL-SCREEN
-          subtree animating opacity AND y, and it carries the things that are expensive to
-          rasterise — the panels' focus rings, and on the ProtonDB screen a 36px blurred
-          glow. Unpromoted, the compositor re-rasterises the whole screen on every frame of
-          the 170ms enter, which is what made switching tabs feel laggy while the Overview
-          screen (already promoted) felt fine.
-
-          ⚠️ Promotion does not make the MOUNT cheap — swapping tabs still builds a new
-          subtree in one frame. It only stops that subtree being repainted 10 more times on
-          the way in.
-        */
-        <motion.div
-          key="extras"
-          style={{ willChange: 'transform, opacity' }}
-          className="absolute inset-0 transform-gpu"
-          {...PAGE_ENTER}
-        >
-          <DetailsExtras
-            details={details}
-            reviews={reviews}
-            players={state.players}
-            loading={loading}
-            /*
-              ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
-              while the tabs are. The panels used to ring purely from `sectionIndex`,
-              which does not know about zones — so the focused tab and a panel lit at
-              once and there were two cursors on screen saying different things about
-              where the next press goes.
-
-              `keys[-1]` is `undefined`, so every `active === '...'` test is false and
-              no panel draws a ring. Passing the index rather than a second `focused`
-              prop keeps the three screens' signatures identical.
-            */
-            sectionIndex={zone === 'media' ? sectionIndex : -1}
-          />
-        </motion.div>
-      )}
-
-      {screen === 0 && (
-        <motion.div
-          key="overview-text"
-          initial={PAGE_ENTER.initial}
-          /*
-            ⚠️ Lifted and faded rather than unmounted when the offers take focus. Removing
-            it would reflow the page under the cursor and cost the entry animation on the
-            way back; moving it keeps the two halves of Overview feeling like one page you
-            scrolled rather than two screens that swapped.
-          */
-          /*
-            ⚠️ The retreat is driven through `animate`, NOT through classes, and that is
-            the whole fix. This element previously spread `{...PAGE_ENTER}` — whose
-            `animate` is `{opacity: 1, y: 0}` — alongside a conditional
-            `opacity-0 -translate-y-6`. Motion writes its animate values as INLINE
-            STYLES, and an inline style beats a utility class, so the fade-out was dead
-            code: the hero stayed at full opacity and the lifted offers band rendered
-            straight through the game's title. Nothing about it looked wrong in the
-            source, which is why it survived.
-          */
-          animate={zone === 'offers' ? { opacity: 0, y: -24 } : PAGE_ENTER.animate}
-          transition={PAGE_ENTER.transition}
-          /*
-            ⚠️ `will-change` because of the `drop-shadow` filter on the child below. This
-            block animates opacity AND y, and an un-promoted filtered subtree is re-run by
-            the compositor on every frame of that move — the same bug as the ambient wash,
-            in a different place. Promoted, the shadow rasterises once and the animation
-            transforms a cached texture.
-          */
-          style={{ willChange: 'transform, opacity' }}
-          className={`absolute left-14 top-24 flex w-205 transform-gpu flex-col gap-3.5 ${
-            zone === 'offers' ? 'pointer-events-none' : ''
-          }`}
-        >
-          {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
-            overflow:hidden, which clips a text-shadow into a hard rectangle. A
-            drop-shadow filter on an unclipped parent renders the same effect. */}
-          <div className="[filter:drop-shadow(0_0.25rem_1.25rem_rgba(0,0,0,.75))]">
-            {/*
-            Wraps to two lines rather than scrolling. This page has vertical room to
-            spare, and a title you can simply read beats one you have to wait for.
-            The home hero cannot do this — its band is a fixed 140px — so that one
-            marquees instead.
-          */}
-            <h1 className="line-clamp-2 text-6xl font-extrabold leading-[0.96] tracking-[-0.015em] text-ink">
-              {name}
-            </h1>
+                `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+                no panel draws a ring. Passing the index rather than a second `focused`
+                prop keeps the three screens' signatures identical.
+              */
+              sectionIndex={zone === 'media' ? sectionIndex : -1}
+              expanded={sectionExpanded}
+              source={source}
+            />
           </div>
+        )}
+        {screen === 2 && (
+          <div className="absolute inset-0">
+            <DetailsProton
+              name={name}
+              rating={proton}
+              reports={protonReports.reports}
+              distro={protonReports.distro}
+              unscoped={protonReports.unscoped}
+              phase={protonReports.phase}
+              reportsLoading={protonReports.loading}
+              hostGpu={hostGpu}
+              deviceLabel={deviceLabel}
+              /*
+                ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+                while the tabs are. The panels used to ring purely from `sectionIndex`,
+                which does not know about zones — so the focused tab and a panel lit at
+                once and there were two cursors on screen saying different things about
+                where the next press goes.
 
-          {unavailable ? (
-            // success:false — age-gated or delisted, and the response cannot tell us
-            // which. Say what we know rather than rendering an empty page.
-            <p className="max-w-175 text-xl leading-relaxed text-amber-300/80">
+                `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+                no panel draws a ring. Passing the index rather than a second `focused`
+                prop keeps the three screens' signatures identical.
+              */
+              sectionIndex={zone === 'media' ? sectionIndex : -1}
+              expanded={sectionExpanded}
+              cursor={sectionCursor}
+              filters={protonFilters}
+              source={source}
+            />
+          </div>
+        )}
+        {screen === 3 && (
+          <div className="absolute inset-0">
+            <DetailsExtras
+              details={details}
+              reviews={reviews}
+              players={state.players}
+              loading={loading}
+              /*
+                ⚠️ `-1` when the tab strip holds focus, so NOTHING on the page is ringed
+                while the tabs are. The panels used to ring purely from `sectionIndex`,
+                which does not know about zones — so the focused tab and a panel lit at
+                once and there were two cursors on screen saying different things about
+                where the next press goes.
+
+                `keys[-1]` is `undefined`, so every `active === '...'` test is false and
+                no panel draws a ring. Passing the index rather than a second `focused`
+                prop keeps the three screens' signatures identical.
+              */
+              sectionIndex={zone === 'media' ? sectionIndex : -1}
+            />
+          </div>
+        )}
+
+        {screen === 0 && (
+          <motion.div
+            key="overview-text"
+            initial={PAGE_ENTER.initial}
+            /*
+              ⚠️ Lifted and faded rather than unmounted when the offers take focus. Removing
+              it would reflow the page under the cursor and cost the entry animation on the
+              way back; moving it keeps the two halves of Overview feeling like one page you
+              scrolled rather than two screens that swapped.
+            */
+            /*
+              ⚠️ The retreat is driven through `animate`, NOT through classes, and that is
+              the whole fix. This element previously spread `{...PAGE_ENTER}` — whose
+              `animate` is `{opacity: 1, y: 0}` — alongside a conditional
+              `opacity-0 -translate-y-6`. Motion writes its animate values as INLINE
+              STYLES, and an inline style beats a utility class, so the fade-out was dead
+              code: the hero stayed at full opacity and the lifted offers band rendered
+              straight through the game's title. Nothing about it looked wrong in the
+              source, which is why it survived.
+            */
+            animate={zone === 'offers' ? { opacity: 0, y: -24 } : PAGE_ENTER.animate}
+            transition={PAGE_ENTER.transition}
+            /*
+              ⚠️ `will-change` because of the `drop-shadow` filter on the child below. This
+              block animates opacity AND y, and an un-promoted filtered subtree is re-run by
+              the compositor on every frame of that move — the same bug as the ambient wash,
+              in a different place. Promoted, the shadow rasterises once and the animation
+              transforms a cached texture.
+            */
+            style={{ willChange: 'transform, opacity' }}
+            className={`absolute left-14 top-24 flex w-205 transform-gpu flex-col gap-3.5 ${
+              zone === 'offers' ? 'pointer-events-none' : ''
+            }`}
+          >
+            {/* Shadow on the WRAPPER, not on the truncating element: `truncate` is
+              overflow:hidden, which clips a text-shadow into a hard rectangle. A
+              drop-shadow filter on an unclipped parent renders the same effect. */}
+            <div className="[filter:drop-shadow(0_0.25rem_1.25rem_rgba(0,0,0,.75))]">
               {/*
-                ⚠️ Rate limiting is named FIRST because it is the likeliest cause and the
-                only reversible one. Steam answers `success: false` at HTTP 200 both when
-                an app is genuinely gone and when it is simply refusing us — and this app
-                spends that budget itself, one request per tile you rest on. Accusing the
-                game of being delisted when the truth is "come back in five minutes" sent
-                a real investigation down the wrong path.
-              */}
-              {appDetailsLikelyThrottled()
-                ? 'Steam is rate-limiting this client, so it returned no details. Browsing many games quickly spends its budget — this usually clears within a few minutes.'
-                : 'Steam returned no details for this app. It may be rate-limiting us, age-gated, or no longer listed — the store API answers all three the same way.'}
-            </p>
-          ) : (
-            <p className="max-w-175 text-xl leading-[1.45] text-ink-2/80">
-              {loading ? '' : details?.shortDescription}
-            </p>
-          )}
+              Wraps to two lines rather than scrolling. This page has vertical room to
+              spare, and a title you can simply read beats one you have to wait for.
+              The home hero cannot do this — its band is a fixed 140px — so that one
+              marquees instead.
+            */}
+              <h1 className="line-clamp-2 text-6xl font-extrabold leading-[0.96] tracking-[-0.015em] text-ink">
+                {name}
+              </h1>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {proton.status === 'loading' ? (
-              <Chip className="animate-pulse bg-scrim-soft text-ink-3/40">
-                <span className="h-2.75 w-2.75 rounded-full bg-ink-3/25" />
-                ProtonDB
-              </Chip>
+            {unavailable ? (
+              // success:false — age-gated or delisted, and the response cannot tell us
+              // which. Say what we know rather than rendering an empty page.
+              <p className="max-w-175 text-xl leading-relaxed text-amber-300/80">
+                {/*
+                  ⚠️ Rate limiting is named FIRST because it is the likeliest cause and the
+                  only reversible one. Steam answers `success: false` at HTTP 200 both when
+                  an app is genuinely gone and when it is simply refusing us — and this app
+                  spends that budget itself, one request per tile you rest on. Accusing the
+                  game of being delisted when the truth is "come back in five minutes" sent
+                  a real investigation down the wrong path.
+                */}
+                {appDetailsLikelyThrottled()
+                  ? 'Steam is rate-limiting this client, so it returned no details. Browsing many games quickly spends its budget — this usually clears within a few minutes.'
+                  : 'Steam returned no details for this app. It may be rate-limiting us, age-gated, or no longer listed — the store API answers all three the same way.'}
+              </p>
             ) : (
-              (() => {
-                const tier = proton.status === 'rated' ? proton.rating.tier : 'pending'
-                const style = TIER_STYLE[tier]
-                return (
-                  <Chip
-                    className="bg-scrim-soft ring-1 ring-inset"
-                    style={{ color: style.text, boxShadow: `inset 0 0 0 1px ${style.dot}55` }}
-                  >
-                    <span
-                      className="h-2.75 w-2.75 rounded-full"
-                      style={{ background: style.dot }}
-                    />
-                    ProtonDB {style.label}
-                    {proton.status === 'rated' && ` · ${proton.rating.total} reports`}
-                  </Chip>
-                )
-              })()
+              <p className="max-w-175 text-xl leading-[1.45] text-ink-2/80">
+                {loading ? '' : details?.shortDescription}
+              </p>
             )}
 
-            {details?.controllerSupport && (
-              <Chip className="bg-ok-wash text-pad-ok">
-                {details.controllerSupport === 'full' ? 'Full' : 'Partial'} controller support
-              </Chip>
-            )}
-            {details?.metacritic !== undefined && (
-              <Chip className="bg-chip-strong text-ink-2/85">Metacritic {details.metacritic}</Chip>
-            )}
-          </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {proton.status === 'loading' ? (
+                <Chip className="animate-pulse bg-scrim-soft text-ink-3/40">
+                  <span className="h-2.75 w-2.75 rounded-full bg-ink-3/25" />
+                  ProtonDB
+                </Chip>
+              ) : (
+                (() => {
+                  const tier = proton.status === 'rated' ? proton.rating.tier : 'pending'
+                  const style = TIER_STYLE[tier]
+                  return (
+                    <Chip
+                      className="bg-scrim-soft ring-1 ring-inset"
+                      style={{ color: style.text, boxShadow: `inset 0 0 0 1px ${style.dot}55` }}
+                    >
+                      <span
+                        className="h-2.75 w-2.75 rounded-full"
+                        style={{ background: style.dot }}
+                      />
+                      ProtonDB {style.label}
+                      {proton.status === 'rated' && ` · ${proton.rating.total} reports`}
+                    </Chip>
+                  )
+                })()
+              )}
 
-          <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-6 text-base font-medium leading-[1.6]">
-            <MetaRow
-              label="RELEASE"
-              value={details?.releaseDate || (loading ? '—' : 'Unannounced')}
-            />
-            <MetaRow label="DEVELOPER" value={details?.developers.join(', ') || '—'} />
-            <MetaRow
-              label="REVIEWS"
-              value={
-                reviews
-                  ? `${reviews.scoreDescription} (${reviews.total.toLocaleString('en-US')})`
-                  : loading
-                    ? '—'
-                    : 'No user reviews yet'
-              }
-            />
-          </div>
+              {details?.controllerSupport && (
+                <Chip className="bg-ok-wash text-pad-ok">
+                  {details.controllerSupport === 'full' ? 'Full' : 'Partial'} controller support
+                </Chip>
+              )}
+              {details?.metacritic !== undefined && (
+                <Chip className="bg-chip-strong text-ink-2/85">Metacritic {details.metacritic}</Chip>
+              )}
+            </div>
 
-          <div className="mt-2 flex items-center gap-3.5">
-            <button
-              type="button"
-              onClick={onOpenInSteam}
-              className="flex items-center gap-3 whitespace-nowrap rounded-full bg-gradient-to-br from-focus to-focus-deep px-7 py-3.75 text-xl font-bold text-ink-on-accent shadow-[0_0_2.75rem_rgba(77,155,230,.5)]"
-            >
-              <ControllerGlyph action="accept" source={source} size="lg" />
-              Open in Steam
-              {priceLabel && ` · ${priceLabel}`}
-            </button>
-          </div>
+            <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-6 text-base font-medium leading-[1.6]">
+              <MetaRow
+                label="RELEASE"
+                value={details?.releaseDate || (loading ? '—' : 'Unannounced')}
+              />
+              <MetaRow label="DEVELOPER" value={details?.developers.join(', ') || '—'} />
+              <MetaRow
+                label="REVIEWS"
+                value={
+                  reviews
+                    ? `${reviews.scoreDescription} (${reviews.total.toLocaleString('en-US')})`
+                    : loading
+                      ? '—'
+                      : 'No user reviews yet'
+                }
+              />
+            </div>
+
+            <div className="mt-2 flex items-center gap-3.5">
+              <button
+                type="button"
+                onClick={onOpenInSteam}
+                className="flex items-center gap-3 whitespace-nowrap rounded-full bg-gradient-to-br from-focus to-focus-deep px-7 py-3.75 text-xl font-bold text-ink-on-accent shadow-[0_0_2.75rem_rgba(77,155,230,.5)]"
+              >
+                <ControllerGlyph action="accept" source={source} size="lg" />
+                Open in Steam
+                {priceLabel && ` · ${priceLabel}`}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* The trailer as the object on screen, not a widget in a column. */}
+        {/*
+          Turn 14a — a new row in the BOTTOM HALF of Overview, below the hero column and
+          the gallery rather than replacing either. Both of those are absolutely
+          positioned from `top-24` and run out around `42rem` of a `67.5rem` viewport at
+          every scale the rem clamp produces, so the space underneath is genuinely free.
+        */}
+        {screen === 0 && (
+          <OfferList
+            offers={offers.offers}
+            loading={offers.loading}
+            subjectName={name}
+            subjectPriceLabel={priceLabel}
+            focused={zone === 'offers'}
+            row={offerRow}
+            col={offerCol}
+            onPick={onPickOffer}
+            source={source}
+          />
+        )}
+
+        {screen === 0 && (
+          <MediaGallery
+            items={gallery}
+            index={mediaIndex}
+            focused={zone === 'media'}
+            muted={muted}
+            onAudioChange={onAudioChange}
+            // Same retreat as the hero: the lifted band sits above this element's `top-24`
+            // and would otherwise hide the first offer's price and its button.
+            retreated={zone === 'offers'}
+            source={source}
+          />
+        )}
         </motion.div>
-      )}
-
-      {/* The trailer as the object on screen, not a widget in a column. */}
-      {/*
-        Turn 14a — a new row in the BOTTOM HALF of Overview, below the hero column and
-        the gallery rather than replacing either. Both of those are absolutely
-        positioned from `top-24` and run out around `42rem` of a `67.5rem` viewport at
-        every scale the rem clamp produces, so the space underneath is genuinely free.
-      */}
-      {screen === 0 && (
-        <OfferList
-          offers={offers.offers}
-          loading={offers.loading}
-          subjectName={name}
-          subjectPriceLabel={priceLabel}
-          focused={zone === 'offers'}
-          row={offerRow}
-          col={offerCol}
-          onPick={onPickOffer}
-          source={source}
-        />
-      )}
-
-      {screen === 0 && (
-        <MediaGallery
-          items={gallery}
-          index={mediaIndex}
-          focused={zone === 'media'}
-          muted={muted}
-          onAudioChange={onAudioChange}
-          // Same retreat as the hero: the lifted band sits above this element's `top-24`
-          // and would otherwise hide the first offer's price and its button.
-          retreated={zone === 'offers'}
-          source={source}
-        />
-      )}
+      </AnimatePresence>
     </div>
   )
 }

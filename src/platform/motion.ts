@@ -108,3 +108,40 @@ export const FOCUS_FADE = { duration: 0.15, ease: 'easeOut' as const }
  * move, so the curve is carried over deliberately. See `OfferList`'s `BAND`.
  */
 export const BAND_SLIDE = { duration: 0.2, ease: 'easeOut' as const }
+
+/**
+ * The details pager — Overview · About · ProtonDB · Reviews, swiped as a filmstrip.
+ *
+ * ⚠️ **A slide, and deliberately NOT a cross-fade.** `PAGE_ENTER` above records why a
+ * cross-fade was rejected here: every screen paints its own semi-transparent wash over
+ * the shared ambient art, so two on screen at once darkens the whole frame. That
+ * objection is real, and a filmstrip is what answers it — the outgoing screen sits
+ * ADJACENT to the incoming one, never on top of it, so no pixel is ever covered by two
+ * washes. Outgoing runs 0 -> -100% while incoming runs +100% -> 0: together they tile
+ * the viewport exactly, with no overlap and no gap.
+ *
+ * That is also why there is no opacity in these variants. Fading would put two
+ * translucent screens over the same pixels at the seam and bring the darkening back for
+ * the sake of an effect the movement already delivers.
+ *
+ * `direction` is +1 moving right through the tabs and -1 moving left, so the page always
+ * travels the way the tab strip does. A pager that slides the same way whichever
+ * direction you moved reads as an animation playing AT you rather than as a strip you
+ * are moving along.
+ *
+ * ⚠️ The screens are `position: absolute`, so a translate of `100%` is 100% of the
+ * element's own width — the full viewport — and the app frame's `overflow: hidden` is
+ * what keeps the off-screen half from showing.
+ */
+export const PAGER = {
+  enter: (direction: number) => ({ x: direction >= 0 ? '100%' : '-100%' }),
+  center: { x: '0%' },
+  exit: (direction: number) => ({ x: direction >= 0 ? '-100%' : '100%' }),
+}
+
+/**
+ * Longer than `PAGE_ENTER`'s 170ms because the distance is a whole screen rather than
+ * 14px, and on the same front-loaded curve so it still feels immediate. Fast enough that
+ * holding LB/RB through several tabs does not queue up a backlog of travel.
+ */
+export const PAGE_SWIPE = { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const }
