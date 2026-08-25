@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { TIER_STYLE } from '../platform/protondb'
 import { formatPrice } from '../types/steam'
 import { appDetailsLikelyThrottled } from '../platform/steam'
@@ -14,8 +13,8 @@ import { DetailsProton, type ProtonFilters } from './details/DetailsProton'
 import { OfferList } from './details/OfferList'
 import type { OffersState } from '../hooks/useOffers'
 import type { ProtonReportsState } from '../hooks/useProtonReports'
-import { AnimatePresence, motion } from 'motion/react'
-import { PAGE_ENTER, PAGER, PAGE_SWIPE } from '../platform/motion'
+import { motion } from 'motion/react'
+import { PAGE_ENTER, PAGE_SWIPE } from '../platform/motion'
 
 /**
  * The four detail screens, paged with LB/RB as the design specifies.
@@ -127,27 +126,6 @@ export const DetailsPage = ({
   const gallery = buildGallery(details, preview, fallbackArt)
   const name = details?.name ?? fallbackName ?? ''
 
-  /*
-   * Which way the pager travels, so the screen slides the way the tab strip moved.
-   *
-   * ⚠️ Derived from the CHANGE in `screen`, not from `screen` itself, which is why it
-   * lives in a ref rather than in state: it is a fact about the transition rather than
-   * about the page, and setting state here would re-render on the way into a render.
-   * Held between changes so the exiting screen and the entering one agree on the
-   * direction — `AnimatePresence` reads `custom` for both, and if they disagreed the two
-   * halves would travel opposite ways and cross over each other.
-   *
-   * Comparing against the previous value makes a no-op re-render leave it alone, so a
-   * second render for any other reason cannot flip the strip mid-flight.
-   */
-  const seenScreen = useRef(screen)
-  const directionRef = useRef(1)
-  if (seenScreen.current !== screen) {
-    directionRef.current = screen > seenScreen.current ? 1 : -1
-    seenScreen.current = screen
-  }
-  const direction = directionRef.current
-
   const priceLabel = details?.isFree
     ? 'Free'
     : details?.comingSoon
@@ -192,48 +170,44 @@ export const DetailsPage = ({
       </div>
 
       {/*
-        The pager. All four screens live in ONE keyed element so the outgoing and the
-        incoming screen can be on stage together and travel as a strip — see `PAGER` for
-        why that is a slide and not a cross-fade.
+        The pager — a real strip, with ALL FOUR screens mounted side by side and one
+        transform to move between them.
 
-        ⚠️ `absolute inset-0` on the MOTION wrapper, not just on the screen inside it.
-        The pager animates `x`, which compiles to a `transform`, and a transformed element
-        becomes the containing block for every `position: absolute` descendant. A bare
-        wrapper has no height of its own (its children are absolutely positioned), so a
-        screen inside it resolved `top-25 bottom-22` against a zero-height box and
-        collapsed to a ~32px sliver with `overflow-hidden` eating the rest. Sizing the
-        wrapper puts the containing block back where the geometry expects it.
+        ⚠️ **They are mounted all the time on purpose, and that IS the fix.** This started
+        as `AnimatePresence` mounting the incoming screen as it arrived, which is tidier
+        and was measurably wrong: building a screen blocks the main thread, Motion is
+        time-based, so the animation did not slow down — it skipped. Frame-counting a
+        60fps capture of the Mac build showed ~3 frames of a 19-frame slide. Clay's test
+        was better than mine: three fast presses of right went almost straight to the last
+        tab, because the updates coalesced behind the block, while the browser stepped
+        tab to tab.
 
-        ⚠️ Promoted for the same reason the hero inside it is: this is a full-screen
-        subtree carrying the panels' focus rings and, on ProtonDB, a 36px blurred glow.
-        Unpromoted, the compositor re-rasterises the whole screen on every frame of the
-        travel. Promotion does NOT make the mount cheap — swapping tabs still builds a new
-        subtree in one frame; it only stops that subtree being repainted all the way in.
+        With every screen already built and laid out, a switch is one transform on content
+        that is not changing. There is nothing left to block on.
+
+        ⚠️ The cost moved rather than vanished: opening a game now builds four screens
+        instead of one. That is a single hit behind the page-enter animation rather than a
+        stall on every tab press, which is the trade this makes deliberately. If opening a
+        page ever feels slow, mount lazily on first visit and keep them after — do NOT go
+        back to unmounting.
+
+        ⚠️ Each slot is `absolute inset-0` and parked at its own multiple of 100%, so every
+        screen keeps the containing block it already had. That matters: a transformed
+        element becomes the containing block for its absolute descendants, and an earlier
+        version without a sized wrapper collapsed a screen to a ~32px sliver.
       */}
-      <AnimatePresence initial={false} custom={direction}>
-        <motion.div
-          key={screen}
-          custom={direction}
-          variants={PAGER}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={PAGE_SWIPE}
-          style={{ willChange: 'transform' }}
+      <motion.div
+        className="absolute inset-0"
+        animate={{ x: `${-screen * 100}%` }}
+        transition={PAGE_SWIPE}
+        style={{ willChange: 'transform' }}
+      >
+        {/* slot 1 */}
+        <div
           className="absolute inset-0 transform-gpu"
+          style={{ transform: 'translateX(100%)' }}
+          aria-hidden={screen !== 1}
         >
-        {/*
-          ⚠️ `absolute inset-0` on the MOTION wrapper, not just on the screen inside it.
-          `PAGE_ENTER` animates `y`, which compiles to a `transform` — and a transformed
-          element becomes the containing block for every `position: absolute` descendant.
-          A bare wrapper has no height of its own (its only child is absolutely
-          positioned), so the screen inside it resolved `top-25 bottom-22` against a
-          zero-height box and collapsed to a ~32px sliver with `overflow-hidden` eating
-          the rest. Sizing the wrapper puts the containing block back where the geometry
-          expects it. Screen 0 was never affected because its wrapper carries its own
-          `absolute` positioning.
-        */}
-        {screen === 1 && (
           <div className="absolute inset-0">
             <DetailsAbout
               details={details}
@@ -255,8 +229,13 @@ export const DetailsPage = ({
               source={source}
             />
           </div>
-        )}
-        {screen === 2 && (
+        </div>
+        {/* slot 2 */}
+        <div
+          className="absolute inset-0 transform-gpu"
+          style={{ transform: 'translateX(200%)' }}
+          aria-hidden={screen !== 2}
+        >
           <div className="absolute inset-0">
             <DetailsProton
               name={name}
@@ -286,8 +265,13 @@ export const DetailsPage = ({
               source={source}
             />
           </div>
-        )}
-        {screen === 3 && (
+        </div>
+        {/* slot 3 */}
+        <div
+          className="absolute inset-0 transform-gpu"
+          style={{ transform: 'translateX(300%)' }}
+          aria-hidden={screen !== 3}
+        >
           <div className="absolute inset-0">
             <DetailsExtras
               details={details}
@@ -308,9 +292,14 @@ export const DetailsPage = ({
               sectionIndex={zone === 'media' ? sectionIndex : -1}
             />
           </div>
-        )}
+        </div>
 
-        {screen === 0 && (
+        {/* slot 0 */}
+        <div
+          className="absolute inset-0 transform-gpu"
+          style={{ transform: 'translateX(0%)' }}
+          aria-hidden={screen !== 0}
+        >
           <motion.div
             key="overview-text"
             initial={PAGE_ENTER.initial}
@@ -447,7 +436,6 @@ export const DetailsPage = ({
               </button>
             </div>
           </motion.div>
-        )}
 
         {/* The trailer as the object on screen, not a widget in a column. */}
         {/*
@@ -456,7 +444,6 @@ export const DetailsPage = ({
           positioned from `top-24` and run out around `42rem` of a `67.5rem` viewport at
           every scale the rem clamp produces, so the space underneath is genuinely free.
         */}
-        {screen === 0 && (
           <OfferList
             offers={offers.offers}
             loading={offers.loading}
@@ -468,9 +455,7 @@ export const DetailsPage = ({
             onPick={onPickOffer}
             source={source}
           />
-        )}
 
-        {screen === 0 && (
           <MediaGallery
             items={gallery}
             index={mediaIndex}
@@ -481,10 +466,15 @@ export const DetailsPage = ({
             // and would otherwise hide the first offer's price and its button.
             retreated={zone === 'offers'}
             source={source}
+            /*
+              ⚠️ Overview stays MOUNTED while you read another tab — that is the whole
+              point of the strip — so the trailer has to be told when it is off screen
+              or it decodes video nobody can see. See `active` in MediaGallery.
+            */
+            active={screen === 0}
           />
-        )}
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      </motion.div>
     </div>
   )
 }

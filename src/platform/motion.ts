@@ -109,37 +109,21 @@ export const FOCUS_FADE = { duration: 0.15, ease: 'easeOut' as const }
  */
 export const BAND_SLIDE = { duration: 0.2, ease: 'easeOut' as const }
 
-/**
- * The details pager — Overview · About · ProtonDB · Reviews, swiped as a filmstrip.
- *
- * ⚠️ **A slide, and deliberately NOT a cross-fade.** `PAGE_ENTER` above records why a
- * cross-fade was rejected here: every screen paints its own semi-transparent wash over
- * the shared ambient art, so two on screen at once darkens the whole frame. That
- * objection is real, and a filmstrip is what answers it — the outgoing screen sits
- * ADJACENT to the incoming one, never on top of it, so no pixel is ever covered by two
- * washes. Outgoing runs 0 -> -100% while incoming runs +100% -> 0: together they tile
- * the viewport exactly, with no overlap and no gap.
- *
- * That is also why there is no opacity in these variants. Fading would put two
- * translucent screens over the same pixels at the seam and bring the darkening back for
- * the sake of an effect the movement already delivers.
- *
- * `direction` is +1 moving right through the tabs and -1 moving left, so the page always
- * travels the way the tab strip does. A pager that slides the same way whichever
- * direction you moved reads as an animation playing AT you rather than as a strip you
- * are moving along.
- *
- * ⚠️ The screens are `position: absolute`, so a translate of `100%` is 100% of the
- * element's own width — the full viewport — and the app frame's `overflow: hidden` is
- * what keeps the off-screen half from showing.
- */
-export const PAGER = {
-  enter: (direction: number) => ({ x: direction >= 0 ? '100%' : '-100%' }),
-  center: { x: '0%' },
-  exit: (direction: number) => ({ x: direction >= 0 ? '-100%' : '100%' }),
-}
 
 /**
+ * The details pager — Overview · About · ProtonDB · Reviews, moved as a filmstrip.
+ *
+ * ⚠️ **A slide, and deliberately NOT a cross-fade.** `PAGE_ENTER` above records why a
+ * cross-fade was rejected here: every screen paints its own semi-transparent wash over the
+ * shared ambient art, so two stacked on screen darkens the whole frame. A strip answers
+ * that — the screens are ADJACENT, never on top of one another, so no pixel is ever under
+ * two washes, and there is no opacity in this transition at all.
+ *
+ * ⚠️ The screens are laid out as a real strip (all four mounted, each parked at its own
+ * multiple of 100%) and `DetailsPage` translates the strip. An earlier version animated
+ * per-screen variants through `AnimatePresence` instead; see the comment there for why
+ * mounting on arrival made the animation skip rather than play.
+ *
  * ⚠️ **NOT `PAGE_ENTER`'s curve, and the reason is the distance.** This first shipped
  * reusing `[0.16, 1, 0.3, 1]` — correct there, where it is described as "front-loaded so
  * it feels immediate", because that animation travels 14px. Over a whole screen the same

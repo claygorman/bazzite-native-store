@@ -64,6 +64,17 @@ type Props = {
    * "Open bundle page" button all render underneath the trailer.
    */
   retreated?: boolean
+  /**
+   * Whether the Overview screen this gallery belongs to is the one on screen.
+   *
+   * ⚠️ Exists because the details pager keeps ALL FOUR screens mounted so that switching
+   * tabs is a transform rather than a mount. Overview is therefore still alive while you
+   * are reading ProtonDB — and a `<video>` left in the tree goes on decoding frames
+   * nobody can see, which is exactly the kind of background cost the pager was meant to
+   * remove. Unmounting the element (the still underneath keeps the frame looking the
+   * same) stops the decode and detaches hls.js.
+   */
+  active?: boolean
   source: InputSource
 }
 
@@ -124,6 +135,7 @@ export const MediaGallery = ({
   onAudioChange,
   retreated,
   source,
+  active = true,
 }: Props) => {
   const stripRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -192,7 +204,7 @@ export const MediaGallery = ({
     if (videoRef.current) videoRef.current.muted = muted
   }, [muted, current?.src])
 
-  const isAdaptive = current?.kind === 'video' && current.adaptive === true
+  const isAdaptive = active && current?.kind === 'video' && current.adaptive === true
   const hlsState = useHlsVideo(videoRef, isAdaptive ? current?.src : undefined, isAdaptive)
 
   if (!current) return null
@@ -234,7 +246,7 @@ export const MediaGallery = ({
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
-        {current.kind === 'video' && hlsState !== 'failed' && (
+        {active && current.kind === 'video' && hlsState !== 'failed' && (
           <video
             ref={videoRef}
             key={current.src}
