@@ -104,10 +104,8 @@ export type Settings = {
   refreshCadence: RefreshCadence
   deviceProfile: DeviceProfile
   reportDistro: ReportDistro
-  warnKernelAnticheat: boolean
 
   /* Storage */
-  cacheArtwork: boolean
   cacheLimitMb: number
   clearCacheOnQuit: boolean
 
@@ -153,14 +151,7 @@ export const DEFAULT_SETTINGS: Settings = {
   refreshCadence: 'daily',
   deviceProfile: 'desktop',
   reportDistro: 'auto',
-  // ⚠️ Defaults OFF, which is the rule at the top of this block applied honestly: the
-  // app said nothing about anti-cheat before this row existed, so shipping it on would
-  // be a new warning appearing unasked. It also only has anything to say once the
-  // report archive is on disk — 1,707 of the 21,890 reports that answered the question
-  // are impacted — and the archive is itself opt-in.
-  warnKernelAnticheat: false,
 
-  cacheArtwork: true,
   cacheLimitMb: 2048,
   clearCacheOnQuit: false,
 

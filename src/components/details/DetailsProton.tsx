@@ -9,6 +9,7 @@ import {
 import { RUNGS, scoreForHardware, verdictFor, type Rung } from '../../platform/hardwareScore'
 import type { ProtonState } from '../../hooks/useProtonRating'
 import type { DumpPhase } from '../../platform/protonDump'
+import { anticheatSummary, anticheatVerdict, answeredYear } from '../../platform/anticheat'
 import {
   DISTRO_LABEL,
   type NamedDistro,
@@ -335,11 +336,14 @@ export const DetailsProton = ({
 
   const hardware = scoreForHardware(reports, hostGpu)
 
-  // ⚠️ `undefined` and `false` are different answers. `anticheat` is null on every
-  // report whose questionnaire never asked, so the impacted count is over the reports
-  // that ANSWERED — printing it over all reports would understate it silently.
-  const anticheatAnswered = reports.filter((report) => report.anticheat !== undefined)
-  const anticheatImpacted = anticheatAnswered.filter((report) => report.anticheat === true).length
+  /*
+   * ⚠️ `undefined` and `false` are different answers — see `anticheatSummary`, which also
+   * carries WHEN the question was last answered. ProtonDB stopped asking after 2022, so an
+   * undated verdict here reports a four-year-old fact as though it were today's.
+   */
+  const anticheat = anticheatSummary(reports)
+  const anticheatVerdictNow = anticheatVerdict(anticheat)
+  const anticheatYear = answeredYear(anticheat)
 
   return (
     <div className="absolute inset-x-13 bottom-22 top-25 flex items-stretch gap-6.5 overflow-hidden p-3">
@@ -567,26 +571,40 @@ export const DetailsProton = ({
           {ready ? (
             <div
               className={`flex flex-1 flex-col gap-2.5 rounded-xl border p-5.5 ${
-                anticheatImpacted > 0 ? 'border-bad/40 bg-bad-wash' : 'border-hairline bg-chip-soft'
+                /* ⚠️ The alarm colour is reserved for a CURRENT claim. A 2022 verdict
+                   gets the ordinary plate — see the dated line below. */
+                anticheat.blocked > 0 ? 'border-bad/40 bg-bad-wash' : 'border-hairline bg-chip-soft'
               }`}
             >
               <Caption>Anti-cheat</Caption>
-              {anticheatAnswered.length === 0 ? (
+              {anticheatVerdictNow === 'unasked' ? (
                 <span className="text-lg font-medium leading-[1.35] text-ink-2/70 text-pretty">
                   Nobody who reported this game was asked about anti-cheat.
                 </span>
               ) : (
                 <>
                   <span className="text-2xl font-extrabold text-ink">
-                    {anticheatImpacted === 0
+                    {anticheatVerdictNow === 'clear'
                       ? 'Not reported as a blocker'
-                      : anticheatImpacted === anticheatAnswered.length
-                        ? 'Reported as blocking'
-                        : 'Partly blocked'}
+                      : anticheatVerdictNow === 'blocking'
+                        ? 'Was reported as blocking'
+                        : 'Was partly blocked'}
                   </span>
                   <span className="text-lg font-medium leading-[1.35] text-ink-2/78 text-pretty">
-                    {anticheatImpacted} of {anticheatAnswered.length} reports that were asked said
+                    {anticheat.blocked} of {anticheat.asked} reports that were asked said
                     anti-cheat got in the way.
+                  </span>
+                  {/*
+                    ⚠️⚠️ **The line that stops this being a lie.** ProtonDB has not asked
+                    anybody about anti-cheat since 2022 — zero answers across 203,560 reports
+                    from 2023 on — so every verdict above is history. Undated, this panel told
+                    a wishlist game "reported as blocking" on 2022 evidence while Valve's
+                    current Deck verdict for it said Playable. The year is read from the data
+                    rather than hardcoded, so it stays true if ProtonDB ever asks again.
+                  */}
+                  <span className="text-base font-medium leading-[1.35] text-ink-3/45 text-pretty">
+                    Last asked in {anticheatYear}. ProtonDB stopped asking, so this is history
+                    — the Deck verdict above is the maintained answer.
                   </span>
                 </>
               )}

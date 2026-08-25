@@ -118,11 +118,18 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
           'Drops the cached ProtonDB and Deck verdicts so the next look is live',
           'Refresh',
         ),
-        toggle(
-          'cacheArtwork',
-          'Cache artwork and trailers',
-          'Keeps shelves instant on a second visit',
-        ),
+        /*
+         * ⚠️ **"Cache artwork and trailers" was REMOVED here, 2026-08-25.** Nothing artwork
+         * or trailer related is cached to disk by this app — the Rust side caches HTTP
+         * RESPONSES, artwork sits in WebKit's own cache which this process does not control,
+         * and disk-caching microtrailers is still an open task. The switch governed nothing
+         * that exists, exactly like "Prefetch focused tile" did.
+         *
+         * ⚠️ And it should not simply be wired instead: the response cache is what keeps this
+         * app inside Steam's rate limits, so a switch that turns it off is a footgun pointed
+         * at the user's own IP. `cacheLimitMb` and the Reclaim column are the real controls
+         * for what this costs on disk.
+         */
       ],
     },
   },
@@ -208,17 +215,25 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
           'Which distribution’s reports to prefer — “This machine” reads it off this one',
         ),
         /*
-         * ⚠️ Reopened. docs/SETTINGS.md cut this row for "no endpoint we have carries
-         * an anti-cheat signal", which was true of the endpoints and false of the
-         * archive: ProtonDB's dump has an `isImpactedByAntiCheat` column, answered in
-         * 21,890 reports with 1,707 impacted. It says nothing until the archive is on
-         * disk, which is why it ships off.
+         * ⚠️ **"Warn on kernel anti-cheat" was REMOVED here, 2026-08-25 — worth knowing why,
+         * so nobody reopens it a third time.** docs/SETTINGS.md first cut it for "no endpoint
+         * carries an anti-cheat signal"; it was then reopened because ProtonDB's archive has
+         * an `isImpactedByAntiCheat` column. Both readings missed the decisive fact:
+         *
+         * **ProtonDB STOPPED ASKING the question after 2022** — zero answers across 203,560
+         * reports from 2023 on. Measured against the real archive on the box.
+         *
+         * So the flag would have fired on 228 of 31,587 games, confidently on 43, all on
+         * evidence four or more years old. Of the games this store had actually indexed,
+         * exactly ONE had a confident signal: 24-of-29 "blocked", newest answer February
+         * 2022 — and Valve's CURRENT Deck verdict for it is *Playable*. The badge would have
+         * contradicted a maintained source and been wrong, on a game already on the wishlist.
+         *
+         * ⚠️ This is NOT "anti-cheat is fine on Linux" — kernel anti-cheat still blocks real
+         * games. It is that this SOURCE stopped measuring it. The live signal is the Deck
+         * verdict, maintained by Valve and already on every card. See `platform/anticheat.ts`
+         * for the numbers, and the details panel now DATES its claim rather than hiding it.
          */
-        toggle(
-          'warnKernelAnticheat',
-          'Warn on kernel anti-cheat',
-          'Flags games reported as blocked by anti-cheat on Linux',
-        ),
       ],
     },
     colB: {
