@@ -4,6 +4,7 @@ import { isAdultContent } from './contentFilter'
 import { getApps, putApps, STORE_FACTS_TTL_SECONDS } from './appsIndex'
 import { stillToFetch, writeBack } from './appsCache'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
+import { parseSearchResults } from './searchResults'
 import type { AppDetails, ReviewSummary, StoreItem, StoreRow, StoreTag } from '../types/steam'
 
 /**
@@ -107,12 +108,85 @@ const FEATURED_ROWS: ReadonlyArray<{
 const BUDGET_CEILING_CENTS = 1000
 
 /**
- * Build the "Under $10" shelf from items already fetched.
+ * The real "Under $10" — Steam's own top sellers under ten dollars.
  *
- * No extra request, so no rate-limit cost. It is genuinely the cheap end of what the
- * home rows returned rather than a true store-wide price query — `search/results`
- * with a price filter would be the real source, but its `json=1` mode returns only
- * name and logo (private/STEAM-ENDPOINTS.md), which is not enough to render a tile.
+ * ⭐ Replaces `buildBudgetRow`'s approximation, which could only ever offer the cheap end of
+ * shelves fetched for other reasons. This asks the store.
+ *
+ * ## Verified live 2026-08-25 before anything was built on it
+ *
+ * `GET /search/results/?infinite=1&filter=globaltopsellers&maxprice=10&…`
+ *
+ * | check | result |
+ * |---|---|
+ * | filter works | `total_count` 9,159 unfiltered -> **4,097** with `maxprice=10` |
+ * | units | **DOLLARS**, not cents |
+ * | which price | the **FINAL** price — every `data-price-final` in the page was <= 999c, none over |
+ *
+ * ⚠️ The struck-through original prices in the HTML go up to $59.99, so eyeballing the page
+ * for dollar amounts suggests the filter is broken. It is not: those are the *was* prices on
+ * discounted items. Read `data-price-final`, or confirm through the hydrated items.
+ *
+ * ⚠️ Same route the tag browser uses, so this inherits its documented behaviour: minimum
+ * page 25, appids inside `results_html`, and `parseSearchResults` degrades to an empty page
+ * rather than throwing.
+ */
+const BUDGET_PAGE = 25
+
+export const fetchBudgetRow = async (): Promise<StoreRow | undefined> => {
+  try {
+    const json = await steamGet({
+      host: 'store',
+      path: '/search/results/',
+      query: {
+        infinite: 1,
+        filter: 'globaltopsellers',
+        // ⚠️ DOLLARS. `maxprice=1000` is not ten dollars in cents, it is a thousand-dollar
+        // ceiling — measured, and it returns the unfiltered set.
+        maxprice: 10,
+        start: 0,
+        count: BUDGET_PAGE,
+        // Without this Steam applies the caller's own store preferences, which for an
+        // anonymous request means an inconsistently filtered set.
+        ignore_preferences: 1,
+        cc: STORE_LOCALE.cc,
+        l: 'english',
+      },
+      ttlSeconds: STORE_HOURS,
+    })
+    const page = parseSearchResults(json)
+    if (page.appids.length === 0) return undefined
+
+    const facts = await fetchStoreItems(page.appids)
+    // ⚠️ Mapped over the page's order, not the facts map: this is a top-sellers ranking and
+    // a Map does not preserve it.
+    const items = page.appids.flatMap((appid) => {
+      const item = storeItemFromFacts(appid, facts.get(appid))
+      return item ? [item] : []
+    })
+    // ⚠️ No `approximate`. That is the entire point of this function, and it is only
+    // honest because the filter was verified to act on the final price.
+    return items.length > 0 ? { id: 'under_10', title: 'Under $10', items } : undefined
+  } catch {
+    // Rule 3: the caller keeps the approximation rather than losing the shelf.
+    return undefined
+  }
+}
+
+/**
+ * Build the "Under $10" shelf from items already fetched — the FALLBACK.
+ *
+ * No extra request, so no rate-limit cost, and it is genuinely the cheap end of what the
+ * home rows returned rather than a store-wide price query. `approximate` says so.
+ *
+ * ⚠️ Kept, and deliberately, now that `fetchBudgetRow` does the real query: endpoint rule 3
+ * — a dead endpoint must never blank the UI. When the search route fails this shelf still
+ * has something honest in it, still labelled as an approximation.
+ *
+ * ⚠️ The old note here said `search/results` "returns only name and logo, which is not
+ * enough to render a tile". That was true of its `json=1` mode and false of the conclusion:
+ * a tile needs the APPID, and `infinite=1` gives ordered appids that `fetchStoreItems`
+ * hydrates in a batch it already sends.
  */
 const buildBudgetRow = (rows: StoreRow[]): StoreRow | undefined => {
   const seen = new Set<number>()
@@ -240,7 +314,13 @@ export const fetchFeaturedRows = async (): Promise<StoreRow[]> => {
     if (normalized.length > 0) rows.push({ id: key, title, items: normalized, approximate })
   }
 
-  const budget = buildBudgetRow(rows)
+  /*
+   * ⚠️ The real query first, the derivation second — and the derivation is not dead code.
+   * Endpoint rule 3: a dead endpoint must never blank the UI. If `search/results` is down
+   * or changes shape, the shelf still appears with the cheap end of what the home rows
+   * returned, still carrying `approximate` so the F2 HUD names it.
+   */
+  const budget = (await fetchBudgetRow()) ?? buildBudgetRow(rows)
   if (budget) rows.push(budget)
 
   return upgradeFeaturedRow(rows)
