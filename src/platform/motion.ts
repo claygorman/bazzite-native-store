@@ -99,3 +99,12 @@ export const PAGE_ENTER = {
  * wants to feel different should say so on purpose rather than inherit it from a refactor.
  */
 export const FOCUS_FADE = { duration: 0.15, ease: 'easeOut' as const }
+
+/**
+ * The offers band travelling between its resting place and the whole page.
+ *
+ * 200ms ease-out, which is what the CSS `transition-[top]` it replaced already used —
+ * the point of that change was to stop animating a LAYOUT property, not to re-time the
+ * move, so the curve is carried over deliberately. See `OfferList`'s `BAND`.
+ */
+export const BAND_SLIDE = { duration: 0.2, ease: 'easeOut' as const }

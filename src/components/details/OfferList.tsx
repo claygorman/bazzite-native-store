@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { offerRowsFor, type Offer } from '../../hooks/useOffers'
 import { useSteamLibrary } from '../../hooks/useSteamLibrary'
 import { ControllerGlyph } from '../ControllerGlyph'
-import { FOCUS_FADE } from '../../platform/motion'
+import { BAND_SLIDE, FOCUS_FADE } from '../../platform/motion'
 import type { InputSource } from '../../platform/glyphs'
 
 /**
@@ -45,8 +45,33 @@ import type { InputSource } from '../../platform/glyphs'
  * better answer: the hero lifts away, the offers get the height they need, and nothing has
  * to scroll inside anything.
  */
-const BAND_REST = 'absolute inset-x-14 bottom-24 top-[35.5rem]'
-const BAND_FOCUSED = 'absolute inset-x-14 bottom-24 top-25'
+/*
+ * ⚠️ **ONE geometry, and the movement is a transform.** This used to be two classes —
+ * `top-[35.5rem]` and `top-25` — with `transition-[top]` between them, and that was the
+ * choppy hero-to-offers transition Clay reported.
+ *
+ * `top` is a LAYOUT property, and because `bottom` is pinned, moving `top` also changes
+ * the band's HEIGHT. So every frame of that 200ms the browser re-laid-out the entire
+ * offers subtree — every row, every capsule, every price — then repainted it. Roughly
+ * 29rem of travel across most of the screen, at 60fps.
+ *
+ * ⚠️ Promotion could not have saved it and nothing about the earlier fix was wrong: that
+ * one promoted the hero and the gallery, which are the things LEAVING, and they were
+ * genuinely part of it. This is the thing ARRIVING, and no amount of `will-change` makes
+ * a layout property cheap. It had to stop being a layout property.
+ *
+ * The band now always has the FOCUSED geometry and the content inside it is translated
+ * down at rest. The arithmetic works because `bottom` never moves: only the top edge
+ * travels, so a translate of the difference puts the content exactly where the old `top`
+ * put it — 6.25 + 29.25 = 35.5rem.
+ *
+ * ⚠️ `overflow-hidden` is what keeps that honest. Without it the translated content would
+ * hang 29.25rem below the band and run under the button tray at rest. It costs nothing in
+ * clipped focus glows, because the list inside already clips at this same box.
+ */
+const BAND = 'absolute inset-x-14 bottom-24 top-25 overflow-hidden'
+/** 35.5rem (the old `BAND_REST` top) − 6.25rem (`top-25`). See `BAND`. */
+const REST_DROP_REM = 29.25
 
 type Props = {
   offers: Offer[]
@@ -222,19 +247,32 @@ export const OfferList = ({
     })
   }, [row, offers.length, loading])
 
-  const band = `${focused ? BAND_FOCUSED : BAND_REST} transition-[top] duration-200 ease-out`
+  /*
+   * ⚠️ The slide is on the CONTENT, not on the box — see `BAND`. The box never moves, so
+   * `overflow-hidden` there keeps the resting state clipped exactly where the old
+   * `bottom-24` clipped it, and this transform is pure compositing.
+   */
+  const slide = {
+    initial: false as const,
+    animate: { y: focused ? 0 : `${REST_DROP_REM}rem` },
+    transition: BAND_SLIDE,
+    style: { willChange: 'transform' },
+  }
 
   if (loading) {
     return (
-      <div className={`${band} flex flex-col gap-4`}>
-        <div className="h-8 w-72 animate-pulse rounded-md bg-chip" />
-        <div className="h-28 animate-pulse rounded-xl bg-chip-soft" />
+      <div className={BAND}>
+        <motion.div className="flex h-full transform-gpu flex-col gap-4" {...slide}>
+          <div className="h-8 w-72 animate-pulse rounded-md bg-chip" />
+          <div className="h-28 animate-pulse rounded-xl bg-chip-soft" />
+        </motion.div>
       </div>
     )
   }
 
   return (
-    <div className={`${band} flex flex-col gap-4`}>
+    <div className={BAND}>
+      <motion.div className="flex h-full transform-gpu flex-col gap-4" {...slide}>
       <div className="flex items-baseline gap-4.5">
         <h2 className="text-3xl font-extrabold tracking-display text-ink">
           Editions &amp; bundles
@@ -377,8 +415,9 @@ export const OfferList = ({
               </div>
             )
           })}
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
