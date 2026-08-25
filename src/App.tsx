@@ -2465,7 +2465,15 @@ export const App = () => {
         moving the content inward — scaling it would shrink the type as well, which is
         the opposite of what someone sitting ten feet away needs.
       */}
+      {/*
+        ⚠️ The CSS half of `Reduce motion`. `MotionConfig` above governs `motion.*`
+        components and has no opinion at all about a `transition-*` class, so without
+        this the setting cut the springs and left every CSS transition in the app
+        running. The attribute is what `index.css` hangs that rule on; the rule itself
+        carries the reasoning and the note that it dies with the migration.
+      */}
       <main
+        data-reduce-motion={settings.reduceMotion ? 'true' : undefined}
         className="relative h-screen w-screen overflow-hidden bg-surface text-ink"
         style={{ padding: 'var(--safe-area, 0%)' }}
       >

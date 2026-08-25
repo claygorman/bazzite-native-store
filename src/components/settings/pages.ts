@@ -153,7 +153,14 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
         step('trailerAutoplay', 'Microtrailer autoplay', 'Plays on the focused tile after a pause'),
         step('trailerDelayMs', 'Autoplay delay', 'Wait before a trailer starts'),
         toggle('ambientWash', 'Ambient art wash', 'Blurred art glow behind the whole screen'),
-        toggle('reduceMotion', 'Reduce motion', 'Cuts the shelf springs and page transitions'),
+        // ⚠️ The copy changed because the SETTING changed. It used to name the springs
+        // and the page transitions specifically, and that was accurate — those were the
+        // only things it reached, because `MotionConfig` governs Motion components and
+        // nothing else. It now also cuts the CSS transitions (see `index.css`), so the
+        // narrow promise would undersell it. Keyframe animations are still gated per
+        // component and a couple survive on purpose; "almost everything" is the honest
+        // word for that, and this row does not get to claim "everything".
+        toggle('reduceMotion', 'Reduce motion', 'Stills almost everything that moves on its own'),
       ],
     },
   },

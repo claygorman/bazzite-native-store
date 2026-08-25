@@ -444,3 +444,48 @@ body.controller-active * {
     box-shadow: 0 0 0 5px rgb(226 67 76 / 0);
   }
 }
+
+/*
+ * `Reduce motion`, for the half of the app that Motion does not own.
+ *
+ * ⚠️ **This exists because the setting was a HALF-TRUTH.** `MotionConfig
+ * reducedMotion` governs `motion.*` components and nothing else, so turning the row on
+ * cut the springs and the page transitions and left every CSS `transition-*` in the
+ * app running. A switch that does some of what it says is the same defect as a switch
+ * that does none of it — it just takes longer to notice.
+ *
+ * The two selectors mirror `MotionConfig`'s two modes exactly, and they have to, or the
+ * setting and the OS preference would disagree about the same question:
+ *   `reducedMotion="user"`   -> the media query
+ *   `reducedMotion="always"` -> `[data-reduce-motion]`, set from the setting in App.tsx
+ *
+ * ⚠️ **TRANSITIONS ONLY. Deliberately not `animation`.** Killing a keyframe animation
+ * strands the element on whatever its un-animated state happens to be, and that is not
+ * always its resting appearance: `tile-breath-hi` STARTS at `opacity: 0`, so a blanket
+ * `animation: none` would silently delete half the focused tile's bloom. Keyframes are
+ * gated at their component instead, where the resting state is known — see
+ * `TileFocusLight`, which already reads the setting itself for exactly this reason.
+ *
+ * ⚠️ This is the stopgap `private/MOTION-MIGRATION.md` prescribes for a migration that
+ * has not finished, and it is a departure from that plan's letter (it says not to add a
+ * `prefers-reduced-motion` block). The letter assumed the CSS half would be gone. While
+ * both systems exist, each has to answer for itself; leaving the CSS half mute is not
+ * "one system", it is one system and one silence. **Delete this block if the migration
+ * ever completes.**
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+[data-reduce-motion='true'],
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+}
