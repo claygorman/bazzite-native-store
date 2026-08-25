@@ -278,7 +278,15 @@ export const DetailsPage = ({
           */
           animate={zone === 'offers' ? { opacity: 0, y: -24 } : PAGE_ENTER.animate}
           transition={PAGE_ENTER.transition}
-          className={`absolute left-14 top-24 flex w-205 flex-col gap-3.5 ${
+          /*
+            ⚠️ `will-change` because of the `drop-shadow` filter on the child below. This
+            block animates opacity AND y, and an un-promoted filtered subtree is re-run by
+            the compositor on every frame of that move — the same bug as the ambient wash,
+            in a different place. Promoted, the shadow rasterises once and the animation
+            transforms a cached texture.
+          */
+          style={{ willChange: 'transform, opacity' }}
+          className={`absolute left-14 top-24 flex w-205 transform-gpu flex-col gap-3.5 ${
             zone === 'offers' ? 'pointer-events-none' : ''
           }`}
         >

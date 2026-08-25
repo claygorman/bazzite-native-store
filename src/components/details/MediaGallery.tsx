@@ -198,8 +198,22 @@ export const MediaGallery = ({
   if (!current) return null
 
   return (
+    /*
+     * ⚠️ **`transition-[transform,opacity]`, never `transition-all`, and `will-change` is
+     * load-bearing.** This element is large, carries a 70px `box-shadow`, and contains a
+     * PLAYING VIDEO. `transition-all` asks the browser to watch every animatable property,
+     * and without promotion each frame of the retreat re-rasterises that shadow around a
+     * moving video. Reported as "choppy going from the hero to Editions & bundles" on the
+     * macOS build 2026-08-25.
+     *
+     * Promoted, the shadow is baked into the layer's texture once and the retreat is a
+     * transform and an opacity on a cached bitmap — which is all it ever needed to be.
+     * Same fix, same reason, as `AmbientArt`: the cost was never the effect, it was
+     * re-rasterising the effect every frame.
+     */
     <div
-      className={`absolute right-14 top-24 flex w-205 flex-col gap-3 transition-all duration-200 ease-out ${
+      style={{ willChange: 'transform, opacity' }}
+      className={`absolute right-14 top-24 flex w-205 transform-gpu flex-col gap-3 transition-[transform,opacity] duration-200 ease-out ${
         retreated ? 'pointer-events-none -translate-y-6 opacity-0' : ''
       }`}
     >
