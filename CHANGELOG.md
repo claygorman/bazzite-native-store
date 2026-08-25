@@ -1,3 +1,12 @@
+## [0.15.3](https://github.com/claygorman/bazzite-native-store/compare/0.15.2...0.15.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* a stray attribute stopped a cache-key test from running ([af13524](https://github.com/claygorman/bazzite-native-store/commit/af13524334ba8beba133d0fef1da5e2fa769c363))
+* the price is drawn once, not twice, on a wishlist card ([4f3a648](https://github.com/claygorman/bazzite-native-store/commit/4f3a6486e60f4fa329bf41d31ce3aa62ce04dae2))
+* the spotlight row reaches Steam through CEF's own network stack ([529d7ec](https://github.com/claygorman/bazzite-native-store/commit/529d7ec843f730bb4160ce1d6598a78eba6d088d))
+
 ## [0.15.2](https://github.com/claygorman/bazzite-native-store/compare/0.15.1...0.15.2) (2026-08-24)
 
 
