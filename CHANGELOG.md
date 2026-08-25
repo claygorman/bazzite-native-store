@@ -1,3 +1,10 @@
+# [0.16.0](https://github.com/claygorman/bazzite-native-store/compare/0.15.3...0.16.0) (2026-08-25)
+
+
+### Features
+
+* the apps table, phase 2 — read-through ([9d72a43](https://github.com/claygorman/bazzite-native-store/commit/9d72a438e8f2848ec99fb6ba8dc58084d75435b9))
+
 ## [0.15.3](https://github.com/claygorman/bazzite-native-store/compare/0.15.2...0.15.3) (2026-08-25)
 
 
