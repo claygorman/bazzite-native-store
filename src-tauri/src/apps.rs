@@ -13,11 +13,15 @@
 //! disagreement is inspectable later instead of being silently resolved by whoever wrote
 //! last, and it means a new field never needs a migration: it is already in the blob.
 //!
-//! ⚠️ **This module WRITES ONLY.** Nothing reads it back yet, and that is deliberate: the
-//! plan calls for write-through first and read-through as a separate change, because a bug
-//! in either looks exactly like a bug in the other. Landing them together would mean
+//! **Write-through landed first, read-through second, as separate changes** — because a bug
+//! in either looks exactly like a bug in the other, and landing them together would mean
 //! debugging "the shelf shows stale prices" without knowing whether the row was written
-//! wrong or read wrong.
+//! wrong or read wrong. Phase 1 shipped 2026-08-24 and was watched filling on hardware
+//! (54 -> 203 rows in one session) before `fresh_blobs` was written.
+//!
+//! ⚠️ **A miss must always mean "ask upstream", never "there is nothing".** `fresh_blobs`
+//! returns only rows that are present AND fresh, and every caller has to treat an absent
+//! appid as unknown. A cache that confidently answers "no" is worse than no cache.
 //!
 //! Follows `protondb.rs` — same directory convention, same `rusqlite`, same WAL pragmas —
 //! rather than inventing a second database style in one app.
@@ -182,6 +186,82 @@ pub fn upsert(dir: &Path, source: Source, records: &[AppRecord]) -> rusqlite::Re
     };
     tx.commit()?;
     Ok(written)
+}
+
+/// SQLite's default parameter ceiling is 999. A shelf hydration is ~80 appids and a page
+/// of search results is fewer, so this never bites in practice — but "in practice" is how
+/// a query starts failing the day someone opens a 1000-item wishlist.
+const MAX_PARAMS: usize = 500;
+
+/// Read back the blobs this source wrote, for the appids asked about, that are still fresh.
+///
+/// ⭐ **Phase 2 — the half that actually removes requests.** Phase 1 wrote and nothing read.
+///
+/// ⚠️ **Returns only rows that are BOTH present and fresh.** A missing appid means "ask
+/// upstream", never "this app has nothing" — the caller must treat absence as unknown. That
+/// is the same rule the rest of this codebase applies to Steam's silent-failure shapes, and
+/// it matters more here because a cache that answers "no" confidently is worse than no
+/// cache at all.
+///
+/// ⚠️ `max_age_secs` is the CALLER's decision, not a constant here. The freshness a shelf
+/// needs and the freshness a details page needs are different questions, and a module that
+/// stores bytes should not be the one answering them.
+///
+/// Keyed by appid as a STRING because the result crosses into JSON, where object keys are
+/// strings and a numeric key would be silently stringified anyway. Better to be explicit
+/// about it than to have the two sides disagree about what they are looking up.
+pub fn fresh_blobs(
+    dir: &Path,
+    source: Source,
+    appids: &[u32],
+    max_age_secs: i64,
+) -> rusqlite::Result<std::collections::HashMap<String, String>> {
+    let mut found = std::collections::HashMap::new();
+    /*
+     * ⚠️ A TTL of zero or less means NOTHING is fresh, and it returns here rather than
+     * falling into the query. Clamping to zero instead — which is what this did first —
+     * makes the cutoff `now`, so a row written in the same second still counts as fresh
+     * and a caller trying to bypass the cache silently gets a hit. Caught by
+     * `a_zero_ttl_returns_nothing_and_a_huge_one_does_not_overflow`, which is exactly the
+     * kind of off-by-a-second that would only ever show up as an unreproducible stale tile.
+     */
+    if appids.is_empty() || max_age_secs <= 0 {
+        return Ok(found);
+    }
+    let conn = open_db(dir)?;
+    let (blob_col, at_col) = source.columns();
+    // ⚠️ Saturating: a caller passing `i64::MAX` means "any age", and `now - MAX` would
+    // overflow into the future and exclude everything rather than include it.
+    let cutoff = now_secs().saturating_sub(max_age_secs);
+
+    for chunk in appids.chunks(MAX_PARAMS) {
+        let holders = std::iter::repeat_n("?", chunk.len()).collect::<Vec<_>>().join(",");
+        // ⚠️ `{blob_col}`/`{at_col}` are interpolated and the appids are BOUND. That
+        // asymmetry is deliberate and safe: the column names come from `Source`, a closed
+        // enum with no string constructor, so no caller-supplied text ever reaches the SQL.
+        // The appids come from outside and are parameters, always.
+        let sql = format!(
+            "SELECT appid, {blob_col} FROM apps
+              WHERE appid IN ({holders})
+                AND {blob_col} IS NOT NULL
+                AND {at_col} IS NOT NULL
+                AND {at_col} >= ?"
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = chunk
+            .iter()
+            .map(|id| Box::new(*id) as Box<dyn rusqlite::ToSql>)
+            .collect();
+        params.push(Box::new(cutoff));
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (appid, blob) = row?;
+            found.insert(appid.to_string(), blob);
+        }
+    }
+    Ok(found)
 }
 
 /// What the table holds, for the debug channel and for judging whether this is worth
@@ -369,6 +449,90 @@ mod tests {
 
     /// ⚠️ `stats` is surfaced on the debug channel, so it must never carry what someone has
     /// been looking at.
+    /* ───────────────────── phase 2 — reading it back ───────────────────── */
+
+    fn with_blob(appid: u32, blob: &str) -> AppRecord {
+        AppRecord { appid, blob: Some(blob.to_owned()), ..Default::default() }
+    }
+
+    #[test]
+    fn a_fresh_blob_comes_back_keyed_by_appid_as_a_string() {
+        let dir = tmp("read-fresh");
+        upsert(&dir, Source::GetItems, &[with_blob(730, r#"{"name":"a"}"#)]).unwrap();
+
+        let got = fresh_blobs(&dir, Source::GetItems, &[730], 3600).unwrap();
+        assert_eq!(got.get("730").map(String::as_str), Some(r#"{"name":"a"}"#));
+    }
+
+    /// ⚠️ **A miss must mean "ask upstream", never "no such app".** Three different ways to
+    /// miss, and all three have to be indistinguishable to the caller, because the caller's
+    /// only correct response to any of them is to fetch.
+    #[test]
+    fn an_unknown_a_blobless_and_a_stale_row_all_simply_do_not_appear() {
+        let dir = tmp("read-miss");
+        // Written, but by a DIFFERENT source — this source has nothing to say about it.
+        upsert(&dir, Source::AppDetails, &[with_blob(570, r#"{"x":1}"#)]).unwrap();
+        // Written by the right source, but scalars only: no blob, so nothing to return.
+        upsert(&dir, Source::GetItems, &[rec(440)]).unwrap();
+        upsert(&dir, Source::GetItems, &[with_blob(730, r#"{"ok":true}"#)]).unwrap();
+
+        let got = fresh_blobs(&dir, Source::GetItems, &[570, 440, 730, 999], 3600).unwrap();
+        assert_eq!(got.len(), 1, "only the one real hit: {got:?}");
+        assert!(got.contains_key("730"));
+    }
+
+    /// ⚠️ Freshness is the CALLER's question. A zero TTL must return nothing rather than
+    /// being read as "no limit" — a caller disabling the cache must actually disable it.
+    #[test]
+    fn a_zero_ttl_returns_nothing_and_a_huge_one_does_not_overflow() {
+        let dir = tmp("read-ttl");
+        upsert(&dir, Source::GetItems, &[with_blob(730, r#"{}"#)]).unwrap();
+
+        // ⚠️ Zero and negative BOTH mean "nothing is fresh". Clamping them to zero instead
+        // makes the cutoff `now`, and a row written this same second sneaks through — so a
+        // caller bypassing the cache would silently still get a hit.
+        assert!(fresh_blobs(&dir, Source::GetItems, &[730], 0).unwrap().is_empty());
+        assert!(fresh_blobs(&dir, Source::GetItems, &[730], -1).unwrap().is_empty());
+        // ⚠️ `now - i64::MAX` must saturate, not wrap into the future and exclude everything.
+        assert_eq!(fresh_blobs(&dir, Source::GetItems, &[730], i64::MAX).unwrap().len(), 1);
+    }
+
+    /// Each source answers only for its own column — the whole reason blobs are kept apart.
+    #[test]
+    fn each_source_reads_back_only_what_it_wrote() {
+        let dir = tmp("read-sources");
+        upsert(&dir, Source::GetItems, &[with_blob(730, r#""from getitems""#)]).unwrap();
+        upsert(&dir, Source::AppDetails, &[with_blob(730, r#""from appdetails""#)]).unwrap();
+
+        let a = fresh_blobs(&dir, Source::GetItems, &[730], 3600).unwrap();
+        let b = fresh_blobs(&dir, Source::AppDetails, &[730], 3600).unwrap();
+        let c = fresh_blobs(&dir, Source::Reviews, &[730], 3600).unwrap();
+        assert_eq!(a["730"], r#""from getitems""#);
+        assert_eq!(b["730"], r#""from appdetails""#);
+        assert!(c.is_empty(), "Reviews never wrote a blob for this app");
+    }
+
+    /// ⚠️ SQLite's default parameter ceiling is 999. `fresh_blobs` chunks at 500, and this
+    /// is the test that would have caught the day someone opened a very large wishlist.
+    #[test]
+    fn a_batch_past_sqlites_parameter_ceiling_is_chunked_not_rejected() {
+        let dir = tmp("read-chunk");
+        let records: Vec<_> = (1..=1200).map(|id| with_blob(id, r#"{}"#)).collect();
+        upsert(&dir, Source::GetItems, &records).unwrap();
+
+        let asked: Vec<u32> = (1..=1200).collect();
+        let got = fresh_blobs(&dir, Source::GetItems, &asked, 3600).unwrap();
+        assert_eq!(got.len(), 1200, "every chunk answered");
+    }
+
+    #[test]
+    fn asking_about_nothing_never_opens_the_database() {
+        // A directory that does not exist and must not be created by a no-op read.
+        let dir = tmp("read-empty");
+        assert!(fresh_blobs(&dir, Source::GetItems, &[], 3600).unwrap().is_empty());
+        assert!(!dir.exists(), "an empty ask must not create the db");
+    }
+
     #[test]
     fn stats_reports_counts_and_never_names() {
         let dir = tmp("stats");

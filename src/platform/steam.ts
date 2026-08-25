@@ -1,7 +1,8 @@
 import { forgetSteam, steamGet } from './transport'
 import { logEmpty } from './debugLog'
 import { isAdultContent } from './contentFilter'
-import { putApps } from './appsIndex'
+import { getApps, putApps, STORE_FACTS_TTL_SECONDS } from './appsIndex'
+import { stillToFetch, writeBack } from './appsCache'
 import { controllerSupportFrom, deckCompatFrom, linuxNativeFrom } from './storeCategories'
 import type { AppDetails, ReviewSummary, StoreItem, StoreRow, StoreTag } from '../types/steam'
 
@@ -860,13 +861,48 @@ export const fetchStoreItems = async (
   const unique = [...new Set(appids)]
   if (unique.length === 0) return out
 
+  /*
+   * Phase 2 — read-through on the per-app index.
+   *
+   * ⭐ **Why this is the change that pays.** The HTTP cache below keys on the whole
+   * request, and this one takes a BATCH: a game on the home shelf, then in a search, then
+   * on its own details page is three different keys holding the same facts. Keyed on the
+   * appid, the second and third asks cost nothing — and a shelf whose games are all known
+   * skips the request entirely.
+   *
+   * ⚠️ **A miss is "ask upstream", never "no such app".** `getApps` returns only fresh,
+   * parseable rows, so everything not in `known` simply goes in the request as before.
+   */
+  const known = await getApps<StoreItemFacts>('getitems', unique, STORE_FACTS_TTL_SECONDS)
+  for (const [appid, facts] of known) {
+    out.set(appid, facts)
+    /*
+     * ⚠️⚠️ **THE trap in this whole change, and it is silent.** `rememberTrailers` is a
+     * SIDE EFFECT of parsing the response — it fills the module-level registry that
+     * `fetchMicrotrailer` reads. Serve a shelf from cache without replaying it and that
+     * registry stays empty, so every tile the user rests on falls through to
+     * `/api/appdetails`: the one endpoint with a hard ~200 req / 5 min ceiling, once per
+     * tile. Read-through would then trade ONE batched call for N throttled ones and make
+     * the app slower, which is the opposite of the point.
+     *
+     * The trailers are in the blob, so replaying costs nothing. `?? {}` because a blob
+     * written before `include_trailers` has no `trailers` key, and an empty preview is
+     * correctly read by `fetchMicrotrailer` as "we never asked".
+     */
+    rememberTrailers(appid, facts.trailers ?? {})
+  }
+
+  const missing = stillToFetch(unique, known)
+  // Everything already known and fresh: no request at all.
+  if (missing.length === 0) return out
+
   try {
     const json = await steamGet({
       host: 'api',
       path: '/IStoreBrowseService/GetItems/v1/',
       query: {
         input_json: JSON.stringify({
-          ids: unique.map((appid) => ({ appid })),
+          ids: missing.map((appid) => ({ appid })),
           context: {
             language: 'english',
             country_code: STORE_LOCALE.cc,
@@ -898,7 +934,9 @@ export const fetchStoreItems = async (
           },
         }),
       },
-      ttlSeconds: 21600, // app facts are stable for hours, like appdetails
+      // ⚠️ The SAME constant the appid index uses. Two caches over one endpoint with
+      // different opinions about freshness is a bug that presents as "stale sometimes".
+      ttlSeconds: STORE_FACTS_TTL_SECONDS,
     })
 
     const items = asRecord(asRecord(json)?.response)?.store_items
@@ -1064,10 +1102,17 @@ export const fetchStoreItems = async (
    * many apps and is already in the HTTP cache; what has no home anywhere is the per-app
    * view, which is the entire point of keying on appid.
    */
-  if (out.size > 0) {
+  /*
+   * ⚠️ **Only what was FETCHED, never what was read back.** Re-writing a cache hit would
+   * stamp it with a new `_at`, so a row that is read on every shelf load would keep
+   * renewing its own freshness and never expire — the data would be pinned at whatever it
+   * said the first time, forever, and the TTL would silently mean nothing.
+   */
+  const written = writeBack(out, known)
+  if (written.length > 0) {
     void putApps(
       'getitems',
-      [...out.entries()].map(([appid, f]) => ({
+      written.map(([appid, f]) => ({
         appid,
         name: f.name,
         header_url: f.headerUrl,

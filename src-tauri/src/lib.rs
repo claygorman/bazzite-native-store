@@ -85,6 +85,24 @@ async fn apps_put(
     apps::upsert(&apps_dir(&app)?, source, &records).map_err(|e| e.to_string())
 }
 
+/// Read back what this source already knows about these appids, if it is still fresh.
+///
+/// ⭐ Phase 2 of the `apps` table — the half that removes requests rather than recording
+/// them. Unlike `apps_put` this IS awaited by a render path, so it returns a real `Result`
+/// and the TypeScript side degrades to a plain fetch on any error.
+///
+/// ⚠️ An appid missing from the answer means "not cached or not fresh", NEVER "no such
+/// app". See `apps::fresh_blobs`.
+#[tauri::command]
+async fn apps_get(
+    app: tauri::AppHandle,
+    source: apps::Source,
+    appids: Vec<u32>,
+    max_age_secs: i64,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    apps::fresh_blobs(&apps_dir(&app)?, source, &appids, max_age_secs).map_err(|e| e.to_string())
+}
+
 /// Counts only — see `apps::stats` for why it must never carry names or appids.
 #[tauri::command]
 async fn apps_stats(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -287,6 +305,7 @@ pub fn run() {
             proton_check,
             proton_variant_split,
             apps_put,
+            apps_get,
             apps_stats
         ])
         .run(tauri::generate_context!())

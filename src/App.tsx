@@ -36,7 +36,7 @@ import {
  * A, per design turn 10, so walking a list no longer fires a change per step.
  */
 const LIVE_PREVIEW = new Set<SteppableKey>(['uiScalePercent', 'safeAreaPercent'])
-import { appsStats } from './platform/appsIndex'
+import { appsHitRate, appsStats } from './platform/appsIndex'
 import {
   checkForUpdate,
   flatpakUpdateSupport,
@@ -731,10 +731,14 @@ export const App = () => {
   useEffect(() => {
     const read = () =>
       void appsStats().then((s) => {
+        const { asked, served } = appsHitRate()
         setAppsInfo(
           s === undefined
             ? 'n/a'
-            : `${s.apps ?? 0} apps · ${s.withGetItems ?? 0} getitems · ${Math.round(Number(s.bytes ?? 0) / 1024)}kb`,
+            : // ⚠️ `served/asked` is the only honest signal that read-through RUNS. A shelf
+              // renders identically whether the index answered or the network did, because
+              // a miss just fetches — so the picture proves nothing and this does.
+              `${s.apps ?? 0} apps · ${s.withGetItems ?? 0} getitems · ${Math.round(Number(s.bytes ?? 0) / 1024)}kb · ${served}/${asked} served`,
         )
       })
     read()
