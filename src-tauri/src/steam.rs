@@ -295,7 +295,6 @@ mod tests {
     /// order a HashMap happens to iterate its keys in.
     /// The prefix the Downloads card reads back. Losing it silently would leave every
     /// byte attributed to "other" with nothing failing.
-    #[test]
     /// The origin's `max-age` is a FLOOR, never a ceiling.
     ///
     /// Measured against the live endpoints 2026-08-23: three requests 15s apart to
@@ -341,6 +340,7 @@ mod tests {
         assert_eq!(max_age_of(&headers), None);
     }
 
+    #[test]
     fn the_key_is_prefixed_with_its_host() {
         let key = cache_key("protondb", "/api/v1/x.json", &HashMap::new());
         assert!(key.starts_with("protondb-"), "{key}");
