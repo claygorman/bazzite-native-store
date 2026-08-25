@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { TileFocusLight } from './TileFocusLight'
 import { tagsThatFit } from './tagFit'
-import { compatGetsOwnRow, NARROW_CONTENT_REM } from './cardLayout'
+import { compatGetsOwnRow, priceGoesTo } from './cardLayout'
 import { DECK_COMPAT_LABEL, type ControllerSupport, type DeckCompat } from '../types/steam'
 import { DEAL_FLAG_GRADIENTS } from '../platform/steam'
 
@@ -317,8 +317,10 @@ export const StoreCard = ({
    * The narrow branch is what a shelf tile always took anyway; the wide layouts
    * (focusedSide, poster) pass `pricePlacement` explicitly when they want otherwise.
    */
-  const priceOnFacts =
-    pricePlacement === undefined ? contentRem < NARROW_CONTENT_REM : pricePlacement === 'facts'
+  // ⚠️ ONE decision, three slots — see `priceGoesTo`. Deciding the footer and the facts
+  // row separately is what drew the price twice on every wishlist card.
+  const priceSlot = priceGoesTo({ priceFooter, pricePlacement, contentRem })
+  const priceOnFacts = priceSlot === 'facts'
 
   const showTags = facts === 'tags' || facts === 'both'
   const showRating = facts !== 'tags'
@@ -543,7 +545,7 @@ export const StoreCard = ({
           >
             {title}
           </span>
-          {!priceOnFacts && !priceFooter && (
+          {priceSlot === 'title' && (
             <PriceBlock price={price} wasPrice={wasPrice} discount={discount} align="end" />
           )}
         </div>
@@ -597,7 +599,7 @@ export const StoreCard = ({
           </span>
         )}
 
-        {priceFooter && (
+        {priceSlot === 'footer' && (
           /* ⚠️ `mt-auto` is what fills the body: the bands above keep their natural
              heights and this one is pushed to the bottom edge, which is how 15a gets a
              body that runs corner to corner instead of bunching under the title. */

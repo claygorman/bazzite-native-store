@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { compatGetsOwnRow, NARROW_CONTENT_REM } from './cardLayout.ts'
+import { compatGetsOwnRow, NARROW_CONTENT_REM, priceGoesTo } from './cardLayout.ts'
 
 const at = (o: Partial<Parameters<typeof compatGetsOwnRow>[0]>) =>
   compatGetsOwnRow({ compact: false, contentRem: 0, hasDeck: false, hasTier: false, ...o })
@@ -55,4 +55,43 @@ test('the original non-compact behaviour is preserved exactly', () => {
   assert.equal(at({ compact: false, hasDeck: true, contentRem: 10 }), true)
   assert.equal(at({ compact: false, hasTier: true, contentRem: 10 }), true)
   assert.equal(at({ compact: false, hasDeck: true, hasTier: true, contentRem: 10 }), true)
+})
+
+/* ─────────────────────────── where the price goes ─────────────────────────── */
+
+const priceAt = (o: Partial<Parameters<typeof priceGoesTo>[0]>) =>
+  priceGoesTo({ priceFooter: false, contentRem: 0, ...o })
+
+/**
+ * ⚠️ **THE regression.** `WishlistView` passes `priceFooter` AND is parent-sized
+ * (`contentRem` 0), so the width rule independently put the price on the facts row too.
+ * Every card in the list drew `$35.00 | 97%` and then `$35.00` again underneath.
+ * Seen on the box 2026-08-25.
+ */
+test('a footer card draws the price ONCE, in the footer', () => {
+  assert.equal(priceAt({ priceFooter: true }), 'footer')
+  assert.equal(priceAt({ priceFooter: true, contentRem: 60 }), 'footer')
+})
+
+/** An explicit footer outranks an explicit placement — the caller built a band for it. */
+test('the footer wins over a named placement', () => {
+  assert.equal(priceAt({ priceFooter: true, pricePlacement: 'facts' }), 'footer')
+  assert.equal(priceAt({ priceFooter: true, pricePlacement: 'title' }), 'footer')
+})
+
+test('a named placement is honoured at any width', () => {
+  assert.equal(priceAt({ pricePlacement: 'title' }), 'title')
+  assert.equal(priceAt({ pricePlacement: 'facts', contentRem: 60 }), 'facts')
+})
+
+/**
+ * §5.3, unchanged: a narrow card cannot spare the title's width for a price, and the
+ * position must not depend on whether THIS item is discounted — adjacent tiles in one
+ * shelf would put the price in different places and the eye would have to hunt.
+ */
+test('with nothing named, width decides — and only width', () => {
+  assert.equal(priceAt({ contentRem: 0 }), 'facts', 'parent-sized takes the narrow branch')
+  assert.equal(priceAt({ contentRem: NARROW_CONTENT_REM - 0.01 }), 'facts')
+  assert.equal(priceAt({ contentRem: NARROW_CONTENT_REM }), 'title')
+  assert.equal(priceAt({ contentRem: 60 }), 'title')
 })
