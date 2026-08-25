@@ -277,7 +277,18 @@ const Clock = ({ hour24 }: { hour24: boolean }) => {
 export const App = () => {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [view, setView] = useState<View>({ screen: 'home' })
-  const { session } = useSteamSession()
+  /*
+   * ⚠️ `refresh` is not optional. `signIn()` resolves with the SteamID only AFTER the whole
+   * OpenID round-trip finishes — the browser opens, the user signs in, Steam redirects to a
+   * loopback listener, the assertion is verified and the session is written to disk. The
+   * call site used to be `void signIn()`, throwing that result away, and this hook loads the
+   * session ONCE on mount. So a completely successful sign-in left the UI still saying
+   * "Sign in", and the only way to see it had worked was to restart the app.
+   *
+   * Reported on the macOS build 2026-08-25 as "sign in doesn't work". It did work: the
+   * session file was on disk with the right SteamID, written the same minute. Nothing said so.
+   */
+  const { session, refresh: refreshSession } = useSteamSession()
   const inputSource = useInputSource()
   const { settings, set, reset, resetAll } = useSettings()
   /** Null when the Up menu is closed; otherwise which entry is focused. */
@@ -1133,12 +1144,24 @@ export const App = () => {
         case 'sign-out':
           // Only an OpenID session is ours to end; a borrowed one falls through to
           // sign-in, matching the label above.
-          if (session.status === 'signed-in' && session.origin === 'openid') void signOut()
-          else void signIn()
+          /*
+           * ⚠️ Refresh on BOTH outcomes and on failure alike. The truth lives in the session
+           * file, so re-reading it is always right and never wrong: a failed sign-in re-reads
+           * the same signed-out state, and a rejection that is not caught here would surface
+           * as an unhandled promise on a television with nobody to read it.
+           *
+           * ⚠️ Sign-OUT had the identical bug — it too was fire-and-forget.
+           */
+          const settle = () => refreshSession()
+          if (session.status === 'signed-in' && session.origin === 'openid') {
+            void signOut().then(settle, settle)
+          } else {
+            void signIn().then(settle, settle)
+          }
           return
       }
     },
-    [settings, set, resetAll, status, update, session, clientVersion],
+    [settings, set, resetAll, status, update, session, clientVersion, refreshSession],
   )
 
   const focusedTag = tagGroups[tagGroup]?.tags[tagIndex]

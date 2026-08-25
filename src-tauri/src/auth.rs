@@ -90,7 +90,38 @@ fn percent_decode(input: &str) -> String {
 /// The listener binds port 0 so the OS picks a free port — a fixed port collides
 /// with whatever else the user is running and fails at the worst moment.
 fn await_redirect(listener: TcpListener) -> Result<Vec<(String, String)>, String> {
-    let (stream, _) = listener.accept().map_err(|e| e.to_string())?;
+    /*
+     * ⚠️ **Bounded.** `accept()` blocks forever by default, and a sign-in is abandoned all
+     * the time — the user closes the tab, cannot remember the password, gets a Steam Guard
+     * prompt on a phone that is upstairs. Without a deadline that leaves a blocked thread
+     * and an unresolved promise for the life of the process, and the UI can never say the
+     * attempt is over because nothing ever tells it.
+     *
+     * Five minutes is generous on purpose: it has to cover reading an email, finding an
+     * authenticator, and a slow typist. It is a leak stopper, not a UX timer.
+     */
+    const GIVE_UP: std::time::Duration = std::time::Duration::from_secs(300);
+    const PAUSE: std::time::Duration = std::time::Duration::from_millis(120);
+
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let deadline = std::time::Instant::now() + GIVE_UP;
+    let stream = loop {
+        match listener.accept() {
+            Ok((stream, _)) => break stream,
+            // Nothing yet. Not an error — the browser is still with the user.
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                if std::time::Instant::now() >= deadline {
+                    return Err("Timed out waiting for Steam to send you back.".into());
+                }
+                std::thread::sleep(PAUSE);
+            }
+            Err(e) => return Err(e.to_string()),
+        }
+    };
+    // ⚠️ Back to blocking for the READ. The socket inherits the listener's non-blocking
+    // mode on some platforms, and a non-blocking `read_line` returns WouldBlock instead of
+    // waiting for the request line — which would fail every sign-in that got this far.
+    stream.set_nonblocking(false).map_err(|e| e.to_string())?;
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     reader.read_line(&mut request_line).map_err(|e| e.to_string())?;
