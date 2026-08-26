@@ -1,3 +1,10 @@
+## [0.18.1](https://github.com/claygorman/bazzite-native-store/compare/0.18.0...0.18.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* macOS gets an installer that never opens Finder ([55b31e9](https://github.com/claygorman/bazzite-native-store/commit/55b31e98edc724869e94e5e92c1d9d4140ac17d5))
+
 # [0.18.0](https://github.com/claygorman/bazzite-native-store/compare/0.17.0...0.18.0) (2026-08-25)
 
 
