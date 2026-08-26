@@ -97,13 +97,42 @@ Steam runs there too, so the store does. Every release publishes:
 | **macOS**   | `.dmg` — Apple silicon and Intel |
 | **Windows** | `-setup.exe` (x86_64)            |
 
+**On macOS,** one command — it fetches the latest release, installs it, and clears the
+quarantine flag in one step:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/claygorman/bazzite-native-store/main/scripts/install-macos.sh | bash
+```
+
+It lands in `/Applications`, or in `~/Applications` when the first is not writable —
+which is what a managed work Mac usually does. No `sudo`, either way. Re-running it is
+the update path, and `--check` prints installed vs latest without changing anything.
+
+<details>
+<summary>Or install the <code>.dmg</code> by hand</summary>
+
+Open the `.dmg` and drag `bazzite-store.app` onto the `Applications` shortcut inside it,
+then run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/bazzite-store.app
+```
+
+> [!NOTE]
+> The disk image ships **without a window layout** — no background, no arrow, icons
+> unarranged. Tauri sets that layout by driving Finder over AppleScript and the release
+> runner is headless, so the step is skipped silently. The `Applications` symlink is
+> genuinely in there; nothing on screen points at it. If the drag will not take at all,
+> the destination is locked down — use the script above, which never touches Finder.
+
+</details>
+
 > [!WARNING]
-> The macOS and Windows builds are **unsigned**. macOS will refuse to open the app until
-> you clear the quarantine flag, and Windows SmartScreen will warn once:
->
-> ```sh
-> xattr -dr com.apple.quarantine /Applications/bazzite-store.app
-> ```
+> The macOS and Windows builds are **unsigned** — ad-hoc, linker-signed only, with no
+> Developer ID and no notarization. macOS reports the resulting block as
+> **"bazzite-store is damaged and can't be opened"**, which is untrue and reliably sends
+> people back to re-download it. Clearing the quarantine flag is the fix; the installer
+> above does it for you. Windows SmartScreen warns once.
 >
 > Signing them properly costs $99/year for macOS and more again for Windows, for a
 > project whose audience is currently two Linux boxes.

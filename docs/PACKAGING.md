@@ -369,6 +369,41 @@ The workaround is one command, and it is in the README:
 xattr -dr com.apple.quarantine /Applications/bazzite-store.app
 ```
 
+> [!WARNING]
+> **The shipped `.dmg` has no window layout, and CI cannot tell you so.** Verified on
+> the 0.18.0 image, 2026-08-26: the volume contains `bazzite-store.app`, a working
+> `Applications -> /Applications` symlink, `.VolumeIcon.icns` — and **no `.DS_Store`**.
+>
+> Tauri's `bundle_dmg.sh` sets icon positions and the background by driving **Finder
+> over AppleScript**. A GitHub runner is headless, so there is no Finder to drive; the
+> step is skipped and the build still reports success. The release log shows
+> `Running bundle_dmg.sh` followed by the artifact path and no warning at all.
+>
+> The image therefore opens as a bare unarranged list rather than the familiar
+> app-icon-arrow-Applications window. It is fully functional — the drop target is
+> present — but nothing on screen tells a reader to drag anything anywhere. Reported
+> as "it won't let me drag it to Applications" by the first person outside the project
+> to install it.
+>
+> ⚠️ **This is not fixable by configuration.** `bundle.macOS.dmg` options (background,
+> `appPosition`, `applicationFolderPosition`) are applied _through the same AppleScript_,
+> so setting them on a headless runner changes nothing. The real options are a
+> self-hosted macOS runner with a logged-in GUI session, or committing a pre-built
+> `.DS_Store`. Neither is worth it while `scripts/install-macos.sh` exists — that path
+> never opens Finder, and it also handles the `/Applications`-is-read-only case that a
+> managed Mac presents.
+
+The bundle is **ad-hoc, linker-signed only** — the Mach-O executable carries a signature
+(which is why it runs on Apple silicon at all; a truly unsigned arm64 binary would not),
+but the bundle has no `_CodeSignature`. `codesign --verify --deep --strict` reports
+_"code object is not signed at all"_, and `Sealed Resources=none`. Expected for an
+unsigned Tauri build, and worth knowing before sending it to anyone whose employer
+checks bundle signatures.
+
+⚠️ macOS reports the quarantine block as **"bazzite-store is damaged and can't be
+opened"**. It is not damaged, and that wording reliably makes people re-download rather
+than run the `xattr` line — so any install instructions must name the message.
+
 Fixing it properly is **two steps, and doing only the first buys nothing a user would
 notice**:
 

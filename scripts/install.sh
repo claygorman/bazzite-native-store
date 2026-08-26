@@ -78,6 +78,8 @@ fi
 # ── Preconditions ────────────────────────────────────────────────────────────
 case "$(uname -s)" in
   Linux) ;;
+  Darwin) die "This installs a Linux AppImage. On macOS use:
+    curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install-macos.sh | bash" ;;
   *) die "This installs a Linux AppImage. macOS and Windows builds are published
   as a .dmg and a -setup.exe on the releases page:
     https://github.com/$REPO/releases/latest" ;;
