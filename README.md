@@ -35,9 +35,10 @@ This replaces it with a real TV interface.
 Everything is live Steam data. Nothing is mocked.
 
 > [!NOTE]
-> **Alpha, and honest about it.** It works end to end, but it has never been run on the television
-> it is designed for — every screenshot so far is a desktop browser at 2560×1296, not 4K at ten
-> feet. Expect the type sizes to move.
+> **Alpha, and honest about it.** It works end to end, and as of 0.18.0 it has run in Game Mode on
+> the television it is designed for — 4K at ten feet, where the transitions hold up and the
+> self-updater's restart works. The screenshots below are still a desktop browser at 2560×1296,
+> so they are not what the couch sees. Expect the type sizes to move.
 
 ## Install
 
