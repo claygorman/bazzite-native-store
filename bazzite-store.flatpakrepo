@@ -1,0 +1,5 @@
+[Flatpak Repo]
+Title=Bazzite Native Store
+Url=https://claygorman.github.io/bazzite-native-store/repo/
+Homepage=https://github.com/claygorman/bazzite-native-store
+Comment=Controller-first Steam store client for Bazzite Game Mode
